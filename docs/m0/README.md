@@ -4,6 +4,7 @@ This milestone has begun. The Rust crate contains experimental contracts and tes
 
 ## What exists
 
+- [Separated supervisor probe](protected-supervisor.md) with host-owned journal/viewer, container-only workspace, bounded responses and payload-bound dispatch.
 - [Durable Rust authority](durable-control.md) with exclusive journal ownership, persisted action admission, paused restart and unresolved-action recovery.
 - Rust action approval/state fixture with payload binding, expiry, one-time admission, cancellation, and controller generations.
 - Bounded JSONL decoding and initial Codex, Claude SDK, and Ollama event handling.
@@ -54,6 +55,18 @@ Use `--seccomp-profile docker-default` to reproduce the original failing browser
 Run it again to verify the workspace marker survives replacement of the container. A failed probe exits nonzero and retains details. The launcher records stdout, stderr, immutable image ID, exit code and elapsed time under `.local/m0/evidence/`; these files are ignored by Git. OS controls do not establish hostile-tenant isolation, and missing paths are not a general escape test.
 
 The bind-mounted workspace has no hard disk quota in this experiment. The 256-MiB `/tmp` mount is bounded, but retained files can consume host disk space. Storage quotas, full process cancellation, egress mediation and a production secret broker remain M0 work. Never use the fixture launcher for untrusted workloads.
+
+## Separated supervisor and computer
+
+After the image build, local Rust build and seccomp preparation above, run:
+
+```sh
+node scripts/probe-separated.mjs --context YOUR_CONTEXT
+```
+
+This is the current storage-boundary qualification: Rust and the viewer stay on the host, and the browser stays in the container. See [evidence and limitations](protected-supervisor.md). The earlier all-in-one probe remains useful for native startup and viewer UI comparison, but its in-container journal is not protected from that same container.
+
+Journal format 2 adds payload-bound dispatch. Old M0 journals are preserved and rejected; there is no implicit migration. Each probe creates a fresh synthetic journal.
 
 ## Intentional limits
 

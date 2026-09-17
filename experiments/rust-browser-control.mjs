@@ -70,18 +70,19 @@ export class RustBrowserControl {
     this.tail = operation.catch(() => {}).finally(() => { this.queued--; });
     return operation;
   }
-  action(actor, generation, execute) {
+  action(actor, generation, action, execute) {
     return this.enqueue(async () => {
-      const admission = await this.authority.request({ op: 'admit', actor, generation });
+      const admission = await this.authority.request({ op: 'admit', actor, generation, action });
+      await this.authority.request({ op: 'dispatch', actor, generation, ticket: admission.pending, action });
       // A thrown or interrupted action has an uncertain outcome. Leave its ticket pending.
       try { await execute(); }
       catch (error) { await this.authority.request({ op: 'disconnect' }); throw error; }
-      await this.authority.request({ op: 'settle', ticket: admission.pending });
+      await this.authority.request({ op: 'settle', ticket: admission.pending, action });
       return this.state();
     });
   }
-  agentClick(generation) { return this.action('agent', generation, () => this.computer.agentClick()); }
-  input(generation, x, y) { return this.action('human', generation, () => this.computer.humanClick(x, y)); }
+  agentClick(generation) { return this.action('agent', generation, { tool: 'browser.fixture_increment', target: 'fixture', arguments: {} }, () => this.computer.agentClick()); }
+  input(generation, x, y) { return this.action('human', generation, { tool: 'browser.click', target: 'fixture', arguments: { x, y } }, () => this.computer.humanClick(x, y)); }
   async takeover() {
     const state = await this.authority.request({ op: 'takeover' });
     return this.enqueue(async () => {

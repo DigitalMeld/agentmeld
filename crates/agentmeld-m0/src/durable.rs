@@ -1,5 +1,7 @@
 //! Trusted-owner M0 journal. The production supervisor must keep this outside agent storage.
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
+use sha2::{Digest, Sha256};
 use std::{
     fs::{File, OpenOptions},
     io::{Read, Write},
@@ -9,10 +11,13 @@ use std::{
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct Snapshot {
+    pub version: u8,
     pub sequence: u64,
     pub generation: u64,
     pub mode: String,
     pub pending: Option<u64>,
+    pub pending_digest: Option<String>,
+    pub dispatched: bool,
     pub uncertain: bool,
     pub observation: Option<String>,
 }
@@ -21,12 +26,32 @@ pub struct Snapshot {
 #[serde(tag = "op", rename_all = "snake_case", deny_unknown_fields)]
 pub enum Command {
     State,
-    Admit { generation: u64, actor: String },
-    Settle { ticket: u64 },
+    Admit {
+        generation: u64,
+        actor: String,
+        action: Value,
+    },
+    Dispatch {
+        generation: u64,
+        actor: String,
+        ticket: u64,
+        action: Value,
+    },
+    Settle {
+        ticket: u64,
+        action: Value,
+    },
     Takeover,
-    HumanReady { generation: u64 },
-    Resume { generation: u64 },
-    Observed { generation: u64, digest: String },
+    HumanReady {
+        generation: u64,
+    },
+    Resume {
+        generation: u64,
+    },
+    Observed {
+        generation: u64,
+        digest: String,
+    },
     Disconnect,
     Cancel,
 }
@@ -64,16 +89,22 @@ impl Journal {
             return Err("incomplete journal; manual reconciliation required".into());
         }
         let mut state = Snapshot {
+            version: 2,
             sequence: 0,
             generation: 0,
             mode: "agent".into(),
             pending: None,
+            pending_digest: None,
+            dispatched: false,
             uncertain: false,
             observation: None,
         };
         for line in data.lines() {
             let next: Snapshot = serde_json::from_str(line).map_err(|_| "corrupt journal")?;
-            if next.sequence != state.sequence.checked_add(1).ok_or("sequence exhausted")?
+            if next.version != 2
+                || next.pending.is_some() != next.pending_digest.is_some()
+                || (next.dispatched && next.pending.is_none())
+                || next.sequence != state.sequence.checked_add(1).ok_or("sequence exhausted")?
                 || next.generation < state.generation
                 || ![
                     "agent",
@@ -174,7 +205,11 @@ impl Journal {
         };
         match command {
             Command::State => unreachable!(),
-            Command::Admit { generation, actor } => {
+            Command::Admit {
+                generation,
+                actor,
+                action,
+            } => {
                 if !["agent", "human"].contains(&actor.as_str()) {
                     return Err("invalid actor".into());
                 }
@@ -182,13 +217,42 @@ impl Journal {
                 if next.pending.is_some() {
                     return Err("action already pending".into());
                 }
+                if !action.is_object() {
+                    return Err("action object required".into());
+                }
                 next.pending = Some(next.sequence.checked_add(1).ok_or("sequence exhausted")?);
+                next.pending_digest = Some(action_digest(&action)?);
+                next.dispatched = false;
             }
-            Command::Settle { ticket } => {
-                if next.pending != Some(ticket) || next.uncertain {
+            Command::Dispatch {
+                generation,
+                actor,
+                ticket,
+                action,
+            } => {
+                if !["agent", "human"].contains(&actor.as_str()) {
+                    return Err("invalid actor".into());
+                }
+                require(&actor, generation)?;
+                if next.pending != Some(ticket)
+                    || next.dispatched
+                    || next.pending_digest != Some(action_digest(&action)?)
+                {
+                    return Err("dispatch ticket or payload mismatch".into());
+                }
+                next.dispatched = true;
+            }
+            Command::Settle { ticket, action } => {
+                if next.pending != Some(ticket)
+                    || next.uncertain
+                    || !next.dispatched
+                    || next.pending_digest != Some(action_digest(&action)?)
+                {
                     return Err("unknown or uncertain ticket".into());
                 }
                 next.pending = None;
+                next.pending_digest = None;
+                next.dispatched = false;
             }
             Command::Takeover => {
                 if !["agent", "paused"].contains(&next.mode.as_str()) || next.uncertain {
@@ -198,6 +262,7 @@ impl Journal {
                     .generation
                     .checked_add(1)
                     .ok_or("generation exhausted")?;
+                revoke_undispatched(&mut next);
                 next.mode = "pausing".into();
             }
             Command::HumanReady { generation } => {
@@ -228,6 +293,7 @@ impl Journal {
                 next.mode = "agent".into();
             }
             Command::Disconnect | Command::Cancel => {
+                revoke_undispatched(&mut next);
                 next.generation = next
                     .generation
                     .checked_add(1)
@@ -241,5 +307,19 @@ impl Journal {
             }
         }
         self.persist(next)
+    }
+}
+
+fn action_digest(action: &Value) -> Result<String, String> {
+    let bytes = serde_json::to_vec(action).map_err(|_| "invalid action")?;
+    if bytes.len() > 8192 {
+        return Err("action too large".into());
+    }
+    Ok(format!("{:x}", Sha256::digest(bytes)))
+}
+fn revoke_undispatched(state: &mut Snapshot) {
+    if !state.dispatched && !state.uncertain {
+        state.pending = None;
+        state.pending_digest = None;
     }
 }

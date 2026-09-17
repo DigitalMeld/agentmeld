@@ -1,12 +1,12 @@
 # M0 durable Rust control authority
 
-Date: 2026-09-17. Scope: trusted fixture ownership and recovery, exercised both through local subprocess tests and the isolated browser experiment. This is not yet a production supervisor or a boundary against malicious agent code.
+Date: 2026-09-17. Scope: trusted fixture ownership and recovery, exercised both through local subprocess tests and the isolated browser experiment. This is not yet a production supervisor. The newer [separated probe](protected-supervisor.md) keeps journal ownership outside the agent container.
 
 ## Implemented
 
 The Rust `supervise JOURNAL` command holds an exclusive OS file lock for its process lifetime. It reads a bounded append-only journal, validates sequential records, and acknowledges each change only after writing and syncing that record. Startup also syncs the containing directory. It refuses incomplete final records, malformed history, oversized journals and concurrent owners.
 
-Control state includes a monotonically increasing generation, mode, pending action ticket, uncertainty flag and last accepted observation digest. The worker must obtain a ticket before submitting agent or human browser input, and settle that ticket only after the action returns successfully. Takeover fences new/queued agent dispatch before waiting for admitted work. Human control is acknowledged only after pending input settles. Resume captures an observation in the browser worker and commits its digest in Rust before admitting new agent input.
+Control state includes a monotonically increasing generation, mode, pending action ticket and payload digest, one-time dispatch status, uncertainty flag and last accepted observation digest. The worker must obtain a ticket before submitting agent or human browser input, and settle that ticket only after the action returns successfully. Takeover fences new/queued agent dispatch before waiting for admitted work. Human control is acknowledged only after pending input settles. Resume captures an observation in the browser worker and commits its digest in Rust before admitting new agent input.
 
 Rust owns those transitions; `rust-browser-control.mjs` owns the serialized browser I/O and bounded stdio transport. The earlier in-memory Node controller remains a reference fixture for race tests, but the container browser probe now uses the Rust authority. The approval-only `RunControl` fixture has not been merged into the durable controller; durable approvals remain separate work.
 
@@ -29,10 +29,10 @@ The real Chromium probe uses the Linux ARM64 Rust executable built in the pinned
 
 ## Trust and packaging limits
 
-For this synthetic experiment, journal files live in the disposable fixture workspace and are accessible to its trusted worker. They are not protected from an agent running under the same account. Production must keep control storage outside the agent mount and expose only an authenticated, scoped worker protocol. A caller-supplied actor string is not authentication; the stdio bridge is currently a trusted caller. The observation digest records what that caller reported, not independent proof of screenshot freshness.
+In the original all-in-one synthetic experiment, journal files live in the disposable fixture workspace and are accessible to its trusted worker. The newer separated probe stores them on the host, outside all container mounts. They are not protected from an agent running under the same account. Production must keep control storage outside the agent mount and expose only an authenticated, scoped worker protocol. A caller-supplied actor string is not authentication; the stdio bridge is currently a trusted caller. The observation digest records what that caller reported, not independent proof of screenshot freshness.
 
 Filesystem durability and locks were exercised on the local macOS filesystem and the Linux ARM64 VM's mounted fixture workspace. Network filesystems, power-loss behavior and cross-host ownership are unqualified. Path checks assume an operator-owned directory and do not prevent a malicious directory owner from replacing files. Journal integrity is structural, not a cryptographic tamper guarantee.
 
 The builder image is pinned to Linux ARM64 Rust 1.95.0. Multi-architecture packaging remains unqualified. The final runtime contains the compiled executable, not the Rust build toolchain. Source dependencies remain the existing locked Rust packages; no new library or production service was added.
 
-Next: separate supervisor storage from agent execution, bind admission to actual tool payloads and worker identity, then qualify a native provider's approval/cancellation path through that boundary. Keep restart and uncertainty checks as regression gates.
+Next: bind authenticated worker identity and qualify a native provider's approval/cancellation path through the separated, payload-bound boundary. Keep restart and uncertainty checks as regression gates.

@@ -28,19 +28,20 @@ test('Rust owns admission, takeover and observation across process replacement',
   const recovered = await open();
   assert.equal(recovered.current.mode, 'paused');
   assert.ok(recovered.current.generation > resumed.generation);
-  await assert.rejects(recovered.request({ op: 'admit', generation: resumed.generation, actor: 'agent' }), /stale/);
+  await assert.rejects(recovered.request({ op: 'admit', generation: resumed.generation, actor: 'agent', action: { tool: 'fixture' } }), /stale/);
 }));
 
 test('exclusive ownership and unfinished action block restart dispatch', async () => fixture(async open => {
   const owner = await open();
   await assert.rejects(open(), /exited/);
-  const state = await owner.request({ op: 'admit', generation: 0, actor: 'agent' });
+  const state = await owner.request({ op: 'admit', generation: 0, actor: 'agent', action: { tool: 'fixture' } });
+  await owner.request({ op: 'dispatch', generation: 0, actor: 'agent', ticket: state.pending, action: { tool: 'fixture' } });
   const exited = new Promise(resolve => owner.process.once('exit', resolve));
   owner.process.kill('SIGKILL'); await exited;
   const recovered = await open();
   assert.equal(recovered.current.uncertain, true);
   assert.equal(recovered.current.pending, state.pending);
-  await assert.rejects(recovered.request({ op: 'settle', ticket: state.pending }), /uncertain/);
+  await assert.rejects(recovered.request({ op: 'settle', ticket: state.pending, action: { tool: 'fixture' } }), /uncertain/);
   await assert.rejects(recovered.request({ op: 'takeover' }), /unavailable/);
 }));
 
@@ -76,4 +77,25 @@ test('cancellation during a fresh observation cannot reopen durable dispatch', a
   await owner.close();
   const recovered = await open(); assert.equal(recovered.current.mode, 'cancelled');
   await assert.rejects(recovered.request({ op: 'takeover' }), /unavailable/);
+}));
+
+test('dispatch and settlement bind the payload and dispatch ticket is single-use', async () => fixture(async open => {
+  const owner = await open(); const action = { tool: 'browser.click', x: 10, y: 20 };
+  const admitted = await owner.request({ op: 'admit', actor: 'agent', generation: 0, action });
+  const dispatch = { op: 'dispatch', actor: 'agent', generation: 0, ticket: admitted.pending, action };
+  await assert.rejects(owner.request({ ...dispatch, action: { ...action, x: 11 } }), /mismatch/);
+  await owner.request(dispatch);
+  await assert.rejects(owner.request(dispatch), /mismatch/);
+  await assert.rejects(owner.request({ op: 'settle', ticket: admitted.pending, action: { tool: 'different' } }), /ticket/);
+  await owner.request({ op: 'settle', ticket: admitted.pending, action });
+  await assert.rejects(owner.request({ op: 'settle', ticket: admitted.pending, action }), /ticket/);
+}));
+
+test('takeover revokes an admitted action that has not dispatched', async () => fixture(async open => {
+  const owner = await open(); const action = { tool: 'fixture' };
+  const admitted = await owner.request({ op: 'admit', actor: 'agent', generation: 0, action });
+  const takeover = await owner.request({ op: 'takeover' });
+  assert.equal(takeover.pending, null);
+  await assert.rejects(owner.request({ op: 'dispatch', actor: 'agent', generation: 0, ticket: admitted.pending, action }), /stale/);
+  assert.equal((await owner.request({ op: 'human_ready', generation: takeover.generation })).mode, 'human');
 }));

@@ -194,7 +194,7 @@ await check('browser_viewer_takeover', async () => {
     authority = await RustAuthority.open('/usr/local/bin/agentmeld-m0', journal);
     assert.equal(authority.current.mode, 'paused');
     assert.ok(authority.current.generation > lastGeneration);
-    await assert.rejects(authority.request({ op: 'admit', generation: lastGeneration, actor: 'agent' }), /stale/);
+    await assert.rejects(authority.request({ op: 'admit', generation: lastGeneration, actor: 'agent', action: { tool: 'fixture' } }), /stale/);
     return { authority: 'rust_journal', restartPaused: true, authenticated: true, takeover: true, staleAgentRejected: true, freshObservationCounter: '2', resumedCounter: '3', disconnectPaused: true, screenshot: 'viewer.png', transport: 'container_loopback' };
   } finally { if (viewer) await viewer.close(); if (authority) await authority.close(); await browser.close(); }
 });
