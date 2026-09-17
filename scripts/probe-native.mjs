@@ -8,6 +8,7 @@ import assert from 'node:assert/strict';
 import { RustAuthority } from '../experiments/rust-browser-control.mjs';
 import { ContainerComputer } from '../experiments/container-computer.mjs';
 import { OwnedWorker, dockerRuntime } from '../experiments/owned-worker.mjs';
+import { startResultServer } from '../experiments/result-server.mjs';
 import { ResultArchive } from '../experiments/result-archive.mjs';
 import { NativeToolBroker } from '../experiments/native-tool-broker.mjs';
 
@@ -81,6 +82,17 @@ try {
       authority = await RustAuthority.open(binary, join(controlDirectory, scenario + '.jsonl'));
       assert.equal(authority.current.mode, 'paused');
       assert.deepEqual((await archive.readSettled(authority, scope)).value, JSON.parse(toolResult.contentItems[0].text));
+      const access = await startResultServer({ authority, archive, scope });
+      try {
+        assert.equal((await fetch(access.origin + '/result')).status, 401);
+        const headers = { Authorization: `Bearer ${access.token}` };
+        const response = await fetch(access.origin + '/result', { headers });
+        assert.equal(response.status, 200);
+        assert.deepEqual((await response.json()).result, JSON.parse(toolResult.contentItems[0].text));
+        access.revoke();
+        assert.equal((await fetch(access.origin + '/result', { headers })).status, 410);
+        report.cases.at(-1).httpResultAfterRestart = true;
+      } finally { await access.close(); }
       await authority.close(); authority = null;
     }
   }

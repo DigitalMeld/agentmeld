@@ -4,6 +4,8 @@ This milestone has begun. The Rust crate contains experimental contracts and tes
 
 ## What exists
 
+- [Scoped result access](result-access.md), read-only local capabilities with absolute expiry, revocation and restart readback.
+
 - [Durable tool result archive](result-archive.md), Rust storage with quotas, integrity checks and save-before-settle ordering.
 
 - [Approved workspace text reads](workspace-read.md), bounded to one immediate file and qualified through real Codex callbacks.
