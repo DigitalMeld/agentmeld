@@ -19,7 +19,7 @@ parser.add_argument("--context", required=True)
 parser.add_argument("--image", default="agentmeld-m0:local")
 parser.add_argument("--workspace", default="fixture")
 parser.add_argument("--seccomp-profile", choices=["browser", "docker-default"], default="browser")
-parser.add_argument("--probe", choices=["native", "recovery"], default="native")
+parser.add_argument("--probe", choices=["native", "recovery", "workspace"], default="native")
 args = parser.parse_args()
 root = Path(__file__).resolve().parents[1]
 owned = root / ".local/m0/workspaces"
@@ -35,6 +35,8 @@ plan[plan.index("--name") + 1] = container_name
 if args.probe == "recovery":
     plan[1:1] = ["--env=AGENTMELD_TEST_BINARY=/usr/local/bin/agentmeld-m0"]
     plan[-1:] = ["--test", "--test-reporter=tap", "/opt/agentmeld/recovery-boundaries.test.mjs"]
+elif args.probe == "workspace":
+    plan[-1:] = ["--test", "--test-reporter=tap", "/opt/agentmeld/workspace-tools.test.mjs"]
 profile_digest = None
 if args.seccomp_profile == "browser":
     spec = importlib.util.spec_from_file_location("prepare_seccomp", root / "scripts/prepare-seccomp.py")
@@ -57,7 +59,7 @@ except subprocess.TimeoutExpired:
 evidence = root / ".local/m0/evidence"
 evidence.mkdir(parents=True, exist_ok=True)
 run_id = str(time.time_ns())
-(evidence / (run_id + (".stdout.tap" if args.probe == "recovery" else ".stdout.json"))).write_text(result.stdout)
+(evidence / (run_id + (".stdout.json" if args.probe == "native" else ".stdout.tap"))).write_text(result.stdout)
 (evidence / (run_id + ".stderr.txt")).write_text(result.stderr)
 metadata = {"imageId": image_id, "probe": args.probe, "exitCode": result.returncode, "elapsedSeconds": round(time.monotonic() - started, 3), "workspace": args.workspace, "seccompProfile": args.seccomp_profile, "seccompSha256": profile_digest}
 (evidence / (run_id + ".meta.json")).write_text(json.dumps(metadata, indent=2) + "\n")

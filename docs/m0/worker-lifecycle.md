@@ -1,6 +1,6 @@
 # M0 local worker identity, grants and cancellation
 
-Date: 2026-09-17. Scope: trusted local Docker runtime, host-owned control files, two explicit Codex dynamic tools and authenticated viewer cancellation. This is not remote worker authentication, a production grant service or live inference.
+Date: 2026-09-17. Scope: trusted local Docker runtime, host-owned control files, three explicit Codex dynamic tools and authenticated viewer cancellation. This is not remote worker authentication, a production grant service or live inference.
 
 ## Local identity binding
 
@@ -14,16 +14,17 @@ This establishes the tested local launch binding through a trusted Docker client
 
 The native broker defaults to no grants and checks its host-configured tool set before creating an approval. The owned worker independently checks that the tool is granted and that workspace and worker scope match. These checks run again before dispatch. Revocation after review prevents execution and leaves the unused ticket revoked. Cancellation permanently revokes that owned-worker object's grants, even if runtime shutdown cannot be confirmed.
 
-Two tools are implemented:
+Three tools are implemented:
 
 | Tool | Arguments | Result and limits |
 | --- | --- | --- |
 | `fixture_sum` | Exactly two safe integers | Validated safe-integer sum |
 | `workspace_list` | Empty object; no path selection | Sorted immediate workspace entry names, at most 128 entries, at most 255 bytes each |
+| `workspace_read` | One immediate filename | Up to 64 KiB of UTF-8 text, byte count and SHA-256; requires filename-bound approval |
 
 The listing implementation iterates the bound workspace root, does not recurse, does not follow entry symlinks and does not read file contents. It rejects an oversized listing rather than silently truncating it. The broker rejects malformed names, control characters, duplicates, path separators and additional result fields. Filenames are still untrusted data. A compromised worker can lie about its workspace; schema checks cannot prove filesystem truth.
 
-Grant configuration is supplied by trusted host code. No model-supplied grant, shell operation, arbitrary path, file contents or control-plane command is admitted through this adapter. Codex built-in tools and arbitrary code running in the container remain outside this narrow dynamic-tool broker. The older fixture-only callers can still use an explicitly trusted raw computer; the native container probe uses the owned-worker binding.
+Grant configuration is supplied by trusted host code. No model-supplied grant, shell operation, arbitrary path or control-plane command is admitted through this adapter. File contents are available only through the [bounded text-read contract](workspace-read.md). Codex built-in tools and arbitrary code running in the container remain outside this narrow dynamic-tool broker. The older fixture-only callers can still use an explicitly trusted raw computer; the native container probe uses the owned-worker binding.
 
 ## Confirmed cancellation
 
@@ -50,3 +51,5 @@ Rebuilt local image `sha256:44333c79a16c24cb8fe09ff5c6afa23d7275d935fcc0a293a8b7
 The default suite passes 84 tests (13 Rust, 69 Node, 2 Python), plus formatting, Clippy, build and documentation checks. New worker-binding regressions reject removed/excess resource limits, missing capability drops, added capabilities, unconfined security options, shared host namespaces and device access. No dependencies or credentials were added. The dedicated VM was stopped after the probes and its container inventory was empty. The image remains local and unpublished.
 
 The Linux recovery tests use tmpfs journals and do not establish power-loss durability. Real provider inference, remote-worker authentication, disk quotas and production recovery remain open. Reproduction commands and retained evidence locations are in the [M0 guide](README.md).
+
+The subsequent [workspace-read batch](workspace-read.md) expands native qualification to nine scenarios and records the newer image and 90-test local suite.

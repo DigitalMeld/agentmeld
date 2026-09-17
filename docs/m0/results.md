@@ -12,9 +12,9 @@ Date: 2026-09-17. Status: **started, not complete**. These are experimental cont
 | Browser control and viewer HTTP | 7 tests passed | In-process queue and local HTTP authentication; no native harness mediation |
 | Durable Rust subprocess integration | 10 tests passed, including private-screen restart and capture fencing: replacement, exclusive lock, SIGKILL with unfinished action, corruption, fencing, cancellation, payload binding and one-time dispatch | Trusted host caller/storage; production identity remains open |
 | Crash boundaries and journal validation | 16 tests passed: six SIGKILL boundaries through two restarts, fresh observation and deduplication, eight invalid-history cases, four torn-record offsets | Host macOS and Linux ARM64 tmpfs; no power-loss or worker reconciliation proof |
-| Native tool approval | 11 tests passed; reconnect replay and ledger exhaustion, scope/payload binding, expiry, duplicates, concurrent proposals, revocation and uncertain recovery | Two bounded Codex tools; fixture reviewer, no production grant service |
+| Native tool approval | 13 tests passed; filename-bound read grants/approvals and result withholding, reconnect replay and ledger exhaustion, scope/payload binding, expiry, duplicates, concurrent proposals, revocation and uncertain recovery | Three bounded Codex tools; fixture reviewer, no production grant service |
 | Owned worker | 5 tests passed: resource and process limits, identity/scope/grants, termination readback failures and reconciliation | Trusted local runtime; no remote authentication |
-| Workspace listing | 3 tests passed: bounds, arguments, names and non-recursive symlink behavior | Names only; no file contents |
+| Workspace tools | 7 tests passed: listing bounds plus UTF-8 text reads, path/result binding, file-type/link/size rejection and nonblocking FIFO handling | Immediate files only; no immutable snapshot or durable content archive |
 | Computer response boundary | 4 tests passed: unsolicited commands, unmatched/oversized responses, malformed images and invalid dimensions | No malicious-browser or kernel-escape certification |
 | Rust formatting and Clippy | Passed with warnings denied | Local checks only |
 | Codex 0.154.0 app-server | Real container process initialized; empty thread list; nonexistent continuation rejected | Dynamic-tool allow/deny/revoke also passed with a synthetic model; no authenticated inference or successful resume |
@@ -57,7 +57,7 @@ M1 remains gated on these integration results. Only an experimental fixture view
 
 The separated supervisor probe passed in 0.63 seconds in one local sample using that earlier image. Its run-specific report and protected fixture files remain under ignored `.local/m0/control/`. This is not a performance benchmark.
 
-The default suite now passes 84 tests (13 Rust, 69 Node, 2 Python), plus formatting, Clippy, build and documentation checks. The separated native probe completed allow, deny, revoke, granted listing and ungranted listing through actual Codex callbacks with a synthetic model stream. See [native approvals and measurements](native-tools.md) for scope and reproduction.
+The default suite now passes 90 tests (13 Rust, 75 Node, 2 Python), plus formatting, Clippy, build and documentation checks. The separated native probe completed allow, deny, revoke, granted listing and ungranted listing through actual Codex callbacks with a synthetic model stream. See [native approvals and measurements](native-tools.md) for scope and reproduction.
 
 [Reconnect, private screen and cancellation](recovery-privacy.md) adds durable logical-call replay protection, screenshot suppression across restart, and a whole-container termination probe with uncooperative child/grandchild processes. The four container probes remain offline and synthetic.
 
@@ -68,3 +68,5 @@ The Ollama readiness batch rechecked the installed 0.34.1 service and rejected a
 The [crash-boundary batch](durable-control.md#crash-boundary-qualification) strengthens journal validation and tests actual supervisor process loss. Its checks run against the freshly built host Rust binary. The container image above predates this validator change and was not rebuilt or requalified in this batch.
 
 The subsequent [Linux runtime requalification](worker-lifecycle.md#linux-runtime-requalification) rebuilt the image, passed all 16 recovery cases inside Linux, and reran all four existing container probes with stricter worker resource/process binding. Its image ID and samples supersede the earlier image evidence above for the current runtime. No live inference was performed.
+
+[Approved workspace text reads](workspace-read.md) adds a third granted native tool and four Codex callback scenarios. The rebuilt image passes all six explicit container probes, including Linux workspace and recovery suites. The current default suite totals 90 tests; no live inference or personal file access occurred.

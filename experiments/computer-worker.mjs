@@ -1,5 +1,5 @@
 // Runs in the agent container. It has no journal handle, supervisor connection or viewer capability.
-import { listWorkspace } from './workspace-tools.mjs';
+import { listWorkspace, readWorkspace } from './workspace-tools.mjs';
 import { normalizeArguments } from './tool-contract.mjs';
 import { spawn } from 'node:child_process';
 import { setTimeout as delay } from 'node:timers/promises';
@@ -16,7 +16,7 @@ async function handle(op, args) {
     return { ready: true };
   }
   if (op === 'native_start' && !native) {
-    native = await startNativeFixture(args.tool || 'fixture_sum');
+    native = await startNativeFixture(args.tool || 'fixture_sum', args.arguments);
     return { frame: native.frame, threadId: native.threadId, turnId: native.turnId };
   }
   if (op === 'native_finish' && native) {
@@ -26,6 +26,7 @@ async function handle(op, args) {
     normalizeArguments(op, args);
     return listWorkspace('/workspace');
   }
+  if (op === 'workspace_read') return readWorkspace('/workspace', args);
   if (op === 'fixture_sum') {
     normalizeArguments(op, args);
     return { sum: args.a + args.b };

@@ -114,3 +114,34 @@ test('grant revocation after review prevents dispatch and clears an unused ticke
   assert.equal((await broker.decide(proposal.id, true)).success, false);
   assert.equal(executions, 0); assert.equal(owner.current.pending, null); assert.equal(owner.current.mode, 'paused');
 }));
+test('workspace text requires a grant and exact filename approval before any read', async () => fixture(async open => {
+  const { createHash } = await import('node:crypto');
+  const owner = await open(); let reads = 0;
+  const call = { ...frame(), params: { ...frame().params, tool: 'workspace_read', arguments: { name: 'fixture.txt' } } };
+  const text = 'synthetic text';
+  const computer = { request: async (tool, args) => {
+    reads++; assert.equal(tool, 'workspace_read'); assert.deepEqual(args, { name: 'fixture.txt' });
+    return { name: args.name, text, bytes: Buffer.byteLength(text), sha256: createHash('sha256').update(text).digest('hex') };
+  } };
+  await assert.rejects(new NativeToolBroker(owner, computer, expected).propose(call), /grant/);
+  assert.equal(owner.current.approval, null);
+  const broker = new NativeToolBroker(owner, computer, expected, ['workspace_read']);
+  const denied = await broker.propose(call);
+  assert.equal((await broker.decide(denied.id, false)).success, false); assert.equal(reads, 0);
+  const next = { ...call, params: { ...call.params, callId: 'new-read' } };
+  const proposal = await broker.propose(next);
+  const { action, scope } = normalizeCodexCall(next, expected);
+  await assert.rejects(owner.request({ op: 'decide', approval_id: proposal.id, action: { ...action, arguments: { name: 'other.txt' } }, scope, allow: true }), /binding/);
+  assert.equal(reads, 0);
+  const result = await broker.decide(proposal.id, true);
+  assert.equal(result.success, true); assert.equal(JSON.parse(result.contentItems[0].text).text, text);
+  assert.equal(reads, 1); assert.equal(owner.current.pending, null);
+}));
+test('invalid workspace text digest is withheld and leaves the action unsettled', async () => fixture(async open => {
+  const owner = await open();
+  const call = { ...frame(), params: { ...frame().params, tool: 'workspace_read', arguments: { name: 'fixture.txt' } } };
+  const broker = new NativeToolBroker(owner, { request: async () => ({ name: 'fixture.txt', text: 'must not be returned', bytes: 20, sha256: 'a'.repeat(64) }) }, expected, ['workspace_read']);
+  const proposal = await broker.propose(call); const result = await broker.decide(proposal.id, true);
+  assert.equal(result.success, false); assert.equal(JSON.stringify(result).includes('must not be returned'), false);
+  assert.equal(owner.current.mode, 'paused'); assert.notEqual(owner.current.pending, null);
+}));

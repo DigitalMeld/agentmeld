@@ -1,6 +1,6 @@
 // Explicit local qualification. The host owns control; the container owns only its computer.
 import { execFileSync } from 'node:child_process';
-import { mkdir, writeFile, readFile } from 'node:fs/promises';
+import { mkdir, writeFile, readFile, symlink } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { resolve, join } from 'node:path';
@@ -34,29 +34,34 @@ const report = { phase: 'm0', native: 'codex_dynamic_tools', fixtureModel: true,
 const stop = () => { try { docker(['stop', '--time', '1', name]); } catch { } };
 const deadline = setTimeout(() => { computer?.fail(new Error('probe deadline')); stop(); }, 90000);
 try {
-  await writeFile(join(workspace, 'fixture.txt'), 'synthetic workspace listing fixture\n');
+  await writeFile(join(workspace, 'fixture.txt'), 'synthetic workspace text fixture\n');
+  await symlink('fixture.txt', join(workspace, 'linked.txt'));
   computer = new ContainerComputer('docker', ['--context', context, ...plan], () => { authority?.request({ op: 'disconnect' }).catch(() => {}); stop(); });
-  for (const scenario of ['allow', 'deny', 'revoke', 'workspace_list', 'ungranted']) {
+  for (const scenario of ['allow', 'deny', 'revoke', 'workspace_list', 'ungranted', 'workspace_read', 'read_denied', 'read_ungranted', 'read_symlink']) {
     const start = performance.now();
     authority = await RustAuthority.open(binary, join(controlDirectory, scenario + '.jsonl'), () => { computer?.fail(new Error('authority lost')); stop(); });
-    const tool = ['workspace_list', 'ungranted'].includes(scenario) ? 'workspace_list' : 'fixture_sum';
-    const native = await computer.request('native_start', { tool });
+    const reading = scenario === 'workspace_read' || scenario.startsWith('read_');
+    const ungranted = ['ungranted', 'read_ungranted'].includes(scenario);
+    const tool = reading ? 'workspace_read' : ['workspace_list', 'ungranted'].includes(scenario) ? 'workspace_list' : 'fixture_sum';
+    const native = await computer.request('native_start', { tool, ...(reading ? { arguments: { name: scenario === 'read_symlink' ? 'linked.txt' : 'fixture.txt' } } : {}) });
     const id = (await readFile(join(controlDirectory, 'worker.cid'), 'utf8')).trim();
-    const grants = scenario === 'ungranted' ? ['fixture_sum'] : ['fixture_sum', 'workspace_list'];
+    const grants = ungranted ? ['fixture_sum'] : ['fixture_sum', 'workspace_list', 'workspace_read'];
     const worker = await OwnedWorker.bind({ id, image, workspace, computer, runtime: dockerRuntime(context), tools: grants });
     const broker = new NativeToolBroker(authority, worker, { workspace, worker: id, thread: native.threadId, turn: native.turnId }, grants);
     let toolResult;
-    if (scenario === 'ungranted') {
+    if (ungranted) {
       await assert.rejects(broker.propose(native.frame), /grant/);
       assert.equal(authority.current.approval, null);
       toolResult = { success: false, contentItems: [{ type: 'inputText', text: 'Tool grant denied' }] };
     } else {
       const proposal = await broker.propose(native.frame);
       if (scenario === 'revoke') await authority.request({ op: 'cancel' });
-      toolResult = await broker.decide(proposal.id, scenario !== 'deny');
+      toolResult = await broker.decide(proposal.id, !['deny', 'read_denied'].includes(scenario));
     }
-    assert.equal(toolResult.success, ['allow', 'workspace_list'].includes(scenario));
+    assert.equal(toolResult.success, ['allow', 'workspace_list', 'workspace_read'].includes(scenario));
     if (scenario === 'workspace_list') assert.ok(JSON.parse(toolResult.contentItems[0].text).entries.includes('fixture.txt'));
+    if (scenario === 'workspace_read') assert.equal(JSON.parse(toolResult.contentItems[0].text).text, 'synthetic workspace text fixture\n');
+    if (scenario === 'read_symlink') { assert.equal(authority.current.mode, 'paused'); assert.notEqual(authority.current.pending, null); }
     const result = await computer.request('native_finish', { result: toolResult });
     assert.equal(result.turnStatus, 'completed');
     assert.equal(result.modelRequests, 2);
