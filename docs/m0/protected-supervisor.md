@@ -1,6 +1,6 @@
 # M0 supervisor outside the agent container
 
-Date: 2026-09-17. Scope: local host control, offline Linux ARM64 browser computer, and payload-bound fixture dispatch. Native provider-tool mediation and hostile-tenant isolation are not yet qualified.
+Date: 2026-09-17. Scope: local host control, offline Linux ARM64 browser computer, and payload-bound fixture dispatch. A narrow Codex dynamic-tool path is now qualified separately in [native tools](native-tools.md); general native-tool mediation and hostile-tenant isolation remain open.
 
 ## Boundary
 
@@ -12,7 +12,7 @@ Docker inspection verifies the exact workspace mount and nonprivileged, read-onl
 
 ## Payload-bound admission
 
-Journal format 2 records the SHA-256 digest of canonical JSON action content alongside the pending ticket. The host obtains admission, then consumes a one-time dispatch authorization for the same actor, generation, ticket and payload before sending the computer operation. Settlement must match that ticket and payload. Altered payloads and duplicate dispatch/settlement attempts are rejected.
+Journal format 3 retains the SHA-256 digest of canonical JSON action content alongside the pending ticket. The host obtains admission, then consumes a one-time dispatch authorization for the same actor, generation, ticket and payload before sending the computer operation. Settlement must match that ticket and payload. Altered payloads and duplicate dispatch/settlement attempts are rejected.
 
 Takeover, cancellation and disconnect revoke an admission that has not dispatched. Already-dispatched actions remain pending until settled or reconciled; their side effects cannot be undone by changing a generation. A crash after dispatch authorization but before receiving the result remains uncertain, including when the computer operation may never have started.
 
@@ -37,7 +37,7 @@ The runner retains its report, journal, canary and computer screenshot in its ru
 ## Remaining work
 
 - Native Codex/Claude approval and tool dispatch must route through an authenticated, scoped interface. Their native tools are not automatically governed by this browser broker.
-- Agent-originated requests need grant evaluation and payload-bound approval, not access to ownership/admin commands. The native approval fixture and durable authority remain separate.
+- The Codex dynamic-tool fixture now uses durable scoped approvals. Production requests still need authenticated grant evaluation, broader tool coverage and a reviewer UI.
 - A compromised computer can alter its own workspace or lie about results. Its OS-level tool access and network policy still need qualification, including effects outside the broker.
 - Worker identity, process-replacement fencing across machines, secret brokering, mediated egress, resource quotas and credential-entry suppression remain open.
 - The host itself and its configured Docker context are trusted. Another host process running as the owner can read control files; this design does not isolate malicious peers sharing that account.

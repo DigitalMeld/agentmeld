@@ -1,9 +1,10 @@
 # M0 local qualification
 
-This milestone has begun. The Rust crate contains experimental contracts and tests; it is not a deployed control plane. Full provider execution, credentials, persisted approvals, production viewer control, and iMessage delivery remain separately qualified capabilities. A narrow browser viewer/takeover experiment now passes. See [results](results.md) for current evidence.
+This milestone has begun. The Rust crate contains experimental contracts and tests; it is not a deployed control plane. Full provider execution, credentials, production viewer control, and iMessage delivery remain separately qualified capabilities. A narrow browser viewer/takeover experiment now passes. See [results](results.md) for current evidence.
 
 ## What exists
 
+- [Durable approvals and native Codex callback](native-tools.md), tested with a synthetic model stream and measured locally.
 - [Separated supervisor probe](protected-supervisor.md) with host-owned journal/viewer, container-only workspace, bounded responses and payload-bound dispatch.
 - [Durable Rust authority](durable-control.md) with exclusive journal ownership, persisted action admission, paused restart and unresolved-action recovery.
 - Rust action approval/state fixture with payload binding, expiry, one-time admission, cancellation, and controller generations.
@@ -66,11 +67,13 @@ node scripts/probe-separated.mjs --context YOUR_CONTEXT
 
 This is the current storage-boundary qualification: Rust and the viewer stay on the host, and the browser stays in the container. See [evidence and limitations](protected-supervisor.md). The earlier all-in-one probe remains useful for native startup and viewer UI comparison, but its in-container journal is not protected from that same container.
 
-Journal format 2 adds payload-bound dispatch. Old M0 journals are preserved and rejected; there is no implicit migration. Each probe creates a fresh synthetic journal.
+Journal format 3 adds durable approvals to payload-bound dispatch. Old M0 journals are preserved and rejected; there is no implicit migration. Each probe creates a fresh synthetic journal.
+
+Run the separate native Codex callback and host measurement probes as described in [native tool qualification](native-tools.md).
 
 ## Intentional limits
 
-The approval and channel gates remain in-memory single-process experiments; browser ownership now has a separate durable Rust journal. They do not yet authenticate actors or persist decisions across restart. The viewer experiment proves ordering only for its own submitted browser operations; it does not mediate native harness tools. Native provider resume, approval callbacks, model-dependent tools, and task cancellation need live qualified tests before being advertised.
+The channel gate remains an in-memory experiment. Browser ownership and narrowly scoped tool approvals now use the durable Rust journal; production actor authentication remains open. The viewer mediates its own browser operations, and the native adapter mediates one Codex dynamic fixture tool. Native built-in tools, provider resume, live model-dependent tools, and task cancellation need further qualification before being advertised.
 
 The container has no host credentials and no network. A real authenticated provider probe needs a separately configured, scoped credential path and reviewed egress. Do not copy a host's `.codex`, `.claude`, keychain, Messages database, or browser profile to bypass that requirement. Ollama cloud aliases are not local-model proof.
 

@@ -1,7 +1,8 @@
 // Runs in the agent container. It has no journal handle, supervisor connection or viewer capability.
 import { chromium } from 'playwright';
+import { startNativeFixture } from './codex-native-fixture.mjs';
 import { readFile, access, appendFile, mkdir } from 'node:fs/promises';
-let browser; let page;
+let browser; let page; let native;
 async function handle(op, args) {
   if (op === 'init' && !browser) {
     await mkdir('/tmp/home', { recursive: true });
@@ -9,6 +10,20 @@ async function handle(op, args) {
     page = await browser.newPage({ viewport: { width: 640, height: 360 } });
     await page.setContent('<title>Separated counter</title><style>button{position:absolute;left:280px;top:150px;width:80px;height:60px}</style><output>0</output><button>+1</button><script>document.querySelector("button").onclick=()=>document.querySelector("output").textContent++;</script>');
     return { ready: true };
+  }
+  if (op === 'native_start' && !native) {
+    native = await startNativeFixture();
+    return { frame: native.frame, threadId: native.threadId, turnId: native.turnId };
+  }
+  if (op === 'native_finish' && native) {
+    try { return await native.finish(args.result); } finally { await native.close(); native = null; }
+  }
+  if (op === 'fixture_sum') {
+    if (!Number.isSafeInteger(args.a) || !Number.isSafeInteger(args.b) || !Number.isSafeInteger(args.a + args.b)) throw new Error('invalid arguments');
+    return { sum: args.a + args.b };
+  }
+  if (op === 'metrics') {
+    return { cgroupPeakBytes: Number(await readFile('/sys/fs/cgroup/memory.peak', 'utf8')), workerRssBytes: process.memoryUsage().rss };
   }
   if (!page) throw new Error('not initialized');
   if (op === 'agent_click') { await page.getByRole('button', { name: '+1', exact: true }).click(); return { completed: true }; }
@@ -45,4 +60,4 @@ try {
     }
   }
   if (buffer.length) throw new Error('truncated input');
-} finally { if (browser) await browser.close(); }
+} finally { if (native) await native.close(); if (browser) await browser.close(); }

@@ -27,7 +27,7 @@ Authenticated viewer requests renew a five-second lease. Silence revokes the cap
 
 ## Limits and next work
 
-- Durable generation ownership now lives in the Rust M0 authority and is exercised through real subprocesses. Its fixture journal remains inside the trusted worker boundary; production storage separation and durable approvals are unqualified.
+- Durable generation ownership now lives in the Rust M0 authority and is exercised through real subprocesses. The all-in-one comparator keeps its journal inside the worker; the newer separated probe qualifies host-owned storage, and the native-tool probe adds durable fixture approvals. Production identity and broad tool mediation remain unqualified.
 - The experiment gates only actions submitted through its controller. Native harnesses or arbitrary code with direct browser/process access are not mediated by this queue. Provider tool dispatch must be integrated before claiming a global takeover guarantee.
 - Screenshot polling and coordinate clicks establish a narrow viewer contract. General keyboard entry, streaming video, clipboard, downloads and accessibility-tree interaction are not implemented.
 - The browser image has a fixed 640 by 360 viewport. No cross-browser, mobile, remote network or multiuser qualification is claimed.

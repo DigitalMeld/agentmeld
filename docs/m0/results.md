@@ -10,23 +10,24 @@ Date: 2026-09-17. Status: **started, not complete**. These are experimental cont
 | Python policy integrity | 2 tests passed | Rejects unverified upstream bytes and locally modified policy |
 | Node Ollama loop | 4 tests passed, including invoking the Rust fixture tool | Injected HTTP transport; no model inference |
 | Browser control and viewer HTTP | 7 tests passed | In-process queue and local HTTP authentication; no native harness mediation |
-| Durable Rust subprocess integration | 7 tests passed: replacement, exclusive lock, SIGKILL with unfinished action, corruption, fencing, cancellation, payload binding and one-time dispatch | Trusted caller/storage; production worker boundary and durable approvals remain open |
+| Durable Rust subprocess integration | 7 tests passed: replacement, exclusive lock, SIGKILL with unfinished action, corruption, fencing, cancellation, payload binding and one-time dispatch | Trusted host caller/storage; production identity remains open |
+| Native tool approval | 7 tests passed; scope/payload binding, expiry, duplicates, concurrent proposals, revocation and uncertain recovery | Fixed Codex sum tool; fixture reviewer, no production grant service |
 | Computer response boundary | 4 tests passed: unsolicited commands, unmatched/oversized responses, malformed images and invalid dimensions | No malicious-browser or kernel-escape certification |
 | Rust formatting and Clippy | Passed with warnings denied | Local checks only |
-| Codex 0.154.0 app-server | Real container process initialized; empty thread list; nonexistent continuation rejected | No authenticated turn, native tool or successful resume |
+| Codex 0.154.0 app-server | Real container process initialized; empty thread list; nonexistent continuation rejected | Dynamic-tool allow/deny/revoke also passed with a synthetic model; no authenticated inference or successful resume |
 | Claude Agent SDK 0.3.274 | Real container startup rejected missing credentials through SDK exception | No authenticated turn or native permission callback |
 | Container OS boundary | UID 1000, zero effective capabilities, no-new-privileges, seccomp, read-only root, loopback only | Not an escape test or hostile-tenant qualification |
 | Workspace replacement | Marker advanced from 0 to 1 to 2 to 3 across disposable containers | No hard workspace disk quota |
 | Chromium renderer sandbox | **Passed with explicit browser seccomp policy**; button click and screenshot verified; renderer has 2 seccomp filters and PID namespace depth 3 | Headless synthetic fixture only |
 | Browser viewer/takeover | Real Chromium UI completed counter 1 → human 2 → resumed agent 3; displayed frame verified, stale input rejected, disconnect paused | Rust journal authority and paused process replacement verified; no production authentication, protected control storage or credential-entry mode |
-| Separated supervisor | Host journal excluded from container mounts; canary read/write denied; host viewer HTTP workflow and paused recovery passed | Host account and Docker context trusted; native provider tools not mediated |
+| Separated supervisor | Host journal excluded from container mounts; canary read/write denied; host viewer HTTP workflow and paused recovery passed | Host account and Docker context trusted; general native tools not mediated |
 | iMessage | Identity, echo, duplicate and revocation fixtures passed | No Mac bridge connected and no messages sent |
 
 The original default-profile failure is now reproduced and resolved for this offline fixture. Namespace creation failed under Docker defaults. The Playwright profile then exposed a `chroot` denial after dropping capabilities. An explicit browser policy permits that syscall while the outer container still has no effective capabilities and cannot chroot. The normal probe now exits 0; the Docker-default comparison still exits 1. See [diagnosis and policy](browser-sandbox.md).
 
-The probe ran in a dedicated Colima Linux VM on an Apple Silicon Mac, configured with 2 vCPUs, 4 GiB memory and 20 GiB disk. Each probe container was limited to 1 CPU, 1 GiB RAM, 256 PIDs and a 256 MiB temporary filesystem. The last probe took about 2.30 seconds including the viewer fixture including container startup; this is a single offline sample, not an inference benchmark or sizing recommendation. Peak RSS and browser memory remain unmeasured.
+The probe ran in a dedicated Colima Linux VM on an Apple Silicon Mac, configured with 2 vCPUs, 4 GiB memory and 20 GiB disk. Each probe container was limited to 1 CPU, 1 GiB RAM, 256 PIDs and a 256 MiB temporary filesystem. The last probe took about 1.83 seconds with the viewer fixture and container startup; this is a single offline sample, not an inference benchmark or sizing recommendation. The [native-tool report](native-tools.md) now records Rust latency/RSS, Codex peak RSS and native/browser cgroup memory samples.
 
-The final local image ID was `sha256:ecf3919cefa840079c4b9a8297f2c98a0091452e03e29502204ab7f298671cbd`. It is not published. Raw machine-local evidence is retained under ignored `.local/m0/evidence/`. No host credentials or browser profiles were mounted.
+The final local image ID was `sha256:02e567c0d1e949a63de05888388d1277940c786dd9d920b36ec65a36fd8314da`. It is not published. Raw machine-local evidence is retained under ignored `.local/m0/evidence/`. No host credentials or browser profiles were mounted.
 
 ## Versions and distribution notes
 
@@ -43,12 +44,14 @@ Exact JavaScript resolution is recorded in `package-lock.json`; Rust resolution 
 
 ## Next M0 work, in order
 
-1. Integrate native tool requests and scoped worker identity with the [separated supervisor](protected-supervisor.md); qualify credential-entry suppression and worker recovery. Keep the renderer sandbox and control-ordering checks as regression gates.
+1. Extend the [qualified Codex dynamic-tool adapter](native-tools.md) to authenticated worker identity and broader native tool coverage; qualify credential-entry suppression and worker recovery. Keep the renderer sandbox and control-ordering checks as regression gates.
 2. Define scoped provider credentials and mediated egress. Run actual Claude/Codex streamed answers, native tools, allow/deny, cancellation and process-replacement continuation. Do not import personal host auth directories.
 3. Select a local Ollama tool model and run the bounded tool loop against real inference, including failures and cancellation. Current cloud aliases do not satisfy this check.
-4. Add durable admission/replay protection, process-tree cancellation, workspace quotas and resource measurements before promoting experimental contracts into a service.
+4. Extend durable admission with a reconnect request ledger, process-tree cancellation, workspace quotas and sustained resource measurements before promoting experimental contracts into a service.
 5. Configure an explicitly designated iMessage test identity and paired Mac bridge; qualify real correlation, attachments, reconnect and uncertain delivery.
 
 M1 remains gated on these integration results. Only an experimental fixture viewer UI exists; no application control plane, hosted service, training pipeline or production deployment has been created.
 
-The separated supervisor probe passed in 0.82 seconds in one local sample using the same final image. Its run-specific report and protected fixture files remain under ignored `.local/m0/control/`. This is not a performance benchmark.
+The separated supervisor probe passed in 0.62 seconds in one local sample using the same final image. Its run-specific report and protected fixture files remain under ignored `.local/m0/control/`. This is not a performance benchmark.
+
+The default suite now passes 44 tests (13 Rust, 29 Node, 2 Python), plus formatting, Clippy, build and documentation checks. The separated native probe completed allow, deny and revoke through actual Codex callbacks with a synthetic model stream. See [native approvals and measurements](native-tools.md) for scope and reproduction.

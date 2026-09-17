@@ -73,6 +73,7 @@ try {
   assert.equal(control.state().mode, 'paused');
   assert.equal((await fetch(viewer.origin + '/frame', { headers })).status, 410);
   report.checks.viewer = { passed: true, hostAuthenticated: true, takeover: true, freshObservation: true, finalCounter: '3', disconnectedPaused: true };
+  report.resources = await computer.request('metrics');
   await viewer.close(); viewer = null;
   await computer.close(); computer = null;
   await authority.close();

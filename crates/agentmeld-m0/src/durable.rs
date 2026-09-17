@@ -20,12 +20,45 @@ pub struct Snapshot {
     pub dispatched: bool,
     pub uncertain: bool,
     pub observation: Option<String>,
+    pub approval: Option<Approval>,
+    pub decision: Option<String>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct ApprovalScope {
+    pub workspace: String,
+    pub worker: String,
+    pub thread: String,
+    pub turn: String,
+    pub request: String,
+}
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct Approval {
+    pub id: u64,
+    pub generation: u64,
+    pub expires_at_ms: u64,
+    pub scope: ApprovalScope,
+    pub digest: String,
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(tag = "op", rename_all = "snake_case", deny_unknown_fields)]
 pub enum Command {
     State,
+    Propose {
+        generation: u64,
+        action: Value,
+        scope: ApprovalScope,
+        ttl_ms: u64,
+    },
+    Decide {
+        approval_id: u64,
+        action: Value,
+        scope: ApprovalScope,
+        allow: bool,
+    },
     Admit {
         generation: u64,
         actor: String,
@@ -89,7 +122,7 @@ impl Journal {
             return Err("incomplete journal; manual reconciliation required".into());
         }
         let mut state = Snapshot {
-            version: 2,
+            version: 3,
             sequence: 0,
             generation: 0,
             mode: "agent".into(),
@@ -98,16 +131,27 @@ impl Journal {
             dispatched: false,
             uncertain: false,
             observation: None,
+            approval: None,
+            decision: None,
         };
         for line in data.lines() {
             let next: Snapshot = serde_json::from_str(line).map_err(|_| "corrupt journal")?;
-            if next.version != 2
+            if next.version != 3
+                || (next.mode == "awaiting_approval") != next.approval.is_some()
+                || next.approval.as_ref().is_some_and(|approval| {
+                    next.pending.is_some()
+                        || approval.generation != next.generation
+                        || approval.id == 0
+                        || approval.id > next.sequence
+                        || approval.digest.len() != 64
+                })
                 || next.pending.is_some() != next.pending_digest.is_some()
                 || (next.dispatched && next.pending.is_none())
                 || next.sequence != state.sequence.checked_add(1).ok_or("sequence exhausted")?
                 || next.generation < state.generation
                 || ![
                     "agent",
+                    "awaiting_approval",
                     "pausing",
                     "human",
                     "resuming",
@@ -142,6 +186,7 @@ impl Journal {
             }
             next.uncertain = next.pending.is_some();
             next.observation = None;
+            next.approval = None;
         }
         journal.persist(next)?;
         // Persist the directory entry as well as the journal bytes before returning ownership.
@@ -205,6 +250,73 @@ impl Journal {
         };
         match command {
             Command::State => unreachable!(),
+            Command::Propose {
+                generation,
+                action,
+                scope,
+                ttl_ms,
+            } => {
+                require("agent", generation)?;
+                if next.pending.is_some()
+                    || next.approval.is_some()
+                    || !action.is_object()
+                    || ttl_ms == 0
+                    || ttl_ms > 300_000
+                    || [
+                        &scope.workspace,
+                        &scope.worker,
+                        &scope.thread,
+                        &scope.turn,
+                        &scope.request,
+                    ]
+                    .iter()
+                    .any(|s| s.is_empty() || s.len() > 256)
+                {
+                    return Err("invalid approval proposal".into());
+                }
+                next.approval = Some(Approval {
+                    id: next.sequence.checked_add(1).ok_or("sequence exhausted")?,
+                    generation,
+                    expires_at_ms: now_ms()?.checked_add(ttl_ms).ok_or("expiry overflow")?,
+                    scope,
+                    digest: action_digest(&action)?,
+                });
+                next.decision = None;
+                next.mode = "awaiting_approval".into();
+            }
+            Command::Decide {
+                approval_id,
+                action,
+                scope,
+                allow,
+            } => {
+                let approval = next.approval.as_ref().ok_or("no pending approval")?;
+                require("awaiting_approval", approval.generation)?;
+                if approval.id != approval_id
+                    || approval.scope != scope
+                    || approval.digest != action_digest(&action)?
+                {
+                    return Err("approval binding mismatch".into());
+                }
+                let expired = now_ms()? >= approval.expires_at_ms;
+                next.decision = Some(
+                    if expired {
+                        "expired"
+                    } else if allow {
+                        "allow"
+                    } else {
+                        "deny"
+                    }
+                    .into(),
+                );
+                if allow && !expired {
+                    next.pending = Some(next.sequence.checked_add(1).ok_or("sequence exhausted")?);
+                    next.pending_digest = Some(approval.digest.clone());
+                    next.dispatched = false;
+                }
+                next.approval = None;
+                next.mode = "agent".into();
+            }
             Command::Admit {
                 generation,
                 actor,
@@ -255,7 +367,9 @@ impl Journal {
                 next.dispatched = false;
             }
             Command::Takeover => {
-                if !["agent", "paused"].contains(&next.mode.as_str()) || next.uncertain {
+                if !["agent", "paused", "awaiting_approval"].contains(&next.mode.as_str())
+                    || next.uncertain
+                {
                     return Err("takeover unavailable".into());
                 }
                 next.generation = next
@@ -318,8 +432,18 @@ fn action_digest(action: &Value) -> Result<String, String> {
     Ok(format!("{:x}", Sha256::digest(bytes)))
 }
 fn revoke_undispatched(state: &mut Snapshot) {
+    state.approval = None;
     if !state.dispatched && !state.uncertain {
         state.pending = None;
         state.pending_digest = None;
     }
+}
+
+fn now_ms() -> Result<u64, String> {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_err(|_| "clock unavailable")?
+        .as_millis()
+        .try_into()
+        .map_err(|_| "clock overflow".into())
 }
