@@ -24,7 +24,7 @@ export class NativeToolBroker {
     const pending = { ...normalized, generation: this.authority.current.generation };
     this.pending = pending;
     try {
-      const state = await this.authority.request({ op: 'propose', generation: pending.generation, action: pending.action, scope: pending.scope, ttl_ms: ttlMs });
+      const state = await this.authority.request({ op: 'propose', generation: pending.generation, action: pending.action, scope: pending.scope, ttl_ms: ttlMs, result_required: Boolean(this.archive) });
       pending.id = state.approval.id;
       return { id: pending.id, tool: pending.action.tool, arguments: { ...pending.action.arguments }, scope: { ...pending.scope } };
     } catch (error) { if (this.pending === pending) this.pending = null; throw error; }
@@ -42,7 +42,7 @@ export class NativeToolBroker {
       await this.authority.request({ op: 'dispatch', actor: 'agent', generation: pending.generation, ticket: decision.pending, action: pending.action });
       const value = validateResult(pending.action.tool, pending.action.arguments, await this.computer.request(pending.action.tool, pending.action.arguments));
       const receipt = this.archive ? await this.archive.put({ scope: pending.scope, action: pending.action, ticket: decision.pending, value }) : null;
-      await this.authority.request({ op: 'settle', ticket: decision.pending, action: pending.action });
+      await this.authority.request({ op: 'settle', ticket: decision.pending, action: pending.action, ...(receipt ? { result: receipt } : {}) });
       this.lastResult = receipt;
       return { success: true, contentItems: [{ type: 'inputText', text: JSON.stringify(value) }] };
     } catch {

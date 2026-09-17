@@ -36,6 +36,8 @@ if args.probe in {"recovery", "archive"}:
     plan[1:1] = ["--env=AGENTMELD_TEST_BINARY=/usr/local/bin/agentmeld-m0"]
     test_file = "recovery-boundaries" if args.probe == "recovery" else "result-archive"
     plan[-1:] = ["--test", "--test-reporter=tap", f"/opt/agentmeld/{test_file}.test.mjs"]
+    if args.probe == "archive":
+        plan.append("/opt/agentmeld/settled-results.test.mjs")
 elif args.probe == "workspace":
     plan[-1:] = ["--test", "--test-reporter=tap", "/opt/agentmeld/workspace-tools.test.mjs"]
 profile_digest = None

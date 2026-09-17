@@ -19,6 +19,11 @@ function validate(record) {
   normalizeArguments(action.tool, action.arguments); validateResult(action.tool, action.arguments, record.value);
   return record;
 }
+function canonical(value) {
+  if (Array.isArray(value)) return '[' + value.map(canonical).join(',') + ']';
+  if (value && typeof value === 'object') return '{' + Object.keys(value).sort().map(key => JSON.stringify(key) + ':' + canonical(value[key])).join(',') + '}';
+  return JSON.stringify(value);
+}
 export class ResultArchive {
   constructor(binary, directory) { this.binary = binary; this.directory = directory; }
   async put({ scope, action, ticket, value }) {
@@ -27,6 +32,15 @@ export class ResultArchive {
     const receipt = JSON.parse(await command(this.binary, ['artifact-put', this.directory], bytes));
     if (receipt.sha256 !== digest(bytes) || receipt.bytes !== Buffer.byteLength(bytes)) throw new Error('invalid archive receipt');
     return receipt;
+  }
+  async readSettled(authority, expected) {
+    const scope = Object.fromEntries(['workspace', 'worker', 'thread', 'turn', 'request'].map(key => [key, expected?.[key]]));
+    const state = await authority.request({ op: 'state' });
+    const entry = state.results.find(item => item.scope_digest === digest(JSON.stringify(scope)));
+    if (!entry) throw new Error('no settled result for scope');
+    const record = await this.read(entry.result, scope);
+    if (record.ticket !== entry.ticket || digest(canonical(record.action)) !== entry.action_digest) throw new Error('settled result binding mismatch');
+    return record;
   }
   async read(receipt, expected) {
     if (!receipt || !/^[a-f0-9]{64}$/.test(receipt.sha256) || !Number.isSafeInteger(receipt.bytes) || receipt.bytes < 0 || receipt.bytes > 512 * 1024) throw new Error('invalid archive receipt');

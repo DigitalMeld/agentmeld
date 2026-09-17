@@ -82,7 +82,7 @@ node scripts/probe-separated.mjs --context YOUR_CONTEXT
 
 This is the current storage-boundary qualification: Rust and the viewer stay on the host, and the browser stays in the container. See [evidence and limitations](protected-supervisor.md). The earlier all-in-one probe remains useful for native startup and viewer UI comparison, but its in-container journal is not protected from that same container.
 
-Journal format 4 adds a durable request ledger and private-screen state to scoped approvals and payload-bound dispatch. Old M0 journals are preserved and rejected; there is no implicit migration. Each probe creates a fresh synthetic journal.
+Journal format 5 adds required result references and a bounded settled-result index to the request ledger, private-screen state and scoped approvals. Old M0 journals are preserved and rejected; there is no implicit migration. Each probe creates a fresh synthetic journal.
 
 Run the separate native Codex callback and host measurement probes as described in [native tool qualification](native-tools.md).
 

@@ -12,7 +12,7 @@ Docker inspection verifies the exact workspace mount and nonprivileged, read-onl
 
 ## Payload-bound admission
 
-Journal format 4 retains the SHA-256 digest of canonical JSON action content alongside the pending ticket. The host obtains admission, then consumes a one-time dispatch authorization for the same actor, generation, ticket and payload before sending the computer operation. Settlement must match that ticket and payload. Altered payloads and duplicate dispatch/settlement attempts are rejected.
+Journal format 5 retains the SHA-256 digest of canonical JSON action content alongside the pending ticket. The host obtains admission, then consumes a one-time dispatch authorization for the same actor, generation, ticket and payload before sending the computer operation. Settlement must match that ticket and payload. Altered payloads and duplicate dispatch/settlement attempts are rejected.
 
 Takeover, cancellation and disconnect revoke an admission that has not dispatched. Already-dispatched actions remain pending until settled or reconciled; their side effects cannot be undone by changing a generation. A crash after dispatch authorization but before receiving the result remains uncertain, including when the computer operation may never have started.
 

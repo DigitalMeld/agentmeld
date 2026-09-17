@@ -14,25 +14,35 @@ The host adapter stores a versioned JSON envelope containing the validated value
 
 The broker orders operations as dispatch, execution, result validation, archive acknowledgement, then journal settlement. Archive failure withholds success and pauses the controller with an unsettled dispatch. A saved result followed by failed settlement remains evidence of returned output, not proof of completion. `lastResult` is populated only after settlement and cleared at the next decision. Older fixture callers without an archive retain their original behavior; the native probe always configures one.
 
+## Settled-result index and recovery
+
+Journal format 5 persists the archive receipt, dispatch ticket, canonical action digest and scope digest in the same synced snapshot that clears the pending action. Archive-enabled proposals set `result_required`; Rust rejects settlement without a bounded, well-formed reference. The index retains at most 64 entries and blocks further approval proposals at capacity without evicting history. Existing request-ledger and journal-byte limits also remain in force.
+
+`ResultArchive.readSettled(authority, scope)` locates the result from the durable index, reads and verifies its bytes, and checks its envelope against the persisted ticket, action and full scope. It works after supervisor replacement without an in-memory receipt. The Rust journal trusts the host adapter to save the blob; it validates reference shape and transition binding, not blob existence. Retrieval refuses missing, corrupt or mismatched content.
+
+Crash before settlement leaves saved bytes as unresolved evidence and does not expose them through settled retrieval. Crash after settlement, including a lost acknowledgement, retains the index entry and allows readback without tool re-execution. Result history is append-only; reopening rejects removal, replacement or additions without a preceding matching dispatched action. These are structural checks, not protection against a malicious storage owner.
+
+Seven new subprocess tests cover SIGKILL/retrieval, required references, unsettled output, lost acknowledgements, history corruption and old-format rejection, capacity, and action/ticket mismatches. The native probe now replaces the supervisor after each successful tool and verifies its output through the index.
+
 ## Verification
 
-The default suite passes 100 tests (18 Rust, 80 Node, 2 Python), formatting, Clippy, build and documentation checks. Five new Rust tests cover versions/readback, corruption and symlinks, exclusive ownership, quotas and preserved staging evidence. Five new subprocess tests cover replacement/scope checks, save-before-settle ordering, storage failure, lost settlement and denied/invalid output.
+The default suite passes 107 tests (18 Rust, 87 Node, 2 Python), formatting, Clippy, build and documentation checks. Five new Rust tests cover versions/readback, corruption and symlinks, exclusive ownership, quotas and preserved staging evidence. Five new subprocess tests cover replacement/scope checks, save-before-settle ordering, storage failure, lost settlement and denied/invalid output.
 
-The five subprocess cases also pass against the Linux ARM64 binary with Docker-default seccomp:
+The five archive subprocess cases and seven settlement-index cases also pass against the Linux ARM64 binary with Docker-default seccomp:
 
 ```sh
 python3 scripts/probe-container.py --context YOUR_CONTEXT --probe archive --seccomp-profile docker-default --workspace archive-linux
 node scripts/probe-native.mjs --context YOUR_CONTEXT
 ```
 
-Linux qualification exposed and fixed a read-only subprocess pipe-close race; write-side input errors still fail the operation. Native callback qualification, native startup/browser, separated supervisor, cancellation and Linux recovery also pass on local image `sha256:78481c8879fc8e33770eff7450bf89af769041974ad3aa305a9de9f554c0dc18`. No image was published, model invoked or personal file accessed. Evidence remains under ignored `.local/m0/control/` and `.local/m0/evidence/`.
+Linux qualification exposed and fixed a read-only subprocess pipe-close race; write-side input errors still fail the operation. Native callback qualification, native startup/browser, separated supervisor, cancellation and Linux recovery also pass on local image `sha256:edcb333300d04fb0a1f2b766d42d9fcd9e729ca4d12b3923733fbf0593424db3`. No image was published, model invoked or personal file accessed. Evidence remains under ignored `.local/m0/control/` and `.local/m0/evidence/`.
 
 ## Limits and next action
 
 The directory and its parents must be owned by the trusted supervisor. Symlink checks do not protect against a malicious directory owner racing path replacement. Scope checks are binding checks for trusted callers, not user authentication or an ACL. Content hashes detect corruption but do not authenticate a compromised worker or host. Files are immutable through this interface, not against their OS owner.
 
-Journal format 4 is unchanged. Its settlement records do not contain archive references, and archiving plus settlement is not one atomic transaction. Receipts are retained in the native probe report; there is no production artifact index, retrieval endpoint, automatic reconciliation, retention workflow or backup/restore service. A lost acknowledgement must not trigger tool re-execution. Preserve staged/unsettled evidence for explicit reconciliation.
+Journal format 5 is intentionally incompatible with earlier fixture journals. Old files are preserved and rejected; no automatic migration is attempted. Archive envelopes remain version 1 and can still be inspected separately. Archive bytes and journal writes are not one filesystem transaction, but settlement and its reference share one journal record. There is no production artifact API, authenticated retrieval endpoint, automatic reconciliation, retention workflow or backup/restore service. A lost acknowledgement must not trigger tool re-execution. Preserve staged/unsettled evidence for explicit reconciliation.
 
 Power-loss durability and filesystem fault injection remain unqualified. Linux subprocess tests use tmpfs; protected native-probe archives use the host filesystem. Unix file locking and permissions are tested on macOS and Linux only. The archive stores all tool-result data supplied by the configured trusted caller, so production privacy/retention and artifact authorization need separate design before use with personal data.
 
-Next: bind result references to durable task events, implement explicit reconciliation and scoped retrieval, and retain all existing approval/restart boundaries.
+Next: authenticated artifact retrieval, explicit reconciliation and task/event integration. Preserve existing approval/restart boundaries and retain unresolved archive evidence.

@@ -67,7 +67,7 @@ try {
     if (scenario === 'read_symlink') { assert.equal(authority.current.mode, 'paused'); assert.notEqual(authority.current.pending, null); }
     if (toolResult.success) {
       const reopened = new ResultArchive(binary, join(controlDirectory, 'results'));
-      const saved = await reopened.read(broker.lastResult, scope);
+      const saved = await reopened.readSettled(authority, scope);
       assert.deepEqual(saved.value, JSON.parse(toolResult.contentItems[0].text));
       assert.equal(authority.current.pending, null);
     } else assert.equal(broker.lastResult, null);
@@ -77,6 +77,12 @@ try {
     assert.equal(result.toolOutputSeen, true);
     report.cases.push({ scenario, archivedResult: broker.lastResult, runtimeIdentityVerified: true, nativeCallback: native.frame.method, toolSuccess: toolResult.success, turnCompleted: true, toolOutputReturned: true, nativeVmHwmKiB: result.nativeVmHwmKiB, launcherVmHwmKiB: result.launcherVmHwmKiB, elapsedMs: Math.round(performance.now() - start) });
     await authority.close(); authority = null;
+    if (toolResult.success) {
+      authority = await RustAuthority.open(binary, join(controlDirectory, scenario + '.jsonl'));
+      assert.equal(authority.current.mode, 'paused');
+      assert.deepEqual((await archive.readSettled(authority, scope)).value, JSON.parse(toolResult.contentItems[0].text));
+      await authority.close(); authority = null;
+    }
   }
   report.resources = await computer.request('metrics');
 } catch (error) { report.failure = error.message; process.exitCode = 1; }

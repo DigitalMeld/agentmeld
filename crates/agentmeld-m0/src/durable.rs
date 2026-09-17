@@ -17,6 +17,9 @@ pub struct Snapshot {
     pub mode: String,
     pub pending: Option<u64>,
     pub pending_digest: Option<String>,
+    pub pending_scope: Option<String>,
+    pub result_required: bool,
+    pub results: Vec<SettledResult>,
     pub dispatched: bool,
     pub uncertain: bool,
     pub observation: Option<String>,
@@ -43,6 +46,22 @@ pub struct Approval {
     pub expires_at_ms: u64,
     pub scope: ApprovalScope,
     pub digest: String,
+    pub result_required: bool,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct ResultRef {
+    pub sha256: String,
+    pub bytes: u64,
+}
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct SettledResult {
+    pub ticket: u64,
+    pub action_digest: String,
+    pub scope_digest: String,
+    pub result: ResultRef,
 }
 
 #[derive(Debug, Deserialize)]
@@ -54,6 +73,8 @@ pub enum Command {
         action: Value,
         scope: ApprovalScope,
         ttl_ms: u64,
+        #[serde(default)]
+        result_required: bool,
     },
     Decide {
         approval_id: u64,
@@ -75,6 +96,7 @@ pub enum Command {
     Settle {
         ticket: u64,
         action: Value,
+        result: Option<ResultRef>,
     },
     PrivateBegin {
         generation: u64,
@@ -130,12 +152,15 @@ impl Journal {
             return Err("incomplete journal; manual reconciliation required".into());
         }
         let mut state = Snapshot {
-            version: 4,
+            version: 5,
             sequence: 0,
             generation: 0,
             mode: "agent".into(),
             pending: None,
             pending_digest: None,
+            pending_scope: None,
+            result_required: false,
+            results: Vec::new(),
             dispatched: false,
             uncertain: false,
             observation: None,
@@ -146,7 +171,12 @@ impl Journal {
         };
         for line in data.lines() {
             let next: Snapshot = serde_json::from_str(line).map_err(|_| "corrupt journal")?;
-            if next.version != 4
+            if next.version != 5
+                || !valid_results(&state, &next)
+                || next.pending_scope.as_ref().is_some_and(|s| {
+                    next.pending.is_none() || !valid_digest(s) || !next.requests.contains(s)
+                })
+                || (next.result_required && next.pending_scope.is_none())
                 || (state.mode == "cancelled" && next.mode != "cancelled")
                 || (state.uncertain && !next.uncertain)
                 || next
@@ -295,6 +325,7 @@ impl Journal {
                 action,
                 scope,
                 ttl_ms,
+                result_required,
             } => {
                 require("agent", generation)?;
                 if next.pending.is_some()
@@ -303,6 +334,7 @@ impl Journal {
                     || ttl_ms == 0
                     || ttl_ms > 300_000
                     || !valid_scope(&scope)
+                    || next.results.len() >= 64
                 {
                     return Err("invalid approval proposal".into());
                 }
@@ -317,6 +349,7 @@ impl Journal {
                     expires_at_ms: now_ms()?.checked_add(ttl_ms).ok_or("expiry overflow")?,
                     scope,
                     digest: action_digest(&action)?,
+                    result_required,
                 });
                 next.decision = None;
                 next.mode = "awaiting_approval".into();
@@ -349,6 +382,8 @@ impl Journal {
                 if allow && !expired {
                     next.pending = Some(next.sequence.checked_add(1).ok_or("sequence exhausted")?);
                     next.pending_digest = Some(approval.digest.clone());
+                    next.pending_scope = Some(scope_digest(&approval.scope)?);
+                    next.result_required = approval.result_required;
                     next.dispatched = false;
                 }
                 next.approval = None;
@@ -391,7 +426,11 @@ impl Journal {
                 }
                 next.dispatched = true;
             }
-            Command::Settle { ticket, action } => {
+            Command::Settle {
+                ticket,
+                action,
+                result,
+            } => {
                 if next.pending != Some(ticket)
                     || next.uncertain
                     || !next.dispatched
@@ -399,8 +438,28 @@ impl Journal {
                 {
                     return Err("unknown or uncertain ticket".into());
                 }
+                if next.result_required && result.is_none() {
+                    return Err("archived result required".into());
+                }
+                if let Some(result) = result {
+                    let scope_digest = next
+                        .pending_scope
+                        .clone()
+                        .ok_or("result requires scoped approval")?;
+                    if !valid_ref(&result) || next.results.len() >= 64 {
+                        return Err("invalid or exhausted result index".into());
+                    }
+                    next.results.push(SettledResult {
+                        ticket,
+                        action_digest: action_digest(&action)?,
+                        scope_digest,
+                        result,
+                    });
+                }
                 next.pending = None;
                 next.pending_digest = None;
+                next.pending_scope = None;
+                next.result_required = false;
                 next.dispatched = false;
             }
             Command::PrivateBegin { generation } | Command::PrivateEnd { generation } => {
@@ -487,6 +546,32 @@ fn action_digest(action: &Value) -> Result<String, String> {
 fn valid_digest(value: &str) -> bool {
     value.len() == 64 && value.bytes().all(|b| b.is_ascii_hexdigit())
 }
+fn valid_ref(value: &ResultRef) -> bool {
+    valid_digest(&value.sha256)
+        && value.sha256.bytes().all(|b| !b.is_ascii_uppercase())
+        && value.bytes > 0
+        && value.bytes <= 512 * 1024
+}
+fn valid_results(previous: &Snapshot, next: &Snapshot) -> bool {
+    if next.results.len() > 64
+        || !next.results.starts_with(&previous.results)
+        || next.results.len() > previous.results.len() + 1
+    {
+        return false;
+    }
+    if let Some(added) = next.results.get(previous.results.len()) {
+        return previous.pending == Some(added.ticket)
+            && previous.pending_digest.as_ref() == Some(&added.action_digest)
+            && previous.pending_scope.as_ref() == Some(&added.scope_digest)
+            && previous.dispatched
+            && !previous.uncertain
+            && next.pending.is_none()
+            && !next.dispatched
+            && !next.uncertain
+            && valid_ref(&added.result);
+    }
+    true
+}
 fn valid_scope(scope: &ApprovalScope) -> bool {
     [
         &scope.workspace,
@@ -509,6 +594,8 @@ fn revoke_undispatched(state: &mut Snapshot) {
     if !state.dispatched && !state.uncertain {
         state.pending = None;
         state.pending_digest = None;
+        state.pending_scope = None;
+        state.result_required = false;
     }
 }
 
