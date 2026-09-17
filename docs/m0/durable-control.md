@@ -4,7 +4,7 @@ Date: 2026-09-17. Scope: trusted fixture ownership and recovery, exercised both 
 
 ## Implemented
 
-The Rust `supervise JOURNAL` command holds an exclusive OS file lock for its process lifetime. It reads a bounded append-only journal, validates sequential records, and acknowledges each change only after writing and syncing that record. Startup also syncs the containing directory. It refuses incomplete final records, malformed history, oversized journals and concurrent owners.
+The Rust `supervise JOURNAL` command holds an exclusive OS file lock for its process lifetime. It reads a bounded append-only journal, validates sequential records, and acknowledges each change only after writing and syncing that record. Startup also syncs the containing directory. It refuses incomplete final records, malformed history, oversized journals and concurrent owners. Recovery checks digest syntax, known decision values, approval scope bounds and membership in the durable request ledger. Later snapshots cannot clear cancellation or an uncertainty flag. These are structural checks, not authentication of journal contents.
 
 Control state includes a monotonically increasing generation, mode, pending action ticket and payload digest, one-time dispatch status, uncertainty flag and last accepted observation digest. The worker must obtain a ticket before submitting agent or human browser input, and settle that ticket only after the action returns successfully. Takeover fences new/queued agent dispatch before waiting for admitted work. Human control is acknowledged only after pending input settles. Resume captures an observation in the browser worker and commits its digest in Rust before admitting new agent input.
 
@@ -26,6 +26,16 @@ The journal is capped at 16 MiB, stdio commands at 64 KiB, and pending bridge/br
 Five new subprocess tests run the actual compiled Rust executable: normal takeover/resume and process replacement, exclusive ownership plus SIGKILL during an admitted action, truncated-journal rejection, queued input during active takeover, and cancellation during fresh observation followed by restart.
 
 The real Chromium probe uses the Linux ARM64 Rust executable built in the pinned multi-stage image. It repeats the authenticated viewer sequence, replaces the authority process, reads back paused state with a higher generation, and rejects the old generation. No inference, provider credentials or messaging account is involved.
+
+### Crash-boundary qualification
+
+The local suite now includes 16 additional subprocess recovery tests. Six kill the actual Rust supervisor with SIGKILL immediately after an acknowledged proposal, denial, approval, dispatch, settlement or cancellation. Each journal is reopened twice: generations advance, outstanding approvals disappear, pending tickets remain uncertain, stale dispatch is rejected and cancellation stays terminal. An approved but undispatched action is conservatively uncertain after process loss too.
+
+A separate recovery path requires takeover and a fresh observation before new proposals, rejects the old request identity, and accepts a new one. Eight malformed-history cases cover invalid pending/observation/approval digests, invalid decisions, empty or unrecorded approval scopes, and attempts to clear cancellation or uncertainty. A torn-record test cuts the final record at four byte offsets. Every rejected open leaves the supplied evidence byte-for-byte unchanged.
+
+Reproduce with `sh scripts/check-local.sh`, or after a Rust build, `node --test experiments/recovery-boundaries.test.mjs`. Fixtures use temporary directories owned by the test and remove only those directories. No provider, container, Messages account or user workspace is accessed.
+
+These tests run on the host macOS filesystem. They cover process loss after acknowledged writes and supplied torn records, not injected filesystem write failures, power loss, loss of a complete trailing record, external effect reconciliation or recovery of a live worker. The existing container image was not rebuilt for this recovery batch; its previously recorded evidence does not qualify this new validator on Linux.
 
 ## Trust and packaging limits
 

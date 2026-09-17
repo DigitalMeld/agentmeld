@@ -147,6 +147,20 @@ impl Journal {
         for line in data.lines() {
             let next: Snapshot = serde_json::from_str(line).map_err(|_| "corrupt journal")?;
             if next.version != 4
+                || (state.mode == "cancelled" && next.mode != "cancelled")
+                || (state.uncertain && !next.uncertain)
+                || next
+                    .pending_digest
+                    .as_deref()
+                    .is_some_and(|s| !valid_digest(s))
+                || next
+                    .observation
+                    .as_deref()
+                    .is_some_and(|s| !valid_digest(s))
+                || next
+                    .decision
+                    .as_deref()
+                    .is_some_and(|s| !["allow", "deny", "expired"].contains(&s))
                 || next.requests.len() > 256
                 || !next.requests.starts_with(&state.requests)
                 || next
@@ -165,7 +179,11 @@ impl Journal {
                         || approval.generation != next.generation
                         || approval.id == 0
                         || approval.id > next.sequence
-                        || approval.digest.len() != 64
+                        || !valid_digest(&approval.digest)
+                        || !valid_scope(&approval.scope)
+                        || !next
+                            .requests
+                            .contains(&scope_digest(&approval.scope).unwrap_or_default())
                 })
                 || next.pending.is_some() != next.pending_digest.is_some()
                 || (next.dispatched && next.pending.is_none())
@@ -284,22 +302,11 @@ impl Journal {
                     || !action.is_object()
                     || ttl_ms == 0
                     || ttl_ms > 300_000
-                    || [
-                        &scope.workspace,
-                        &scope.worker,
-                        &scope.thread,
-                        &scope.turn,
-                        &scope.request,
-                    ]
-                    .iter()
-                    .any(|s| s.is_empty() || s.len() > 256)
+                    || !valid_scope(&scope)
                 {
                     return Err("invalid approval proposal".into());
                 }
-                let request_key = format!(
-                    "{:x}",
-                    Sha256::digest(serde_json::to_vec(&scope).map_err(|_| "invalid scope")?)
-                );
+                let request_key = scope_digest(&scope)?;
                 if next.requests.contains(&request_key) || next.requests.len() >= 256 {
                     return Err("duplicate or exhausted request ledger".into());
                 }
@@ -476,6 +483,26 @@ fn action_digest(action: &Value) -> Result<String, String> {
         return Err("action too large".into());
     }
     Ok(format!("{:x}", Sha256::digest(bytes)))
+}
+fn valid_digest(value: &str) -> bool {
+    value.len() == 64 && value.bytes().all(|b| b.is_ascii_hexdigit())
+}
+fn valid_scope(scope: &ApprovalScope) -> bool {
+    [
+        &scope.workspace,
+        &scope.worker,
+        &scope.thread,
+        &scope.turn,
+        &scope.request,
+    ]
+    .iter()
+    .all(|s| !s.is_empty() && s.len() <= 256)
+}
+fn scope_digest(scope: &ApprovalScope) -> Result<String, String> {
+    Ok(format!(
+        "{:x}",
+        Sha256::digest(serde_json::to_vec(scope).map_err(|_| "invalid scope")?)
+    ))
 }
 fn revoke_undispatched(state: &mut Snapshot) {
     state.approval = None;
