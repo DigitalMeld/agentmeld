@@ -1,5 +1,5 @@
 // Runs only in the offline, credential-free M0 image. Never imports host settings.
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { readFile, writeFile, mkdir, access } from 'node:fs/promises';
 import assert from 'node:assert/strict';
 import { performance } from 'node:perf_hooks';
@@ -17,6 +17,9 @@ await mkdir('/tmp/home/.codex', { recursive: true });
 await check('os_boundary', async () => {
   assert.equal(process.getuid(), 1000);
   const status = await readFile('/proc/self/status', 'utf8');
+  const chroot = spawnSync('chroot', ['/tmp', '/bin/true'], { encoding: 'utf8' });
+  assert.notEqual(chroot.status, 0);
+  assert.match(chroot.stderr, /Operation not permitted/, 'outer container must not gain chroot capability');
   assert.match(status, /CapEff:\s+0+\n/);
   assert.match(status, /NoNewPrivs:\s+1/);
   assert.match(status, /Seccomp:\s+2/);
@@ -119,7 +122,26 @@ await check('chromium_with_renderer_sandbox', async () => {
     await page.getByRole('button', { name: 'Increment' }).click();
     assert.equal(await page.locator('output').textContent(), '1');
     await page.screenshot({ path: '/workspace/browser.png' });
-    return { isolatedFixture: true, rendererSandboxEnabled: true, screenshot: 'browser.png' };
+    const outer = await readFile('/proc/self/status', 'utf8');
+    const outerFilters = Number(outer.match(/Seccomp_filters:\s+(\d+)/)?.[1]);
+    const outerDepth = outer.match(/NSpid:\s+([^\n]+)/)[1].trim().split(/\s+/).length;
+    const renderers = [];
+    const cdp = await browser.newBrowserCDPSession();
+    const processes = await cdp.send('SystemInfo.getProcessInfo');
+    for (const process of processes.processInfo.filter(item => item.type === 'renderer')) {
+      const pid = process.id;
+      const status = await readFile(`/proc/${pid}/status`, 'utf8');
+      assert.match(status, /CapEff:\s+0+\n/);
+      assert.match(status, /NoNewPrivs:\s+1/);
+      assert.match(status, /Seccomp:\s+2/);
+      const filters = Number(status.match(/Seccomp_filters:\s+(\d+)/)?.[1]);
+      const depth = status.match(/NSpid:\s+([^\n]+)/)[1].trim().split(/\s+/).length;
+      assert.ok(filters > outerFilters, 'renderer needs its own additional seccomp filter');
+      assert.ok(depth > outerDepth, 'renderer needs a nested PID namespace');
+      renderers.push({ filters, pidNamespaceDepth: depth });
+    }
+    assert.ok(renderers.length > 0, 'no renderer processes observed');
+    return { isolatedFixture: true, rendererSandboxEnabled: true, renderers, screenshot: 'browser.png' };
   } finally { await browser.close(); }
 });
 

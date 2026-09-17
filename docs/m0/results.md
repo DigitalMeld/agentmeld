@@ -7,20 +7,21 @@ Date: 2026-09-17. Status: **started, not complete**. These are experimental cont
 | Check | Result | Limit |
 | --- | --- | --- |
 | Rust conformance | 13 tests passed | Synthetic protocol/policy/channel inputs |
+| Python policy integrity | 2 tests passed | Rejects unverified upstream bytes and locally modified policy |
 | Node Ollama loop | 4 tests passed, including invoking the Rust fixture tool | Injected HTTP transport; no model inference |
 | Rust formatting and Clippy | Passed with warnings denied | Local checks only |
 | Codex 0.154.0 app-server | Real container process initialized; empty thread list; nonexistent continuation rejected | No authenticated turn, native tool or successful resume |
 | Claude Agent SDK 0.3.274 | Real container startup rejected missing credentials through SDK exception | No authenticated turn or native permission callback |
 | Container OS boundary | UID 1000, zero effective capabilities, no-new-privileges, seccomp, read-only root, loopback only | Not an escape test or hostile-tenant qualification |
 | Workspace replacement | Marker advanced from 0 to 1 to 2 to 3 across disposable containers | No hard workspace disk quota |
-| Chromium renderer sandbox | **Failed: No usable sandbox** | No browser interaction, screenshot, viewer or takeover proof |
+| Chromium renderer sandbox | **Passed with explicit browser seccomp policy**; button click and screenshot verified; renderer has 2 seccomp filters and PID namespace depth 3 | Headless fixture only; no viewer or takeover proof |
 | iMessage | Identity, echo, duplicate and revocation fixtures passed | No Mac bridge connected and no messages sent |
 
-The final offline probe intentionally exits 1 because browser qualification failed. It must remain a failing check until the environment supports Chromium's sandbox. Do not add `--no-sandbox`, privileged mode or disable seccomp to turn this result green. The precise user-namespace/seccomp interaction needs diagnosis; the browser error alone does not establish its cause.
+The original default-profile failure is now reproduced and resolved for this offline fixture. Namespace creation failed under Docker defaults. The Playwright profile then exposed a `chroot` denial after dropping capabilities. An explicit browser policy permits that syscall while the outer container still has no effective capabilities and cannot chroot. The normal probe now exits 0; the Docker-default comparison still exits 1. See [diagnosis and policy](browser-sandbox.md).
 
-The probe ran in a dedicated Colima Linux VM on an Apple Silicon Mac, configured with 2 vCPUs, 4 GiB memory and 20 GiB disk. Each probe container was limited to 1 CPU, 1 GiB RAM, 256 PIDs and a 256 MiB temporary filesystem. The last probe took about 0.69 seconds including container startup; this is a single offline sample, not an inference benchmark or sizing recommendation. Peak RSS and browser memory remain unmeasured.
+The probe ran in a dedicated Colima Linux VM on an Apple Silicon Mac, configured with 2 vCPUs, 4 GiB memory and 20 GiB disk. Each probe container was limited to 1 CPU, 1 GiB RAM, 256 PIDs and a 256 MiB temporary filesystem. The last probe took about 0.75 seconds including container startup; this is a single offline sample, not an inference benchmark or sizing recommendation. Peak RSS and browser memory remain unmeasured.
 
-The final local image ID was `sha256:8deee8f806620d55bc992582f0f1b00722578bece9be454321a7b2c4aee74f4e`. It is not published. Raw machine-local evidence is retained under ignored `.local/m0/evidence/`. No host credentials or browser profiles were mounted.
+The final local image ID was `sha256:407aa6c78bb39446021cd9bc83763edee51b0ef7fe4623340395a5244d8472da`. It is not published. Raw machine-local evidence is retained under ignored `.local/m0/evidence/`. No host credentials or browser profiles were mounted.
 
 ## Versions and distribution notes
 
@@ -37,7 +38,7 @@ Exact JavaScript resolution is recorded in `package-lock.json`; Rust resolution 
 
 ## Next M0 work, in order
 
-1. Diagnose and qualify Chromium sandbox support within a constrained runtime; then test browser interaction, viewer authentication, takeover and fresh observation on resume.
+1. Build on the qualified headless browser fixture to test viewer authentication, takeover and fresh observation on resume. Keep the nested renderer sandbox checks as regression gates.
 2. Define scoped provider credentials and mediated egress. Run actual Claude/Codex streamed answers, native tools, allow/deny, cancellation and process-replacement continuation. Do not import personal host auth directories.
 3. Select a local Ollama tool model and run the bounded tool loop against real inference, including failures and cancellation. Current cloud aliases do not satisfy this check.
 4. Add durable admission/replay protection, process-tree cancellation, workspace quotas and resource measurements before promoting experimental contracts into a service.

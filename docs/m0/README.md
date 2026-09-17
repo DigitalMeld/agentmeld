@@ -8,7 +8,7 @@ This milestone has begun. The Rust crate contains experimental contracts and tes
 - Bounded JSONL decoding and initial Codex, Claude SDK, and Ollama event handling.
 - Ollama tool-stream accumulation that withholds calls until a complete terminal frame, plus a strictly limited integer-sum fixture tool.
 - A Node HTTP-loop experiment that executes the Rust tool and feeds the result into the next model turn. It uses an injected fixture transport in default tests; this is not the final native Rust inference client.
-- Offline Docker argument generation using an immutable local image ID, one operator-owned workspace, non-root UID, read-only root, no network, seccomp default, dropped capabilities, and CPU/memory/PID limits.
+- Offline Docker argument generation using an immutable local image ID, one operator-owned workspace, non-root UID, read-only root, no network, an explicit seccomp policy, dropped capabilities, and CPU/memory/PID limits.
 - A one-to-one iMessage routing fixture with explicit account/chat/sender binding, echo suppression, bounded deduplication and revocation. It is not a BlueBubbles client or a messaging connection.
 - Pinned vendor binaries/SDK/browser dependencies in an explicit container experiment.
 
@@ -39,10 +39,15 @@ Use a dedicated local Docker context selected explicitly by the operator. Do not
 ```sh
 docker --context YOUR_CONTEXT build -f infra/m0/Dockerfile -t agentmeld-m0:local .
 cargo build --locked
+python3 scripts/prepare-seccomp.py
 python3 scripts/probe-container.py --context YOUR_CONTEXT
 ```
 
 The probe runs real Codex app-server initialization, empty-session readback and missing-resume rejection. It also checks real Claude SDK startup without credentials, tests an isolated Chromium fixture with renderer sandboxing enabled, verifies in-container OS controls, and writes an owned workspace marker. All provider inference is unavailable in this offline image by design.
+
+`prepare-seccomp.py` explicitly downloads a commit-pinned Playwright configuration over HTTPS, verifies its SHA-256, and generates the browser policy in ignored `.local/m0/seccomp/`. The launcher checks the prepared bytes before every browser-profile run. No upstream source is vendored. See [policy rationale and evidence](browser-sandbox.md).
+
+Use `--seccomp-profile docker-default` to reproduce the original failing browser configuration. This comparison is intentionally expected to exit nonzero on the qualified Linux ARM64 environment. The normal browser profile must pass without adding capabilities or disabling renderer sandboxing.
 
 Run it again to verify the workspace marker survives replacement of the container. A failed probe exits nonzero and retains details. The launcher records stdout, stderr, immutable image ID, exit code and elapsed time under `.local/m0/evidence/`; these files are ignored by Git. OS controls do not establish hostile-tenant isolation, and missing paths are not a general escape test.
 
