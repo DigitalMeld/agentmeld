@@ -4,6 +4,8 @@ This milestone has begun. The Rust crate contains experimental contracts and tes
 
 ## What exists
 
+- [Durable tool result archive](result-archive.md), Rust storage with quotas, integrity checks and save-before-settle ordering.
+
 - [Approved workspace text reads](workspace-read.md), bounded to one immediate file and qualified through real Codex callbacks.
 
 - [Local Ollama qualification runner](ollama-qualification.md) with cloud-alias rejection, bounded streaming and durable Rust fixture approvals.

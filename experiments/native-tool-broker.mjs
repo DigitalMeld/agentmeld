@@ -9,7 +9,7 @@ export function normalizeCodexCall(frame, expected) {
   return { scope, action };
 }
 export class NativeToolBroker {
-  constructor(authority, computer, expected, tools = []) { this.authority = authority; this.computer = computer; this.expected = Object.freeze({ ...expected }); this.seen = new Set(); this.pending = null; this.tools = new Set(tools); }
+  constructor(authority, computer, expected, tools = [], archive = null) { this.archive = archive; this.lastResult = null; this.authority = authority; this.computer = computer; this.expected = Object.freeze({ ...expected }); this.seen = new Set(); this.pending = null; this.tools = new Set(tools); }
   authorize(action, scope) {
     if (!this.tools.has(action.tool)) throw new Error('tool grant denied');
     this.computer.authorize?.(action.tool, scope);
@@ -33,6 +33,7 @@ export class NativeToolBroker {
     const pending = this.pending;
     if (!pending || pending.id === undefined || pending.id !== id || typeof allow !== 'boolean') throw new Error('unknown approval');
     this.pending = null; // One review attempt; never retry uncertain execution automatically.
+    this.lastResult = null;
     const failed = reason => ({ success: false, contentItems: [{ type: 'inputText', text: reason }] });
     try {
       const decision = await this.authority.request({ op: 'decide', approval_id: id, action: pending.action, scope: pending.scope, allow });
@@ -40,7 +41,9 @@ export class NativeToolBroker {
       this.authorize(pending.action, pending.scope);
       await this.authority.request({ op: 'dispatch', actor: 'agent', generation: pending.generation, ticket: decision.pending, action: pending.action });
       const value = validateResult(pending.action.tool, pending.action.arguments, await this.computer.request(pending.action.tool, pending.action.arguments));
+      const receipt = this.archive ? await this.archive.put({ scope: pending.scope, action: pending.action, ticket: decision.pending, value }) : null;
       await this.authority.request({ op: 'settle', ticket: decision.pending, action: pending.action });
+      this.lastResult = receipt;
       return { success: true, contentItems: [{ type: 'inputText', text: JSON.stringify(value) }] };
     } catch {
       await this.authority.request({ op: 'disconnect' }).catch(() => {});

@@ -8,6 +8,7 @@ import assert from 'node:assert/strict';
 import { RustAuthority } from '../experiments/rust-browser-control.mjs';
 import { ContainerComputer } from '../experiments/container-computer.mjs';
 import { OwnedWorker, dockerRuntime } from '../experiments/owned-worker.mjs';
+import { ResultArchive } from '../experiments/result-archive.mjs';
 import { NativeToolBroker } from '../experiments/native-tool-broker.mjs';
 
 const args = process.argv.slice(2);
@@ -47,7 +48,9 @@ try {
     const id = (await readFile(join(controlDirectory, 'worker.cid'), 'utf8')).trim();
     const grants = ungranted ? ['fixture_sum'] : ['fixture_sum', 'workspace_list', 'workspace_read'];
     const worker = await OwnedWorker.bind({ id, image, workspace, computer, runtime: dockerRuntime(context), tools: grants });
-    const broker = new NativeToolBroker(authority, worker, { workspace, worker: id, thread: native.threadId, turn: native.turnId }, grants);
+    const scope = { workspace, worker: id, thread: native.threadId, turn: native.turnId, request: native.frame.params.callId };
+    const archive = new ResultArchive(binary, join(controlDirectory, 'results'));
+    const broker = new NativeToolBroker(authority, worker, scope, grants, archive);
     let toolResult;
     if (ungranted) {
       await assert.rejects(broker.propose(native.frame), /grant/);
@@ -62,11 +65,17 @@ try {
     if (scenario === 'workspace_list') assert.ok(JSON.parse(toolResult.contentItems[0].text).entries.includes('fixture.txt'));
     if (scenario === 'workspace_read') assert.equal(JSON.parse(toolResult.contentItems[0].text).text, 'synthetic workspace text fixture\n');
     if (scenario === 'read_symlink') { assert.equal(authority.current.mode, 'paused'); assert.notEqual(authority.current.pending, null); }
+    if (toolResult.success) {
+      const reopened = new ResultArchive(binary, join(controlDirectory, 'results'));
+      const saved = await reopened.read(broker.lastResult, scope);
+      assert.deepEqual(saved.value, JSON.parse(toolResult.contentItems[0].text));
+      assert.equal(authority.current.pending, null);
+    } else assert.equal(broker.lastResult, null);
     const result = await computer.request('native_finish', { result: toolResult });
     assert.equal(result.turnStatus, 'completed');
     assert.equal(result.modelRequests, 2);
     assert.equal(result.toolOutputSeen, true);
-    report.cases.push({ scenario, runtimeIdentityVerified: true, nativeCallback: native.frame.method, toolSuccess: toolResult.success, turnCompleted: true, toolOutputReturned: true, nativeVmHwmKiB: result.nativeVmHwmKiB, launcherVmHwmKiB: result.launcherVmHwmKiB, elapsedMs: Math.round(performance.now() - start) });
+    report.cases.push({ scenario, archivedResult: broker.lastResult, runtimeIdentityVerified: true, nativeCallback: native.frame.method, toolSuccess: toolResult.success, turnCompleted: true, toolOutputReturned: true, nativeVmHwmKiB: result.nativeVmHwmKiB, launcherVmHwmKiB: result.launcherVmHwmKiB, elapsedMs: Math.round(performance.now() - start) });
     await authority.close(); authority = null;
   }
   report.resources = await computer.request('metrics');

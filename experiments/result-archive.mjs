@@ -1,0 +1,39 @@
+// Trusted host archive. Never expose its directory or executable interface to the worker.
+import { execFile } from 'node:child_process';
+import { createHash } from 'node:crypto';
+import { normalizeArguments, validateResult } from './tool-contract.mjs';
+const digest = bytes => createHash('sha256').update(bytes).digest('hex');
+function command(binary, args, input) {
+  return new Promise((resolve, reject) => {
+    const child = execFile(binary, args, { encoding: 'utf8', timeout: 5000, maxBuffer: 1024 * 1024, env: { PATH: process.env.PATH } }, (error, stdout) => error ? reject(new Error('result archive unavailable')) : resolve(stdout));
+    // Reads consume no stdin and can exit before the pipe closes on Linux.
+    child.stdin.on('error', () => { if (input !== undefined) reject(new Error('result archive input failed')); });
+    child.stdin.end(input);
+  });
+}
+function validate(record) {
+  if (!record || Object.keys(record).sort().join(',') !== 'action,scope,ticket,value,version' || record.version !== 1 || !Number.isSafeInteger(record.ticket) || record.ticket < 1) throw new Error('invalid archived result');
+  const { scope, action } = record;
+  if (!scope || Object.keys(scope).sort().join(',') !== 'request,thread,turn,worker,workspace' || Object.values(scope).some(v => typeof v !== 'string' || !v || Buffer.byteLength(v) > 256)) throw new Error('invalid result scope');
+  if (!action || Object.keys(action).sort().join(',') !== 'arguments,provider,target,tool' || action.provider !== 'codex' || action.target !== scope.worker) throw new Error('invalid result action');
+  normalizeArguments(action.tool, action.arguments); validateResult(action.tool, action.arguments, record.value);
+  return record;
+}
+export class ResultArchive {
+  constructor(binary, directory) { this.binary = binary; this.directory = directory; }
+  async put({ scope, action, ticket, value }) {
+    const bytes = JSON.stringify(validate({ version: 1, scope, action, ticket, value }));
+    if (Buffer.byteLength(bytes) > 512 * 1024) throw new Error('result archive size limit');
+    const receipt = JSON.parse(await command(this.binary, ['artifact-put', this.directory], bytes));
+    if (receipt.sha256 !== digest(bytes) || receipt.bytes !== Buffer.byteLength(bytes)) throw new Error('invalid archive receipt');
+    return receipt;
+  }
+  async read(receipt, expected) {
+    if (!receipt || !/^[a-f0-9]{64}$/.test(receipt.sha256) || !Number.isSafeInteger(receipt.bytes) || receipt.bytes < 0 || receipt.bytes > 512 * 1024) throw new Error('invalid archive receipt');
+    const bytes = await command(this.binary, ['artifact-get', this.directory, receipt.sha256]);
+    if (digest(bytes) !== receipt.sha256 || Buffer.byteLength(bytes) !== receipt.bytes) throw new Error('archive integrity mismatch');
+    const record = validate(JSON.parse(bytes));
+    if (!expected || Object.keys(record.scope).some(key => record.scope[key] !== expected[key])) throw new Error('archive scope mismatch');
+    return record;
+  }
+}

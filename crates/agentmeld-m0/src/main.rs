@@ -16,6 +16,27 @@ fn main() {
 
 fn run() -> Result<(), String> {
     let args: Vec<_> = std::env::args().skip(1).collect();
+    if args.first().map(String::as_str) == Some("artifact-put") && args.len() == 2 {
+        let mut bytes = Vec::new();
+        io::stdin()
+            .take((agentmeld_m0::artifact::BLOB_LIMIT + 1) as u64)
+            .read_to_end(&mut bytes)
+            .map_err(|_| "artifact input failed")?;
+        let archive = agentmeld_m0::artifact::Archive::open(Path::new(&args[1]))?;
+        let receipt = archive.put(&bytes)?;
+        println!(
+            "{}",
+            serde_json::to_string(&receipt).map_err(|_| "receipt encoding failed")?
+        );
+        return Ok(());
+    }
+    if args.first().map(String::as_str) == Some("artifact-get") && args.len() == 3 {
+        let archive = agentmeld_m0::artifact::Archive::open(Path::new(&args[1]))?;
+        io::stdout()
+            .write_all(&archive.get(&args[2])?)
+            .map_err(|_| "artifact output failed")?;
+        return Ok(());
+    }
     if args.first().map(String::as_str) == Some("supervise") && args.len() == 2 {
         let mut journal = agentmeld_m0::durable::Journal::open(Path::new(&args[1]))?;
         let mut output = io::stdout().lock();
@@ -79,7 +100,7 @@ fn run() -> Result<(), String> {
                 println!("{}", serde_json::json!({"fixture":true,"text":text,"tool_results":results}));
             }
         }
-        _ => return Err("usage: replay <codex|claude|ollama> < fixture.jsonl OR sandbox-plan <root> <name> <image-id> OR supervise <journal>".into()),
+        _ => return Err("usage: replay <codex|claude|ollama> < fixture.jsonl OR sandbox-plan <root> <name> <image-id> OR supervise <journal> OR artifact-put <directory> < bytes OR artifact-get <directory> <sha256>".into()),
     }
     Ok(())
 }

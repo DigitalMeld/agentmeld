@@ -19,7 +19,7 @@ parser.add_argument("--context", required=True)
 parser.add_argument("--image", default="agentmeld-m0:local")
 parser.add_argument("--workspace", default="fixture")
 parser.add_argument("--seccomp-profile", choices=["browser", "docker-default"], default="browser")
-parser.add_argument("--probe", choices=["native", "recovery", "workspace"], default="native")
+parser.add_argument("--probe", choices=["native", "recovery", "workspace", "archive"], default="native")
 args = parser.parse_args()
 root = Path(__file__).resolve().parents[1]
 owned = root / ".local/m0/workspaces"
@@ -32,9 +32,10 @@ plan = json.loads(subprocess.check_output([str(root / "target/debug/agentmeld-m0
 # Each invocation owns a unique container name, including timeout cleanup.
 container_name = "agentmeld-m0-" + uuid.uuid4().hex
 plan[plan.index("--name") + 1] = container_name
-if args.probe == "recovery":
+if args.probe in {"recovery", "archive"}:
     plan[1:1] = ["--env=AGENTMELD_TEST_BINARY=/usr/local/bin/agentmeld-m0"]
-    plan[-1:] = ["--test", "--test-reporter=tap", "/opt/agentmeld/recovery-boundaries.test.mjs"]
+    test_file = "recovery-boundaries" if args.probe == "recovery" else "result-archive"
+    plan[-1:] = ["--test", "--test-reporter=tap", f"/opt/agentmeld/{test_file}.test.mjs"]
 elif args.probe == "workspace":
     plan[-1:] = ["--test", "--test-reporter=tap", "/opt/agentmeld/workspace-tools.test.mjs"]
 profile_digest = None

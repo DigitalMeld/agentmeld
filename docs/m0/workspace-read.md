@@ -26,6 +26,6 @@ After rebuilding the local image, `node scripts/probe-native.mjs --context YOUR_
 
 ## Limits and next action
 
-Returned content remains untrusted tool data. A matching hash establishes internal consistency, not honesty of a compromised worker. Results and file versions are not yet archived durably. Descriptor checks detect ordinary concurrent changes but do not provide an atomic snapshot against a malicious writer. Parent directories and the mount are trusted; this is not a general host filesystem sandbox. General native built-in tools remain outside this adapter.
+Returned content remains untrusted tool data. A matching hash establishes internal consistency, not honesty of a compromised worker. Configured native-probe results are now saved by the [Rust result archive](result-archive.md) before settlement. There is no production artifact index or atomic result/journal transaction. Descriptor checks detect ordinary concurrent changes but do not provide an atomic snapshot against a malicious writer. Parent directories and the mount are trusted; this is not a general host filesystem sandbox. General native built-in tools remain outside this adapter.
 
-Next: versioned artifact storage and result persistence, broader native-tool policy, provider credentials/egress and actual model qualification. Do not advertise arbitrary file access, immutable snapshots or production artifact recovery from this fixture.
+Next: durable result indexing and reconciliation, broader native-tool policy, provider credentials/egress and actual model qualification. Do not advertise arbitrary file access, immutable snapshots or production artifact recovery from this fixture.
