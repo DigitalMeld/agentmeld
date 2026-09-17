@@ -57,3 +57,11 @@ test('denial and invalid output create no archived result', async () => fixture(
   assert.equal((await broker.decide(next.id, true)).success, false);
   await assert.rejects(readdir(join(root, 'results')), { code: 'ENOENT' });
 }));
+
+test('settled retrieval retains the requested scope while awaiting journal readback', async () => fixture(async (archive, authority) => {
+  const broker = new NativeToolBroker(authority, { request: async () => ({ sum: 5 }) }, scope, ['fixture_sum'], archive);
+  const proposal = await broker.propose(frame); await broker.decide(proposal.id, true);
+  const requested = { ...scope };
+  const bridge = { request: async command => { requested.request = 'mutated'; return authority.request(command); } };
+  assert.deepEqual((await archive.readSettled(bridge, requested)).value, { sum: 5 });
+}));

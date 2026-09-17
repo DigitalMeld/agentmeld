@@ -4,6 +4,8 @@ This milestone has begun. The Rust crate contains experimental contracts and tes
 
 ## What exists
 
+- [Recovery evidence assessment](recovery-assessment.md), scope-bound reports and an explicit local recovery command that preserve uncertain execution.
+
 - [Scoped result access](result-access.md), read-only local capabilities with absolute expiry, revocation and restart readback.
 
 - [Durable tool result archive](result-archive.md), Rust storage with quotas, integrity checks and save-before-settle ordering.

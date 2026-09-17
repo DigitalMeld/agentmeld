@@ -13,9 +13,10 @@ Date: 2026-09-17. Status: **started, not complete**. These are experimental cont
 | Durable Rust subprocess integration | 10 tests passed, including private-screen restart and capture fencing: replacement, exclusive lock, SIGKILL with unfinished action, corruption, fencing, cancellation, payload binding and one-time dispatch | Trusted host caller/storage; production identity remains open |
 | Crash boundaries and journal validation | 16 tests passed: six SIGKILL boundaries through two restarts, fresh observation and deduplication, eight invalid-history cases, four torn-record offsets | Host macOS and Linux ARM64 tmpfs; no power-loss or worker reconciliation proof |
 | Native tool approval | 13 tests passed; filename-bound read grants/approvals and result withholding, reconnect replay and ledger exhaustion, scope/payload binding, expiry, duplicates, concurrent proposals, revocation and uncertain recovery | Three bounded Codex tools; fixture reviewer, no production grant service |
-| Result archive integration | 5 tests passed: scope/readback, ordering, failure, lost settlement and denial | Trusted host archive; no atomic archive/journal transaction |
+| Result archive integration | 6 tests passed: scope/readback, asynchronous scope preservation, ordering, failure, lost settlement and denial | Trusted host archive; no atomic archive/journal transaction |
 | Settled result index | 7 tests passed: restart lookup, required references, crash timing, history integrity, capacity and binding | Format 5; earlier fixture journals preserved and rejected |
 | Scoped result HTTP access | 8 tests passed: capability, scope, expiry, revocation during reads, restart, orphan rejection and corruption | Trusted host pairing; no account or remote authentication |
+| Recovery evidence assessment | 11 tests passed: exact evidence binding, SIGKILL, state races, CLI ownership, input bounds and preserved uncertainty | Assessment only; no durable reconciliation disposition |
 | Owned worker | 5 tests passed: resource and process limits, identity/scope/grants, termination readback failures and reconciliation | Trusted local runtime; no remote authentication |
 | Workspace tools | 7 tests passed: listing bounds plus UTF-8 text reads, path/result binding, file-type/link/size rejection and nonblocking FIFO handling | Immediate files only; no immutable snapshot or durable content archive |
 | Computer response boundary | 4 tests passed: unsolicited commands, unmatched/oversized responses, malformed images and invalid dimensions | No malicious-browser or kernel-escape certification |
@@ -60,7 +61,7 @@ M1 remains gated on these integration results. Only an experimental fixture view
 
 The separated supervisor probe passed in 0.63 seconds in one local sample using that earlier image. Its run-specific report and protected fixture files remain under ignored `.local/m0/control/`. This is not a performance benchmark.
 
-The default suite now passes 115 tests (18 Rust, 95 Node, 2 Python), plus formatting, Clippy, build and documentation checks. The separated native probe completed allow, deny, revoke, granted listing and ungranted listing through actual Codex callbacks with a synthetic model stream. See [native approvals and measurements](native-tools.md) for scope and reproduction.
+The default suite now passes 127 tests (18 Rust, 107 Node, 2 Python), plus formatting, Clippy, build and documentation checks. The separated native probe completed allow, deny, revoke, granted listing and ungranted listing through actual Codex callbacks with a synthetic model stream. See [native approvals and measurements](native-tools.md) for scope and reproduction.
 
 [Reconnect, private screen and cancellation](recovery-privacy.md) adds durable logical-call replay protection, screenshot suppression across restart, and a whole-container termination probe with uncooperative child/grandchild processes. The four container probes remain offline and synthetic.
 
@@ -79,3 +80,5 @@ The [Rust result archive](result-archive.md) now persists validated native-tool 
 Journal format 5 now commits result references with settlement. The [archive report](result-archive.md#settled-result-index-and-recovery) records 12 passing Linux archive/index cases, nine native callback scenarios with supervisor-replacement readback, and the current image. Six selected container probes passed; old fixture journals were not migrated or deleted.
 
 [Scoped result access](result-access.md) adds read-only loopback capabilities with absolute expiry and revocation. All nine native scenarios passed on the unchanged image; three successful results were retrieved over HTTP after supervisor replacement. Other container probes were not rerun for this host-only change.
+
+[Recovery evidence assessment](recovery-assessment.md) now distinguishes recorded settlement from verified but unsettled output, unavailable output and unknown execution. Its explicit CLI recovers an existing journal under exclusive ownership; assessment never retries or clears pending work. Container probes were not rerun for this host-only change.

@@ -47,4 +47,6 @@ Power-loss durability and filesystem fault injection remain unqualified. Linux s
 
 A [local capability endpoint](result-access.md) now qualifies scoped HTTP retrieval, expiry and revocation without changing this storage format.
 
-Next: production retrieval authorization, explicit reconciliation and task/event integration. Preserve existing approval/restart boundaries and retain unresolved archive evidence.
+[Recovery assessment](recovery-assessment.md) now checks supplied evidence against the exact pending or settled action without clearing uncertainty.
+
+Next: production retrieval authorization, durable reviewed reconciliation and task/event integration. Preserve existing approval/restart boundaries and retain unresolved archive evidence.

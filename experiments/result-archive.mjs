@@ -14,7 +14,7 @@ function command(binary, args, input) {
 function validate(record) {
   if (!record || Object.keys(record).sort().join(',') !== 'action,scope,ticket,value,version' || record.version !== 1 || !Number.isSafeInteger(record.ticket) || record.ticket < 1) throw new Error('invalid archived result');
   const { scope, action } = record;
-  if (!scope || Object.keys(scope).sort().join(',') !== 'request,thread,turn,worker,workspace' || Object.values(scope).some(v => typeof v !== 'string' || !v || Buffer.byteLength(v) > 256)) throw new Error('invalid result scope');
+  scopeDigest(scope);
   if (!action || Object.keys(action).sort().join(',') !== 'arguments,provider,target,tool' || action.provider !== 'codex' || action.target !== scope.worker) throw new Error('invalid result action');
   normalizeArguments(action.tool, action.arguments); validateResult(action.tool, action.arguments, record.value);
   return record;
@@ -23,6 +23,14 @@ function canonical(value) {
   if (Array.isArray(value)) return '[' + value.map(canonical).join(',') + ']';
   if (value && typeof value === 'object') return '{' + Object.keys(value).sort().map(key => JSON.stringify(key) + ':' + canonical(value[key])).join(',') + '}';
   return JSON.stringify(value);
+}
+export function scopeDigest(scope) {
+  if (!scope || Object.keys(scope).sort().join(',') !== 'request,thread,turn,worker,workspace' || Object.values(scope).some(v => typeof v !== 'string' || !v || !v.isWellFormed() || Buffer.byteLength(v) > 256)) throw new Error('invalid result scope');
+  return digest(JSON.stringify(Object.fromEntries(['workspace', 'worker', 'thread', 'turn', 'request'].map(key => [key, scope[key]]))));
+}
+export function resultBinding(record) {
+  validate(record);
+  return { ticket: record.ticket, action_digest: digest(canonical(record.action)), scope_digest: scopeDigest(record.scope) };
 }
 export class ResultArchive {
   constructor(binary, directory) { this.binary = binary; this.directory = directory; }
@@ -34,12 +42,13 @@ export class ResultArchive {
     return receipt;
   }
   async readSettled(authority, expected) {
-    const scope = Object.fromEntries(['workspace', 'worker', 'thread', 'turn', 'request'].map(key => [key, expected?.[key]]));
+    const scope = structuredClone(expected);
+    const expectedDigest = scopeDigest(scope);
     const state = await authority.request({ op: 'state' });
-    const entry = state.results.find(item => item.scope_digest === digest(JSON.stringify(scope)));
+    const entry = state.results.find(item => item.scope_digest === expectedDigest);
     if (!entry) throw new Error('no settled result for scope');
     const record = await this.read(entry.result, scope);
-    if (record.ticket !== entry.ticket || digest(canonical(record.action)) !== entry.action_digest) throw new Error('settled result binding mismatch');
+    if (record.ticket !== entry.ticket || resultBinding(record).action_digest !== entry.action_digest) throw new Error('settled result binding mismatch');
     return record;
   }
   async read(receipt, expected) {
