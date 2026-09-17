@@ -1,0 +1,2 @@
+{"type":"stream_event","event":{"type":"content_block_delta","delta":{"type":"text_delta","text":"Fixture response"}}}
+{"type":"result","subtype":"success","is_error":false}

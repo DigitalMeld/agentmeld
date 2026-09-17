@@ -1,0 +1,2 @@
+{"message":{"role":"assistant","content":"","tool_calls":[{"function":{"name":"sum","arguments":{"a":2,"b":3}}}]},"done":false}
+{"message":{"role":"assistant","content":""},"done":true}

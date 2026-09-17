@@ -1,0 +1,3 @@
+{"method":"item/agentMessage/delta","params":{"delta":"Fixture response"}}
+{"id":7,"method":"item/commandExecution/requestApproval","params":{"threadId":"fixture","turnId":"fixture","itemId":"fixture"}}
+{"method":"turn/completed","params":{"turn":{"status":"completed"}}}

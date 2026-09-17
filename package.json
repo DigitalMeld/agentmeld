@@ -1,0 +1,13 @@
+{
+  "name": "agentmeld-m0-experiments",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=24" },
+  "scripts": { "test": "node --test experiments/*.test.mjs" },
+  "dependencies": {
+    "@anthropic-ai/claude-agent-sdk": "0.3.274",
+    "@openai/codex": "0.154.0",
+    "playwright": "1.63.0"
+  }
+}
