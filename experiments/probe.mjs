@@ -5,7 +5,8 @@ import assert from 'node:assert/strict';
 import { performance } from 'node:perf_hooks';
 import { query } from '@anthropic-ai/claude-agent-sdk';
 import { chromium } from 'playwright';
-import { BrowserControl } from './browser-control.mjs';
+import { RustAuthority, RustBrowserControl } from './rust-browser-control.mjs';
+import { randomUUID } from 'node:crypto';
 import { startViewer } from './viewer-server.mjs';
 
 const report = { phase: 'm0', offline: true, inferenceQualified: false, checks: {} };
@@ -149,20 +150,22 @@ await check('chromium_with_renderer_sandbox', async () => {
 
 await check('browser_viewer_takeover', async () => {
   const browser = await chromium.launch({ headless: true, chromiumSandbox: true, timeout: 15000 });
-  let viewer;
+  let viewer; let authority;
   try {
     const context = await browser.newContext({ viewport: { width: 640, height: 360 } });
     const target = await context.newPage();
     await target.setContent('<title>Isolated counter</title><style>body{font:20px system-ui;background:#eef2f4}button{position:absolute;left:280px;top:150px;width:80px;height:60px}</style><h1>Counter fixture</h1><output>0</output><button>+1</button><script>document.querySelector("button").onclick=()=>document.querySelector("output").textContent++;</script>');
     let observed;
-    const control = new BrowserControl({
+    const journal = `/workspace/control-${randomUUID()}.jsonl`;
+    authority = await RustAuthority.open('/usr/local/bin/agentmeld-m0', journal, () => browser.close().catch(() => {}));
+    const control = new RustBrowserControl({
       agentClick: () => target.getByRole('button', { name: '+1', exact: true }).click(),
       humanClick: (x, y) => target.mouse.click(x, y),
       observe: async () => {
         observed = { counter: await target.locator('output').textContent(), png: (await target.screenshot()).toString('base64') };
         return observed;
       },
-    });
+    }, authority);
     await control.agentClick(0);
     viewer = await startViewer(control);
     assert.equal((await fetch(viewer.origin + '/frame')).status, 401);
@@ -185,8 +188,15 @@ await check('browser_viewer_takeover', async () => {
     await ui.getByText('Disconnected · agent remains paused', { exact: true }).waitFor();
     assert.equal(control.state().mode, 'paused');
     await assert.rejects(control.agentClick(control.generation), /stale/);
-    return { authenticated: true, takeover: true, staleAgentRejected: true, freshObservationCounter: '2', resumedCounter: '3', disconnectPaused: true, screenshot: 'viewer.png', transport: 'container_loopback' };
-  } finally { if (viewer) await viewer.close(); await browser.close(); }
+    await viewer.close(); viewer = null;
+    const lastGeneration = control.generation;
+    await authority.close();
+    authority = await RustAuthority.open('/usr/local/bin/agentmeld-m0', journal);
+    assert.equal(authority.current.mode, 'paused');
+    assert.ok(authority.current.generation > lastGeneration);
+    await assert.rejects(authority.request({ op: 'admit', generation: lastGeneration, actor: 'agent' }), /stale/);
+    return { authority: 'rust_journal', restartPaused: true, authenticated: true, takeover: true, staleAgentRejected: true, freshObservationCounter: '2', resumedCounter: '3', disconnectPaused: true, screenshot: 'viewer.png', transport: 'container_loopback' };
+  } finally { if (viewer) await viewer.close(); if (authority) await authority.close(); await browser.close(); }
 });
 
 await check('persistent_workspace', async () => {

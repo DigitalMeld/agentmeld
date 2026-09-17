@@ -10,20 +10,21 @@ Date: 2026-09-17. Status: **started, not complete**. These are experimental cont
 | Python policy integrity | 2 tests passed | Rejects unverified upstream bytes and locally modified policy |
 | Node Ollama loop | 4 tests passed, including invoking the Rust fixture tool | Injected HTTP transport; no model inference |
 | Browser control and viewer HTTP | 7 tests passed | In-process queue and local HTTP authentication; no native harness mediation |
+| Durable Rust subprocess integration | 5 tests passed: replacement, exclusive lock, SIGKILL with unfinished action, corruption, fencing and cancellation | Trusted caller/storage; production worker boundary and durable approvals remain open |
 | Rust formatting and Clippy | Passed with warnings denied | Local checks only |
 | Codex 0.154.0 app-server | Real container process initialized; empty thread list; nonexistent continuation rejected | No authenticated turn, native tool or successful resume |
 | Claude Agent SDK 0.3.274 | Real container startup rejected missing credentials through SDK exception | No authenticated turn or native permission callback |
 | Container OS boundary | UID 1000, zero effective capabilities, no-new-privileges, seccomp, read-only root, loopback only | Not an escape test or hostile-tenant qualification |
 | Workspace replacement | Marker advanced from 0 to 1 to 2 to 3 across disposable containers | No hard workspace disk quota |
 | Chromium renderer sandbox | **Passed with explicit browser seccomp policy**; button click and screenshot verified; renderer has 2 seccomp filters and PID namespace depth 3 | Headless synthetic fixture only |
-| Browser viewer/takeover | Real Chromium UI completed counter 1 → human 2 → resumed agent 3; displayed frame verified, stale input rejected, disconnect paused | Container-loopback test capability; no production authentication, credential-entry mode or durable supervisor |
+| Browser viewer/takeover | Real Chromium UI completed counter 1 → human 2 → resumed agent 3; displayed frame verified, stale input rejected, disconnect paused | Rust journal authority and paused process replacement verified; no production authentication, protected control storage or credential-entry mode |
 | iMessage | Identity, echo, duplicate and revocation fixtures passed | No Mac bridge connected and no messages sent |
 
 The original default-profile failure is now reproduced and resolved for this offline fixture. Namespace creation failed under Docker defaults. The Playwright profile then exposed a `chroot` denial after dropping capabilities. An explicit browser policy permits that syscall while the outer container still has no effective capabilities and cannot chroot. The normal probe now exits 0; the Docker-default comparison still exits 1. See [diagnosis and policy](browser-sandbox.md).
 
-The probe ran in a dedicated Colima Linux VM on an Apple Silicon Mac, configured with 2 vCPUs, 4 GiB memory and 20 GiB disk. Each probe container was limited to 1 CPU, 1 GiB RAM, 256 PIDs and a 256 MiB temporary filesystem. The last probe took about 1.77 seconds including the viewer fixture including container startup; this is a single offline sample, not an inference benchmark or sizing recommendation. Peak RSS and browser memory remain unmeasured.
+The probe ran in a dedicated Colima Linux VM on an Apple Silicon Mac, configured with 2 vCPUs, 4 GiB memory and 20 GiB disk. Each probe container was limited to 1 CPU, 1 GiB RAM, 256 PIDs and a 256 MiB temporary filesystem. The last probe took about 1.85 seconds including the viewer fixture including container startup; this is a single offline sample, not an inference benchmark or sizing recommendation. Peak RSS and browser memory remain unmeasured.
 
-The final local image ID was `sha256:ec0d001155d06f527dc0194cd004eabd887b1c36d505a96b176a6865826b1fdf`. It is not published. Raw machine-local evidence is retained under ignored `.local/m0/evidence/`. No host credentials or browser profiles were mounted.
+The final local image ID was `sha256:b28ede697033220ba9e9c27c40522d09c6f9d2b9265170835499ee47fa33ca2c`. It is not published. Raw machine-local evidence is retained under ignored `.local/m0/evidence/`. No host credentials or browser profiles were mounted.
 
 ## Versions and distribution notes
 
@@ -40,7 +41,7 @@ Exact JavaScript resolution is recorded in `package-lock.json`; Rust resolution 
 
 ## Next M0 work, in order
 
-1. Integrate the [passing viewer/takeover experiment](viewer-takeover.md) with durable Rust supervisor ownership and native tool dispatch; qualify credential-entry suppression and recovery. Keep the renderer sandbox and control-ordering checks as regression gates.
+1. Move the [durable Rust authority](durable-control.md) outside the agent storage/execution boundary and integrate native tool dispatch; qualify credential-entry suppression and worker recovery. Keep the renderer sandbox and control-ordering checks as regression gates.
 2. Define scoped provider credentials and mediated egress. Run actual Claude/Codex streamed answers, native tools, allow/deny, cancellation and process-replacement continuation. Do not import personal host auth directories.
 3. Select a local Ollama tool model and run the bounded tool loop against real inference, including failures and cancellation. Current cloud aliases do not satisfy this check.
 4. Add durable admission/replay protection, process-tree cancellation, workspace quotas and resource measurements before promoting experimental contracts into a service.

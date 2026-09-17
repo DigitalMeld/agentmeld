@@ -6,3 +6,7 @@
 !infra/
 !infra/m0/
 !infra/m0/**
+!Cargo.toml
+!Cargo.lock
+!crates/
+!crates/**

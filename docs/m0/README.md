@@ -4,6 +4,7 @@ This milestone has begun. The Rust crate contains experimental contracts and tes
 
 ## What exists
 
+- [Durable Rust authority](durable-control.md) with exclusive journal ownership, persisted action admission, paused restart and unresolved-action recovery.
 - Rust action approval/state fixture with payload binding, expiry, one-time admission, cancellation, and controller generations.
 - Bounded JSONL decoding and initial Codex, Claude SDK, and Ollama event handling.
 - Ollama tool-stream accumulation that withholds calls until a complete terminal frame, plus a strictly limited integer-sum fixture tool.
@@ -35,7 +36,7 @@ Replay is a protocol experiment and never sends messages to providers. The Ollam
 
 ## Offline runtime probe
 
-Use a dedicated local Docker context selected explicitly by the operator. Do not silently switch the global Docker context or start an unrelated runtime. The image is local development infrastructure; no image is published.
+The current pinned builder qualifies Linux ARM64 only. Use a dedicated local Docker context selected explicitly by the operator. Do not silently switch the global Docker context or start an unrelated runtime. The image is local development infrastructure; no image is published.
 
 ```sh
 docker --context YOUR_CONTEXT build -f infra/m0/Dockerfile -t agentmeld-m0:local .
@@ -56,7 +57,7 @@ The bind-mounted workspace has no hard disk quota in this experiment. The 256-Mi
 
 ## Intentional limits
 
-The approval and channel gates are in-memory single-process experiments. They do not yet authenticate actors or persist decisions across restart. The viewer experiment proves ordering only for its own submitted browser operations; it does not mediate native harness tools. Native provider resume, approval callbacks, model-dependent tools, and task cancellation need live qualified tests before being advertised.
+The approval and channel gates remain in-memory single-process experiments; browser ownership now has a separate durable Rust journal. They do not yet authenticate actors or persist decisions across restart. The viewer experiment proves ordering only for its own submitted browser operations; it does not mediate native harness tools. Native provider resume, approval callbacks, model-dependent tools, and task cancellation need live qualified tests before being advertised.
 
 The container has no host credentials and no network. A real authenticated provider probe needs a separately configured, scoped credential path and reviewed egress. Do not copy a host's `.codex`, `.claude`, keychain, Messages database, or browser profile to bypass that requirement. Ollama cloud aliases are not local-model proof.
 

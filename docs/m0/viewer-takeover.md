@@ -19,7 +19,7 @@ The separate deterministic tests exercise takeover with an active action and que
 
 ## Implementation boundary
 
-`experiments/browser-control.mjs` owns the serial browser-action queue and controller generation for this disposable experiment. `viewer-server.mjs` handles the capability and loopback transport. `viewer.html` and `viewer.js` are the inspectable functional UI. Playwright remains the existing browser dependency; no viewer library or production dependency was added.
+`experiments/rust-browser-control.mjs` now connects the browser-action queue to the [durable Rust authority](durable-control.md). The earlier `browser-control.mjs` remains an in-memory reference fixture. `viewer-server.mjs` handles the capability and loopback transport. `viewer.html` and `viewer.js` are the inspectable functional UI. Playwright remains the existing browser dependency; no viewer library or production dependency was added.
 
 The queue admits at most 32 operations. Takeover invalidates queued automation synchronously and acknowledges human control only after the active operation settles. Cancellation/disconnect invalidate a pending resume; failed observations leave the controller paused. UI revisions prevent a late polling response from overwriting a newer control decision or screen.
 
@@ -27,12 +27,12 @@ Authenticated viewer requests renew a five-second lease. Silence revokes the cap
 
 ## Limits and next work
 
-- The Node controller deliberately does not claim to be the Rust `RunControl` implementation. The next integration must put durable generation ownership in the Rust supervisor and preserve these behavioral tests against that boundary.
+- Durable generation ownership now lives in the Rust M0 authority and is exercised through real subprocesses. Its fixture journal remains inside the trusted worker boundary; production storage separation and durable approvals are unqualified.
 - The experiment gates only actions submitted through its controller. Native harnesses or arbitrary code with direct browser/process access are not mediated by this queue. Provider tool dispatch must be integrated before claiming a global takeover guarantee.
 - Screenshot polling and coordinate clicks establish a narrow viewer contract. General keyboard entry, streaming video, clipboard, downloads and accessibility-tree interaction are not implemented.
 - The browser image has a fixed 640 by 360 viewport. No cross-browser, mobile, remote network or multiuser qualification is claimed.
 - There is no credential-entry mode or screenshot-redaction guarantee. The target contains only synthetic data. Never connect personal accounts to this experiment.
-- The capability is ephemeral test authentication, not a user login or shared-agent authorization system. No host/browser onboarding or public listener exists. Expiry pauses control; process restart does not restore a session.
+- The capability is ephemeral test authentication, not a user login or shared-agent authorization system. No host/browser onboarding or public listener exists. Expiry pauses control; authority restart stays paused with a new generation; it does not restore a viewer session.
 - Active commands must settle before takeover acknowledgement. Hung-browser recovery relies on the outer bounded probe timeout; production process-tree cancellation and crash recovery remain open.
 
 Reproduce using the [M0 commands](README.md). The ordinary offline container probe now includes `browser_viewer_takeover`. Raw output and `viewer.png` stay under ignored `.local/m0/`.
