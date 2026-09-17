@@ -53,3 +53,19 @@ The default suite passes 84 tests (13 Rust, 69 Node, 2 Python), plus formatting,
 The Linux recovery tests use tmpfs journals and do not establish power-loss durability. Real provider inference, remote-worker authentication, disk quotas and production recovery remain open. Reproduction commands and retained evidence locations are in the [M0 guide](README.md).
 
 The subsequent [workspace-read batch](workspace-read.md) expands native qualification to nine scenarios and records the newer image and 90-test local suite.
+
+## Fresh termination evidence
+
+The host adapter now exposes a scope-bound observation of the original worker in a fresh runtime inventory. It checks full immutable IDs and rejects malformed/duplicate inventory entries. Failures return `unavailable`, not absence. Observation does not stop or revoke the worker. Every termination call now confirms inventory, including calls after a previously successful stop; cached success cannot hide a later inventory failure or contradictory presence. Concurrent stop requests still coalesce. Repeated successful calls avoid another stop command but obtain fresh readback.
+
+The default suite passes 132 tests (18 Rust, 112 Node, two Python), including eight worker lifecycle tests and thirteen recovery assessment tests. New cases cover wrong worker/workspace, malformed inventories, stale stop evidence, and recovery state changes during runtime lookup.
+
+The explicit cancellation probe passed on 2026-09-17 using unchanged local image `sha256:edcb333300d04fb0a1f2b766d42d9fcd9e729ca4d12b3923733fbf0593424db3`:
+
+```sh
+node scripts/probe-cancellation.mjs --context YOUR_CONTEXT
+```
+
+It verified present-before-stop, HTTP cancellation, container absence, child/grandchild heartbeat cessation, cancelled supervisor replacement, and a [recovery report](recovery-assessment.md) with verified unsettled output and fresh worker absence. The journal remained uncertain and settled retrieval still rejected that output. The cancellation/readback sequence took 338 ms in this one synthetic sample; this is not a benchmark. Evidence is retained under ignored `.local/m0/control/b1f67eb6-46f7-49db-bc55-8a564d3df181/`. No model, personal data or messaging was used. Other runtime probes were not rerun for this host-only change.
+
+The original host binding and dedicated Docker transport must still be trusted. Inventory absence does not prove the absence of external effects, remote work or a compromised runtime. This qualifies Rust subprocess replacement while the host retains its worker binding, not reconstruction after losing the whole host process. Durable reviewed resolution of uncertain actions remains separate work.

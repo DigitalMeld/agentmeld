@@ -11,7 +11,7 @@ export function validateRecoveryRequest(request) {
   return structuredClone(request);
 }
 
-export async function assessRecovery(authority, archive, input) {
+export async function assessRecovery(authority, archive, input, worker = null) {
   const request = validateRecoveryRequest(input);
   const scope = scopeDigest(request.scope);
   const state = await authority.request({ op: 'state' });
@@ -35,14 +35,22 @@ export async function assessRecovery(authority, archive, input) {
   } else {
     status = state.dispatched ? 'pending_outcome_unknown' : 'pending_not_dispatched';
   }
-  // Do not report evidence against a state that changed while the archive was read.
+  let workerState = 'not_checked';
+  if (worker) {
+    const evidence = await worker.observeTermination(request.scope);
+    if (evidence?.worker !== request.scope.worker || !['present', 'absent', 'unavailable'].includes(evidence.state)) throw new Error('invalid worker evidence');
+    workerState = evidence.state;
+  }
+  // Do not report evidence against a state that changed during storage/runtime reads.
   const current = await authority.request({ op: 'state' });
   if (current.sequence !== state.sequence || current.generation !== state.generation) throw new Error('recovery state changed; assess again');
   return {
-    version: 1, sequence: state.sequence, generation: state.generation,
+    version: 2, sequence: state.sequence, generation: state.generation,
     mode: state.mode, ticket: request.ticket, status,
     settlementRecorded: Boolean(settled), verifiedReceipt,
-    requiresWorkerReconciliation: !settled && state.dispatched,
+    workerState,
+    requiresWorkerReconciliation: !settled && state.dispatched && workerState !== 'absent',
+    requiresOutcomeReview: !settled,
     retryAuthorized: false, resumeAuthorized: false,
   };
 }

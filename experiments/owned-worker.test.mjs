@@ -28,7 +28,7 @@ test('termination cannot claim success while the container exists or runtime rea
   const present = await OwnedWorker.bind(fixture({ ids: async () => [id] }));
   await assert.rejects(present.terminate(), /present/); assert.equal(present.termination, 'unconfirmed');
   const offline = await OwnedWorker.bind(fixture({ ids: async () => { throw new Error('runtime offline'); } }));
-  await assert.rejects(offline.terminate(), /offline/); assert.equal(offline.termination, 'unconfirmed');
+  await assert.rejects(offline.terminate(), /unavailable/); assert.equal(offline.termination, 'unconfirmed');
 });
 test('termination coalesces concurrent requests and allows reconciliation after a failed stop', async () => {
   let stops = 0; let remaining = [id];
@@ -55,4 +55,33 @@ test('binding rejects missing resource limits and weakened process isolation', a
     const actual = record(); delete actual.HostConfig[key];
     await assert.rejects(OwnedWorker.bind(fixture({ inspect: async () => actual })), /limits/, key);
   }
+});
+
+test('termination evidence is fresh, scope-bound and never stops the worker', async () => {
+  let ids = [id]; let reads = 0; let stops = 0;
+  const worker = await OwnedWorker.bind(fixture({ ids: async () => { reads++; return ids; }, stop: async () => { stops++; } }));
+  const scope = { worker: id, workspace };
+  assert.equal((await worker.observeTermination(scope)).state, 'present');
+  ids = []; assert.deepEqual(await worker.observeTermination(scope), { worker: id, state: 'absent' });
+  ids = [id]; assert.equal((await worker.observeTermination(scope)).state, 'present');
+  await assert.rejects(worker.observeTermination({ ...scope, worker: 'c'.repeat(64) }), /scope/);
+  await assert.rejects(worker.observeTermination({ ...scope, workspace: '/other' }), /scope/);
+  assert.equal(reads, 3); assert.equal(stops, 0); assert.equal(worker.revoked, false);
+});
+test('malformed or unavailable inventory cannot establish worker absence', async () => {
+  for (const ids of [null, {}, '', [''], ['short'], [id, id], ['A'.repeat(64)], [null]]) {
+    const worker = await OwnedWorker.bind(fixture({ ids: async () => ids }));
+    assert.equal((await worker.observeTermination({ worker: id, workspace })).state, 'unavailable');
+    await assert.rejects(worker.terminate(), /inventory unavailable/);
+    assert.equal(worker.termination, 'unconfirmed'); assert.equal(worker.revoked, true);
+  }
+});
+test('a cached successful stop cannot hide failed or contradictory runtime readback', async () => {
+  let ids = []; let stops = 0; let fail = false;
+  const worker = await OwnedWorker.bind(fixture({ stop: async () => { stops++; }, ids: async () => { if (fail) throw new Error('private runtime details'); return ids; } }));
+  await worker.terminate(); await worker.terminate(); assert.equal(stops, 1);
+  fail = true; await assert.rejects(worker.terminate(), /inventory unavailable/); assert.equal(worker.termination, 'unconfirmed');
+  fail = false; await worker.terminate(); assert.equal(stops, 2);
+  ids = [id]; await assert.rejects(worker.terminate(), /present/); assert.equal(stops, 2);
+  assert.equal(worker.termination, 'unconfirmed');
 });

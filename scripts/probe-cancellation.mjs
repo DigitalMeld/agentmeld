@@ -9,6 +9,8 @@ import { RustAuthority, RustBrowserControl } from '../experiments/rust-browser-c
 import { ContainerComputer } from '../experiments/container-computer.mjs';
 import { OwnedWorker, dockerRuntime } from '../experiments/owned-worker.mjs';
 import { startViewer } from '../experiments/viewer-server.mjs';
+import { ResultArchive } from '../experiments/result-archive.mjs';
+import { assessRecovery } from '../experiments/recovery-assessment.mjs';
 import { setTimeout as delay } from 'node:timers/promises';
 
 const args = process.argv.slice(2);
@@ -39,7 +41,18 @@ try {
   computer = new ContainerComputer('docker', ['--context', context, ...plan], stop);
   assert.equal((await computer.request('linger_fixture')).started, true);
   const id = (await readFile(join(controlDirectory, 'worker.cid'), 'utf8')).trim();
-  const worker = await OwnedWorker.bind({ id, image, workspace, computer, runtime: dockerRuntime(context) });
+  const worker = await OwnedWorker.bind({ id, image, workspace, computer, runtime: dockerRuntime(context), tools: ['fixture_sum'] });
+  assert.equal((await worker.observeTermination({ worker: id, workspace })).state, 'present');
+  // Preserve a real returned result without settlement to qualify recovery evidence after cancellation.
+  const scope = { workspace, worker: id, thread: 'recovery', turn: 'fixture', request: 'sum' };
+  const action = { provider: 'codex', tool: 'fixture_sum', target: id, arguments: { a: 2, b: 3 } };
+  const proposed = await authority.request({ op: 'propose', generation: authority.current.generation, action, scope, ttl_ms: 30000, result_required: true });
+  const allowed = await authority.request({ op: 'decide', approval_id: proposed.approval.id, action, scope, allow: true });
+  await authority.request({ op: 'dispatch', actor: 'agent', generation: allowed.generation, ticket: allowed.pending, action });
+  worker.authorize('fixture_sum', scope);
+  const value = await worker.request('fixture_sum', action.arguments);
+  const archive = new ResultArchive(binary, join(controlDirectory, 'results'));
+  const receipt = await archive.put({ scope, action, ticket: allowed.pending, value });
   const control = new RustBrowserControl(computer, authority, worker);
   viewer = await startViewer(control);
   const beats = await readFile(join(workspace, 'termination.jsonl'), 'utf8');
@@ -61,6 +74,15 @@ try {
   await authority.close();
   authority = await RustAuthority.open(binary, join(controlDirectory, 'cancel.jsonl'));
   assert.equal(authority.current.mode, 'cancelled');
+  const assessment = await assessRecovery(authority, archive, { scope, ticket: allowed.pending, receipt }, worker);
+  assert.equal(assessment.status, 'pending_output_verified');
+  assert.equal(assessment.workerState, 'absent');
+  assert.equal(assessment.requiresWorkerReconciliation, false);
+  assert.equal(assessment.requiresOutcomeReview, true);
+  assert.equal(assessment.resumeAuthorized, false);
+  assert.equal(authority.current.uncertain, true);
+  await assert.rejects(archive.readSettled(authority, scope), /no settled/);
+  report.recoveryAssessment = assessment;
   report.checks = { descendantsStarted: [...roles].sort(), httpCancellationConfirmed: true, runtimeIdentityVerified: true, heartbeatActiveBeforeCancel: true, containerAbsent: true, heartbeatStopped: true, restartCancelled: true, elapsedMs: Math.round(performance.now() - before) };
 } catch (error) { report.failure = error.message; process.exitCode = 1; }
 finally {

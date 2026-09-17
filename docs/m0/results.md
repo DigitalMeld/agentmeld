@@ -16,8 +16,8 @@ Date: 2026-09-17. Status: **started, not complete**. These are experimental cont
 | Result archive integration | 6 tests passed: scope/readback, asynchronous scope preservation, ordering, failure, lost settlement and denial | Trusted host archive; no atomic archive/journal transaction |
 | Settled result index | 7 tests passed: restart lookup, required references, crash timing, history integrity, capacity and binding | Format 5; earlier fixture journals preserved and rejected |
 | Scoped result HTTP access | 8 tests passed: capability, scope, expiry, revocation during reads, restart, orphan rejection and corruption | Trusted host pairing; no account or remote authentication |
-| Recovery evidence assessment | 11 tests passed: exact evidence binding, SIGKILL, state races, CLI ownership, input bounds and preserved uncertainty | Assessment only; no durable reconciliation disposition |
-| Owned worker | 5 tests passed: resource and process limits, identity/scope/grants, termination readback failures and reconciliation | Trusted local runtime; no remote authentication |
+| Recovery evidence assessment | 13 tests passed: exact evidence binding, SIGKILL, state races, CLI ownership, input bounds, worker observations and preserved uncertainty | Assessment only; no durable reconciliation disposition |
+| Owned worker | 8 tests passed: resource and process limits, identity/scope/grants, termination readback failures, fresh scoped inventory and reconciliation | Trusted local runtime; no remote authentication |
 | Workspace tools | 7 tests passed: listing bounds plus UTF-8 text reads, path/result binding, file-type/link/size rejection and nonblocking FIFO handling | Immediate files only; no immutable snapshot or durable content archive |
 | Computer response boundary | 4 tests passed: unsolicited commands, unmatched/oversized responses, malformed images and invalid dimensions | No malicious-browser or kernel-escape certification |
 | Rust formatting and Clippy | Passed with warnings denied | Local checks only |
@@ -61,7 +61,7 @@ M1 remains gated on these integration results. Only an experimental fixture view
 
 The separated supervisor probe passed in 0.63 seconds in one local sample using that earlier image. Its run-specific report and protected fixture files remain under ignored `.local/m0/control/`. This is not a performance benchmark.
 
-The default suite now passes 127 tests (18 Rust, 107 Node, 2 Python), plus formatting, Clippy, build and documentation checks. The separated native probe completed allow, deny, revoke, granted listing and ungranted listing through actual Codex callbacks with a synthetic model stream. See [native approvals and measurements](native-tools.md) for scope and reproduction.
+The default suite now passes 132 tests (18 Rust, 112 Node, 2 Python), plus formatting, Clippy, build and documentation checks. The separated native probe completed allow, deny, revoke, granted listing and ungranted listing through actual Codex callbacks with a synthetic model stream. See [native approvals and measurements](native-tools.md) for scope and reproduction.
 
 [Reconnect, private screen and cancellation](recovery-privacy.md) adds durable logical-call replay protection, screenshot suppression across restart, and a whole-container termination probe with uncooperative child/grandchild processes. The four container probes remain offline and synthetic.
 
@@ -82,3 +82,5 @@ Journal format 5 now commits result references with settlement. The [archive rep
 [Scoped result access](result-access.md) adds read-only loopback capabilities with absolute expiry and revocation. All nine native scenarios passed on the unchanged image; three successful results were retrieved over HTTP after supervisor replacement. Other container probes were not rerun for this host-only change.
 
 [Recovery evidence assessment](recovery-assessment.md) now distinguishes recorded settlement from verified but unsettled output, unavailable output and unknown execution. Its explicit CLI recovers an existing journal under exclusive ownership; assessment never retries or clears pending work. Container probes were not rerun for this host-only change.
+
+[Fresh termination evidence](worker-lifecycle.md#fresh-termination-evidence) now feeds recovery report version 2. The extended cancellation probe verifies worker absence after Rust supervisor replacement while saved but unsettled output still requires outcome review. Cached stop results cannot bypass fresh inventory.

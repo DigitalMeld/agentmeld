@@ -8,7 +8,7 @@ export function dockerRuntime(context) {
   return {
     inspect: async id => JSON.parse(await run(['inspect', id]))[0],
     stop: async id => { await run(['stop', '--time', '1', id]); },
-    ids: async () => (await run(['ps', '-a', '--no-trunc', '--format', '{{.ID}}'])).trim().split('\n'),
+    ids: async () => (await run(['ps', '-a', '--no-trunc', '--format', '{{.ID}}'])).trim().split('\n').filter(Boolean),
   };
 }
 export class OwnedWorker {
@@ -30,16 +30,28 @@ export class OwnedWorker {
     this.authorize(tool, { worker: this.id, workspace: this.workspace });
     return this.computer.request(tool, args);
   }
+  async observeTermination(scope) {
+    if (scope?.worker !== this.id || scope?.workspace !== this.workspace) throw new Error('worker recovery scope mismatch');
+    try {
+      const ids = await this.runtime.ids();
+      if (!Array.isArray(ids) || ids.some(id => typeof id !== 'string' || !/^[a-f0-9]{64}$/.test(id)) || new Set(ids).size !== ids.length) throw new Error('invalid runtime inventory');
+      return { worker: this.id, state: ids.includes(this.id) ? 'present' : 'absent' };
+    } catch {
+      return { worker: this.id, state: 'unavailable' };
+    }
+  }
   async terminate() {
     this.revoked = true;
-    if (this.termination === 'stopped') return { termination: 'stopped', worker: this.id };
     if (this.stopping) return this.stopping;
+    const previouslyStopped = this.termination === 'stopped';
     this.termination = 'unconfirmed';
     this.stopping = (async () => {
       let stopError;
-      try { await this.runtime.stop(this.id); } catch (error) { stopError = error; }
+      if (!previouslyStopped) try { await this.runtime.stop(this.id); } catch (error) { stopError = error; }
       // A successful inventory is required even when stop reports an already-removed container.
-      if ((await this.runtime.ids()).includes(this.id)) throw stopError || new Error('worker still present');
+      const evidence = await this.observeTermination({ worker: this.id, workspace: this.workspace });
+      if (evidence.state === 'unavailable') throw new Error('worker inventory unavailable');
+      if (evidence.state !== 'absent') throw stopError || new Error('worker still present');
       this.termination = 'stopped';
       this.computer.fail(new Error('worker stopped'));
       return { termination: 'stopped', worker: this.id };

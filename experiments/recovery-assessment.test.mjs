@@ -135,3 +135,24 @@ test('CLI rejects oversized, symlink and FIFO request files before opening the j
     assert.deepEqual(await readFile(journal), before);
   }
 }));
+
+test('fresh worker evidence refines recovery needs without resolving the action', async () => fixture(async ({ open, archive, journal }) => {
+  let owner = await open(); const ticket = await admit(owner); const receipt = await save(archive, ticket); await owner.close(); owner = await open();
+  const before = await readFile(journal);
+  for (const state of ['present', 'absent', 'unavailable']) {
+    const worker = { observeTermination: async expected => { assert.deepEqual(expected, scope); return { worker: scope.worker, state }; } };
+    const report = await assessRecovery(owner, archive, { scope, ticket, receipt }, worker);
+    assert.equal(report.version, 2); assert.equal(report.workerState, state);
+    assert.equal(report.requiresWorkerReconciliation, state !== 'absent');
+    assert.equal(report.requiresOutcomeReview, true); assert.equal(report.settlementRecorded, false);
+    assert.equal(report.retryAuthorized, false); assert.equal(report.resumeAuthorized, false);
+  }
+  assert.deepEqual(await readFile(journal), before); assert.equal(owner.current.uncertain, true);
+}));
+test('invalid worker evidence and state changes during inventory cannot produce a report', async () => fixture(async ({ open, archive }) => {
+  let owner = await open(); const ticket = await admit(owner); await owner.close(); owner = await open();
+  for (const evidence of [null, { worker: 'foreign', state: 'absent' }, { worker: scope.worker, state: 'stopped' }]) {
+    await assert.rejects(assessRecovery(owner, archive, { scope, ticket }, { observeTermination: async () => evidence }), /invalid worker evidence/);
+  }
+  await assert.rejects(assessRecovery(owner, archive, { scope, ticket }, { observeTermination: async () => { await owner.request({ op: 'cancel' }); return { worker: scope.worker, state: 'absent' }; } }), /state changed/);
+}));
