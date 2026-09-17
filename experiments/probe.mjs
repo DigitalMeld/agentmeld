@@ -5,6 +5,8 @@ import assert from 'node:assert/strict';
 import { performance } from 'node:perf_hooks';
 import { query } from '@anthropic-ai/claude-agent-sdk';
 import { chromium } from 'playwright';
+import { BrowserControl } from './browser-control.mjs';
+import { startViewer } from './viewer-server.mjs';
 
 const report = { phase: 'm0', offline: true, inferenceQualified: false, checks: {} };
 async function check(name, fn) {
@@ -143,6 +145,48 @@ await check('chromium_with_renderer_sandbox', async () => {
     assert.ok(renderers.length > 0, 'no renderer processes observed');
     return { isolatedFixture: true, rendererSandboxEnabled: true, renderers, screenshot: 'browser.png' };
   } finally { await browser.close(); }
+});
+
+await check('browser_viewer_takeover', async () => {
+  const browser = await chromium.launch({ headless: true, chromiumSandbox: true, timeout: 15000 });
+  let viewer;
+  try {
+    const context = await browser.newContext({ viewport: { width: 640, height: 360 } });
+    const target = await context.newPage();
+    await target.setContent('<title>Isolated counter</title><style>body{font:20px system-ui;background:#eef2f4}button{position:absolute;left:280px;top:150px;width:80px;height:60px}</style><h1>Counter fixture</h1><output>0</output><button>+1</button><script>document.querySelector("button").onclick=()=>document.querySelector("output").textContent++;</script>');
+    let observed;
+    const control = new BrowserControl({
+      agentClick: () => target.getByRole('button', { name: '+1', exact: true }).click(),
+      humanClick: (x, y) => target.mouse.click(x, y),
+      observe: async () => {
+        observed = { counter: await target.locator('output').textContent(), png: (await target.screenshot()).toString('base64') };
+        return observed;
+      },
+    });
+    await control.agentClick(0);
+    viewer = await startViewer(control);
+    assert.equal((await fetch(viewer.origin + '/frame')).status, 401);
+    const uiContext = await browser.newContext({ viewport: { width: 1000, height: 800 }, extraHTTPHeaders: { Authorization: `Bearer ${viewer.token}` } });
+    const ui = await uiContext.newPage();
+    await ui.goto(viewer.origin);
+    await ui.getByRole('button', { name: 'Take control', exact: true }).click();
+    await ui.getByText('You have control', { exact: true }).waitFor();
+    await assert.rejects(control.agentClick(0), /stale/);
+    await ui.locator('#screen').click({ position: { x: 320, y: 180 } });
+    await target.waitForFunction(() => document.querySelector('output').textContent === '2');
+    await ui.getByRole('button', { name: 'Resume agent', exact: true }).click();
+    await ui.getByText('Agent has control', { exact: true }).waitFor();
+    assert.equal(observed.counter, '2');
+    await control.agentClick(control.generation);
+    assert.equal(await target.locator('output').textContent(), '3');
+    await ui.waitForFunction(() => document.querySelector('#screen').dataset.counter === '3');
+    await ui.screenshot({ path: '/workspace/viewer.png' });
+    await ui.getByRole('button', { name: 'Disconnect', exact: true }).click();
+    await ui.getByText('Disconnected · agent remains paused', { exact: true }).waitFor();
+    assert.equal(control.state().mode, 'paused');
+    await assert.rejects(control.agentClick(control.generation), /stale/);
+    return { authenticated: true, takeover: true, staleAgentRejected: true, freshObservationCounter: '2', resumedCounter: '3', disconnectPaused: true, screenshot: 'viewer.png', transport: 'container_loopback' };
+  } finally { if (viewer) await viewer.close(); await browser.close(); }
 });
 
 await check('persistent_workspace', async () => {
