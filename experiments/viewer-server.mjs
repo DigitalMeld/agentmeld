@@ -57,6 +57,8 @@ export async function startViewer(control, { leaseMs = 5000 } = {}) {
         return reply(200, await control.disconnect());
       }
       if (!Number.isSafeInteger(body.generation)) return reply(400, { error: 'generation required' });
+      if (req.url === '/private-begin') return reply(200, await control.privacy(body.generation, true));
+      if (req.url === '/private-end') return reply(200, await control.privacy(body.generation, false));
       if (req.url === '/resume') return reply(200, await control.resume(body.generation));
       if (req.url === '/input') {
         if (![body.x, body.y].every(Number.isFinite) || body.x < 0 || body.y < 0 || body.x >= 640 || body.y >= 360) return reply(400, { error: 'coordinates out of bounds' });

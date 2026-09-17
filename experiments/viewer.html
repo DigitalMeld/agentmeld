@@ -5,10 +5,10 @@
 :root { color-scheme: dark; font-family: system-ui,sans-serif; background: #141719; color: #eceeef; }
 body { max-width: 900px; margin: 48px auto; padding: 0 24px; } h1 { font-size: 24px; font-weight: 550; } p { color: #b5bec3; line-height: 1.6; }
 nav { display:flex; gap:12px; flex-wrap:wrap; margin:24px 0; } button { border:1px solid #758087; background:#242b30; color:inherit; padding:10px 16px; border-radius:6px; cursor:pointer; } button:disabled { opacity:.45; cursor:default; } button:focus-visible, img:focus-visible { outline:2px solid #8dc9ff; outline-offset:4px; }
-img { display:block; width:100%; max-width:640px; border:1px solid #758087; } #status { min-height:24px; } small { color:#b5bec3; }
+img[hidden] { display:none; } img { display:block; width:100%; max-width:640px; border:1px solid #758087; } #status { min-height:24px; } small { color:#b5bec3; }
 </style>
 <h1>Computer fixture</h1><p>Take control to interact with the isolated browser. Resuming captures the current screen before returning control to the agent.</p>
-<nav aria-label="Computer controls"><button id="takeover">Take control</button><button id="resume" disabled>Resume agent</button><button id="disconnect">Disconnect</button></nav>
+<nav aria-label="Computer controls"><button id="takeover">Take control</button><button id="resume" disabled>Resume agent</button><button id="privacy" disabled>Hide screen</button><button id="disconnect">Disconnect</button></nav>
 <p id="status" role="status">Connecting…</p>
 <img id="screen" alt="Isolated browser screenshot" tabindex="0" role="button" aria-label="Browser screen. Click to interact, or press Enter to click its center.">
 <p><small>M0 experiment · Synthetic page only · No personal accounts</small></p><script src="/viewer.js"></script></html>

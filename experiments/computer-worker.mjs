@@ -1,4 +1,6 @@
 // Runs in the agent container. It has no journal handle, supervisor connection or viewer capability.
+import { spawn } from 'node:child_process';
+import { setTimeout as delay } from 'node:timers/promises';
 import { chromium } from 'playwright';
 import { startNativeFixture } from './codex-native-fixture.mjs';
 import { readFile, access, appendFile, mkdir } from 'node:fs/promises';
@@ -21,6 +23,15 @@ async function handle(op, args) {
   if (op === 'fixture_sum') {
     if (!Number.isSafeInteger(args.a) || !Number.isSafeInteger(args.b) || !Number.isSafeInteger(args.a + args.b)) throw new Error('invalid arguments');
     return { sum: args.a + args.b };
+  }
+  if (op === 'linger_fixture') {
+    spawn(process.execPath, ['/opt/agentmeld/linger-fixture.mjs', 'child'], { stdio: 'ignore' });
+    for (let attempt = 0; attempt < 100; attempt++) {
+      const lines = await readFile('/workspace/termination.jsonl', 'utf8').catch(() => '');
+      if (lines.includes('"grandchild"')) return { started: true };
+      await delay(20);
+    }
+    throw new Error('descendants did not start');
   }
   if (op === 'metrics') {
     return { cgroupPeakBytes: Number(await readFile('/sys/fs/cgroup/memory.peak', 'utf8')), workerRssBytes: process.memoryUsage().rss };

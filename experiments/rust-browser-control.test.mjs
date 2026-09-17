@@ -99,3 +99,31 @@ test('takeover revokes an admitted action that has not dispatched', async () => 
   await assert.rejects(owner.request({ op: 'dispatch', actor: 'agent', generation: 0, ticket: admitted.pending, action }), /stale/);
   assert.equal((await owner.request({ op: 'human_ready', generation: takeover.generation })).mode, 'human');
 }));
+
+test('private screen suppresses capture and input until explicit reveal, surviving restart', async () => fixture(async open => {
+  let captures = 0;
+  const computer = { observe: async () => { captures++; return { png: 'synthetic' }; }, humanClick: async () => {} };
+  let owner = await open(); let control = new RustBrowserControl(computer, owner);
+  const human = await control.takeover(); const hidden = await control.privacy(human.generation, true);
+  await assert.rejects(control.frame(), /unavailable/);
+  await assert.rejects(control.input(hidden.generation, 1, 1), /private/);
+  await assert.rejects(control.resume(hidden.generation), /private/);
+  await control.disconnect(); await owner.close(); owner = await open(); control = new RustBrowserControl(computer, owner);
+  assert.equal(control.state().private, true); await assert.rejects(control.frame(), /unavailable/);
+  const recovered = await control.takeover();
+  await assert.rejects(control.privacy(human.generation, false), /stale/);
+  const revealed = await control.privacy(recovered.generation, false);
+  assert.equal(revealed.mode, 'human'); assert.equal(captures, 0);
+  await control.resume(revealed.generation); assert.equal(captures, 1);
+}));
+
+test('entering private mode withholds an in-flight screenshot before acknowledging', async () => fixture(async open => {
+  const owner = await open(); let release; let began;
+  const started = new Promise(resolve => { began = resolve; });
+  const control = new RustBrowserControl({ observe: async () => { began(); return new Promise(resolve => { release = resolve; }); } }, owner);
+  const human = await control.takeover();
+  const frame = assert.rejects(control.frame(), /revoked/); await started;
+  const hidden = control.privacy(human.generation, true);
+  assert.equal((await owner.request({ op: 'state' })).private, true);
+  release({ png: 'must-not-leak' }); await frame; assert.equal((await hidden).private, true);
+}));

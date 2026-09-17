@@ -4,7 +4,7 @@ export function normalizeCodexCall(frame, expected) {
   if (frame?.method !== 'item/tool/call' || !['string', 'number'].includes(typeof frame.id) || (typeof frame.id === 'number' && !Number.isSafeInteger(frame.id)) || (typeof frame.id === 'string' && (!frame.id || frame.id.length > 128)) || !params || params.threadId !== expected.thread || params.turnId !== expected.turn || params.namespace != null || params.tool !== 'fixture_sum' || typeof params.callId !== 'string' || !params.callId || params.callId.length > 256) throw new Error('unsupported or unbound Codex request');
   const args = params.arguments;
   if (!args || typeof args !== 'object' || Array.isArray(args) || Object.keys(args).sort().join(',') !== 'a,b' || !Number.isSafeInteger(args.a) || !Number.isSafeInteger(args.b) || !Number.isSafeInteger(args.a + args.b)) throw new Error('invalid fixture arguments');
-  const scope = { workspace: expected.workspace, worker: expected.worker, thread: expected.thread, turn: expected.turn, request: JSON.stringify([frame.id, params.callId]) };
+  const scope = { workspace: expected.workspace, worker: expected.worker, thread: expected.thread, turn: expected.turn, request: params.callId };
   const action = { provider: 'codex', tool: 'fixture_sum', target: expected.worker, arguments: { a: args.a, b: args.b } };
   return { scope, action };
 }

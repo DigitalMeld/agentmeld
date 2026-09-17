@@ -62,7 +62,7 @@ export class RustAuthority {
 export class RustBrowserControl {
   constructor(computer, authority) { this.computer = computer; this.authority = authority; this.tail = Promise.resolve(); this.queued = 0; }
   get generation() { return this.authority.current.generation; }
-  state() { const { mode, generation } = this.authority.current; return { mode: this.authority.dead ? 'unavailable' : mode, generation }; }
+  state() { const { mode, generation, private: hidden } = this.authority.current; return { mode: this.authority.dead ? 'unavailable' : mode, generation, private: hidden }; }
   enqueue(fn) {
     if (this.queued >= 32) return Promise.reject(new Error('queue full'));
     this.queued++;
@@ -93,9 +93,16 @@ export class RustBrowserControl {
   frame() {
     return this.enqueue(async () => {
       const state = await this.authority.request({ op: 'state' });
-      if (!['agent', 'human', 'paused'].includes(state.mode)) throw new Error('frame unavailable');
-      return this.computer.observe();
+      if (state.private || !['agent', 'human', 'paused'].includes(state.mode)) throw new Error('frame unavailable');
+      const observation = await this.computer.observe();
+      const current = await this.authority.request({ op: 'state' });
+      if (current.private || current.generation !== state.generation) throw new Error('frame revoked');
+      return observation;
     });
+  }
+  async privacy(generation, hidden) {
+    await this.authority.request({ op: hidden ? 'private_begin' : 'private_end', generation });
+    return this.enqueue(() => this.state());
   }
   async resume(generation) {
     const next = await this.authority.request({ op: 'resume', generation });

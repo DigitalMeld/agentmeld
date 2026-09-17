@@ -4,6 +4,7 @@ This milestone has begun. The Rust crate contains experimental contracts and tes
 
 ## What exists
 
+- [Reconnect, private screen and cancellation](recovery-privacy.md): durable request IDs, screenshot suppression and an explicit whole-container stop probe.
 - [Durable approvals and native Codex callback](native-tools.md), tested with a synthetic model stream and measured locally.
 - [Separated supervisor probe](protected-supervisor.md) with host-owned journal/viewer, container-only workspace, bounded responses and payload-bound dispatch.
 - [Durable Rust authority](durable-control.md) with exclusive journal ownership, persisted action admission, paused restart and unresolved-action recovery.
@@ -67,7 +68,7 @@ node scripts/probe-separated.mjs --context YOUR_CONTEXT
 
 This is the current storage-boundary qualification: Rust and the viewer stay on the host, and the browser stays in the container. See [evidence and limitations](protected-supervisor.md). The earlier all-in-one probe remains useful for native startup and viewer UI comparison, but its in-container journal is not protected from that same container.
 
-Journal format 3 adds durable approvals to payload-bound dispatch. Old M0 journals are preserved and rejected; there is no implicit migration. Each probe creates a fresh synthetic journal.
+Journal format 4 adds a durable request ledger and private-screen state to scoped approvals and payload-bound dispatch. Old M0 journals are preserved and rejected; there is no implicit migration. Each probe creates a fresh synthetic journal.
 
 Run the separate native Codex callback and host measurement probes as described in [native tool qualification](native-tools.md).
 

@@ -35,7 +35,7 @@ test('denied and expired approvals execute no tool and cannot be replayed', asyn
   const broker = new NativeToolBroker(owner, { request: async () => { calls++; } }, expected);
   const proposed = await broker.propose(frame()); assert.equal((await broker.decide(proposed.id, false)).success, false);
   await assert.rejects(broker.propose(frame()), /duplicate/);
-  const next = { ...frame(), id: 8 }; const expired = await broker.propose(next, 1); await delay(10);
+  const next = { ...frame(), id: 8, params: { ...frame().params, callId: 'next-call' } }; const expired = await broker.propose(next, 1); await delay(10);
   const result = await broker.decide(expired.id, true); assert.match(result.contentItems[0].text, /expired/);
   assert.equal(owner.current.pending, null); assert.equal(calls, 0);
 }));
@@ -70,4 +70,31 @@ test('unexpected tool output cannot enter the native response or settle the tick
   const proposal = await broker.propose(frame()); const response = await broker.decide(proposal.id, true);
   assert.equal(response.success, false); assert.equal(JSON.stringify(response).includes('untrusted content'), false);
   assert.equal(owner.current.mode, 'paused'); assert.notEqual(owner.current.pending, null);
+}));
+test('request identity survives broker replacement, transport ID changes and supervisor restart', async () => fixture(async open => {
+  let owner = await open(); const computer = { request: async () => ({ sum: 5 }) };
+  let broker = new NativeToolBroker(owner, computer, expected);
+  const proposed = await broker.propose(frame()); await broker.decide(proposed.id, false);
+  broker = new NativeToolBroker(owner, computer, expected);
+  await assert.rejects(broker.propose({ ...frame(), id: 900 }), /duplicate/);
+  await owner.close(); owner = await open();
+  const human = await owner.request({ op: 'takeover' });
+  await owner.request({ op: 'human_ready', generation: human.generation });
+  const resumed = await owner.request({ op: 'resume', generation: human.generation });
+  await owner.request({ op: 'observed', generation: resumed.generation, digest: 'a'.repeat(64) });
+  broker = new NativeToolBroker(owner, computer, expected);
+  await assert.rejects(broker.propose({ ...frame(), id: 901 }), /duplicate/);
+  const next = { ...frame(), params: { ...frame().params, callId: 'new-call' } };
+  const allowed = await broker.propose(next); assert.equal((await broker.decide(allowed.id, true)).success, true);
+}));
+test('durable request ledger fails closed at capacity without dropping old identities', async () => fixture(async open => {
+  const owner = await open(); const { scope, action } = normalizeCodexCall(frame(), expected);
+  for (let index = 0; index < 256; index++) {
+    const unique = { ...scope, request: String(index) };
+    const proposed = await owner.request({ op: 'propose', generation: 0, scope: unique, action, ttl_ms: 30000 });
+    await owner.request({ op: 'decide', approval_id: proposed.approval.id, scope: unique, action, allow: false });
+  }
+  assert.equal(owner.current.requests.length, 256);
+  for (const request of ['0', 'overflow']) await assert.rejects(owner.request({ op: 'propose', generation: 0, scope: { ...scope, request }, action, ttl_ms: 30000 }), /ledger/);
+  assert.equal(owner.current.requests.length, 256);
 }));

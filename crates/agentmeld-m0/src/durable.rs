@@ -22,6 +22,8 @@ pub struct Snapshot {
     pub observation: Option<String>,
     pub approval: Option<Approval>,
     pub decision: Option<String>,
+    pub requests: Vec<String>,
+    pub private: bool,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
@@ -74,6 +76,12 @@ pub enum Command {
         ticket: u64,
         action: Value,
     },
+    PrivateBegin {
+        generation: u64,
+    },
+    PrivateEnd {
+        generation: u64,
+    },
     Takeover,
     HumanReady {
         generation: u64,
@@ -122,7 +130,7 @@ impl Journal {
             return Err("incomplete journal; manual reconciliation required".into());
         }
         let mut state = Snapshot {
-            version: 3,
+            version: 4,
             sequence: 0,
             generation: 0,
             mode: "agent".into(),
@@ -133,10 +141,24 @@ impl Journal {
             observation: None,
             approval: None,
             decision: None,
+            requests: Vec::new(),
+            private: false,
         };
         for line in data.lines() {
             let next: Snapshot = serde_json::from_str(line).map_err(|_| "corrupt journal")?;
-            if next.version != 3
+            if next.version != 4
+                || next.requests.len() > 256
+                || !next.requests.starts_with(&state.requests)
+                || next
+                    .requests
+                    .iter()
+                    .any(|key| key.len() != 64 || !key.bytes().all(|b| b.is_ascii_hexdigit()))
+                || next
+                    .requests
+                    .iter()
+                    .collect::<std::collections::HashSet<_>>()
+                    .len()
+                    != next.requests.len()
                 || (next.mode == "awaiting_approval") != next.approval.is_some()
                 || next.approval.as_ref().is_some_and(|approval| {
                     next.pending.is_some()
@@ -274,6 +296,14 @@ impl Journal {
                 {
                     return Err("invalid approval proposal".into());
                 }
+                let request_key = format!(
+                    "{:x}",
+                    Sha256::digest(serde_json::to_vec(&scope).map_err(|_| "invalid scope")?)
+                );
+                if next.requests.contains(&request_key) || next.requests.len() >= 256 {
+                    return Err("duplicate or exhausted request ledger".into());
+                }
+                next.requests.push(request_key);
                 next.approval = Some(Approval {
                     id: next.sequence.checked_add(1).ok_or("sequence exhausted")?,
                     generation,
@@ -326,8 +356,8 @@ impl Journal {
                     return Err("invalid actor".into());
                 }
                 require(&actor, generation)?;
-                if next.pending.is_some() {
-                    return Err("action already pending".into());
+                if next.pending.is_some() || next.private {
+                    return Err("action already pending or screen private".into());
                 }
                 if !action.is_object() {
                     return Err("action object required".into());
@@ -366,6 +396,19 @@ impl Journal {
                 next.pending_digest = None;
                 next.dispatched = false;
             }
+            Command::PrivateBegin { generation } | Command::PrivateEnd { generation } => {
+                require("human", generation)?;
+                let entering = matches!(command, Command::PrivateBegin { .. });
+                if next.pending.is_some() || next.private == entering {
+                    return Err("private transition unavailable".into());
+                }
+                next.private = entering;
+                next.generation = next
+                    .generation
+                    .checked_add(1)
+                    .ok_or("generation exhausted")?;
+                next.observation = None;
+            }
             Command::Takeover => {
                 if !["agent", "paused", "awaiting_approval"].contains(&next.mode.as_str())
                     || next.uncertain
@@ -388,6 +431,9 @@ impl Journal {
             }
             Command::Resume { generation } => {
                 require("human", generation)?;
+                if next.private {
+                    return Err("screen private".into());
+                }
                 next.generation = next
                     .generation
                     .checked_add(1)

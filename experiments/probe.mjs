@@ -175,6 +175,15 @@ await check('browser_viewer_takeover', async () => {
     await ui.getByRole('button', { name: 'Take control', exact: true }).click();
     await ui.getByText('You have control', { exact: true }).waitFor();
     await assert.rejects(control.agentClick(0), /stale/);
+    await ui.getByRole('button', { name: 'Hide screen', exact: true }).click();
+    await ui.getByText('Screen hidden · agent paused', { exact: true }).waitFor();
+    assert.equal(await ui.locator('#screen').getAttribute('src'), null);
+    assert.equal(await ui.getByRole('button', { name: 'Resume agent', exact: true }).isDisabled(), true);
+    await ui.screenshot({ path: '/workspace/viewer-private.png' });
+    assert.equal((await fetch(viewer.origin + '/frame', { headers: { Authorization: `Bearer ${viewer.token}` } })).status, 409);
+    await ui.getByRole('button', { name: 'Show screen', exact: true }).click();
+    await ui.getByText('You have control', { exact: true }).waitFor();
+    await ui.waitForFunction(() => document.querySelector('#screen').hasAttribute('src'));
     await ui.locator('#screen').click({ position: { x: 320, y: 180 } });
     await target.waitForFunction(() => document.querySelector('output').textContent === '2');
     await ui.getByRole('button', { name: 'Resume agent', exact: true }).click();
@@ -195,7 +204,7 @@ await check('browser_viewer_takeover', async () => {
     assert.equal(authority.current.mode, 'paused');
     assert.ok(authority.current.generation > lastGeneration);
     await assert.rejects(authority.request({ op: 'admit', generation: lastGeneration, actor: 'agent', action: { tool: 'fixture' } }), /stale/);
-    return { authority: 'rust_journal', restartPaused: true, authenticated: true, takeover: true, staleAgentRejected: true, freshObservationCounter: '2', resumedCounter: '3', disconnectPaused: true, screenshot: 'viewer.png', transport: 'container_loopback' };
+    return { authority: 'rust_journal', restartPaused: true, privateScreenSuppressed: true, authenticated: true, takeover: true, staleAgentRejected: true, freshObservationCounter: '2', resumedCounter: '3', disconnectPaused: true, screenshot: 'viewer.png', transport: 'container_loopback' };
   } finally { if (viewer) await viewer.close(); if (authority) await authority.close(); await browser.close(); }
 });
 

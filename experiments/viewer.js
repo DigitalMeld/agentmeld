@@ -7,11 +7,15 @@ async function api(path, body) {
   return response.json();
 }
 function render() {
-  status.textContent = state.mode === 'human' ? 'You have control' : state.mode === 'agent' ? 'Agent has control' : 'Paused';
+  status.textContent = state.private ? 'Screen hidden · agent paused' : state.mode === 'human' ? 'You have control' : state.mode === 'agent' ? 'Agent has control' : 'Paused';
   document.querySelector('#takeover').disabled = !['agent', 'paused'].includes(state.mode);
-  document.querySelector('#resume').disabled = state.mode !== 'human';
+  document.querySelector('#resume').disabled = state.mode !== 'human' || state.private;
+  document.querySelector('#privacy').disabled = state.mode !== 'human';
+  document.querySelector('#privacy').textContent = state.private ? 'Show screen' : 'Hide screen';
+  if (state.private) { screen.removeAttribute('src'); screen.hidden = true; delete screen.dataset.counter; }
 }
 function showFrame(frame) {
+  screen.hidden = false;
   screen.src = `data:image/png;base64,${frame.png}`;
   screen.dataset.counter = frame.counter;
 }
@@ -21,8 +25,8 @@ async function refresh() {
   try {
     if (!busy) {
       const nextState = await api('/state');
-      const frame = await api('/frame');
-      if (!stopped && !busy && current === revision) { state = nextState; render(); showFrame(frame); }
+      const frame = nextState.private ? null : await api('/frame');
+      if (!stopped && !busy && current === revision) { state = nextState; render(); if (frame) showFrame(frame); }
     }
   } catch (error) { if (!stopped && current === revision) status.textContent = error.message; }
   if (!stopped) setTimeout(refresh, 750);
@@ -38,6 +42,7 @@ async function command(path, body = {}) {
   finally { busy = false; }
 }
 document.querySelector('#takeover').onclick = () => command('/takeover');
+document.querySelector('#privacy').onclick = () => { screen.removeAttribute('src'); screen.hidden = true; command(state.private ? '/private-end' : '/private-begin', { generation: state.generation }); };
 document.querySelector('#resume').onclick = () => command('/resume', { generation: state.generation });
 document.querySelector('#disconnect').onclick = async () => {
   const acknowledged = await command('/disconnect');
@@ -46,11 +51,11 @@ document.querySelector('#disconnect').onclick = async () => {
   document.querySelectorAll('button').forEach(button => { button.disabled = true; });
 };
 screen.onclick = event => {
-  if (state?.mode !== 'human') return;
+  if (state?.mode !== 'human' || state.private) return;
   const rect = screen.getBoundingClientRect();
   command('/input', { generation: state.generation, x: (event.clientX - rect.left) * 640 / rect.width, y: (event.clientY - rect.top) * 360 / rect.height });
 };
 screen.onkeydown = event => {
-  if (event.key === 'Enter' && state?.mode === 'human') command('/input', { generation: state.generation, x: 320, y: 180 });
+  if (event.key === 'Enter' && state?.mode === 'human' && !state.private) command('/input', { generation: state.generation, x: 320, y: 180 });
 };
 refresh();

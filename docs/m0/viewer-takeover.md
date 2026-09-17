@@ -36,3 +36,5 @@ Authenticated viewer requests renew a five-second lease. Silence revokes the cap
 - Active commands must settle before takeover acknowledgement. Hung-browser recovery relies on the outer bounded probe timeout; production process-tree cancellation and crash recovery remain open.
 
 Reproduce using the [M0 commands](README.md). The ordinary offline container probe now includes `browser_viewer_takeover`. Raw output and `viewer.png` stay under ignored `.local/m0/`.
+
+The viewer now includes explicit Hide screen/Show screen controls after human takeover. Hidden state survives disconnect and restart, suppresses brokered capture/input and requires explicit reveal before resume. See [private-screen qualification and limits](recovery-privacy.md); this is not a credential-entry transport.

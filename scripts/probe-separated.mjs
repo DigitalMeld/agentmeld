@@ -61,7 +61,11 @@ try {
   };
   assert.equal((await fetch(viewer.origin + '/frame')).status, 401);
   await control.agentClick(0);
-  const human = await post('/takeover');
+  let human = await post('/takeover');
+  const hidden = await post('/private-begin', { generation: human.generation });
+  assert.equal((await fetch(viewer.origin + '/frame', { headers })).status, 409);
+  human = await post('/private-end', { generation: hidden.generation });
+  report.checks.privateScreen = { passed: true, frameDenied: true, revealStaysHuman: human.mode === 'human' };
   await assert.rejects(control.agentClick(0), /stale/);
   await post('/input', { generation: human.generation, x: 320, y: 180 });
   const resumed = await post('/resume', { generation: human.generation });
