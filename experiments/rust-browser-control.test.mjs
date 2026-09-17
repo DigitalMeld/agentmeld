@@ -127,3 +127,13 @@ test('entering private mode withholds an in-flight screenshot before acknowledgi
   assert.equal((await owner.request({ op: 'state' })).private, true);
   release({ png: 'must-not-leak' }); await frame; assert.equal((await hidden).private, true);
 }));
+test('supervisor cancellation only returns stop confirmation after runtime verification', async () => fixture(async open => {
+  const owner = await open(); let fail = true;
+  const control = new RustBrowserControl({}, owner, { terminate: async () => {
+    assert.equal(owner.current.mode, 'cancelled');
+    if (fail) throw new Error('termination unconfirmed');
+    return { termination: 'stopped' };
+  } });
+  await assert.rejects(control.cancel(), /unconfirmed/); assert.equal(owner.current.mode, 'cancelled');
+  fail = false; assert.equal((await control.cancel()).termination, 'stopped');
+}));

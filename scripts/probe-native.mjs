@@ -1,12 +1,13 @@
 // Explicit local qualification. The host owns control; the container owns only its computer.
 import { execFileSync } from 'node:child_process';
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, writeFile, readFile } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { resolve, join } from 'node:path';
 import assert from 'node:assert/strict';
 import { RustAuthority } from '../experiments/rust-browser-control.mjs';
 import { ContainerComputer } from '../experiments/container-computer.mjs';
+import { OwnedWorker, dockerRuntime } from '../experiments/owned-worker.mjs';
 import { NativeToolBroker } from '../experiments/native-tool-broker.mjs';
 
 const args = process.argv.slice(2);
@@ -26,28 +27,41 @@ const image = docker(['image', 'inspect', 'agentmeld-m0:local', '--format', '{{.
 const profile = execFileSync('python3', ['-c', 'import importlib.util,sys,pathlib; r=pathlib.Path(sys.argv[1]); s=importlib.util.spec_from_file_location("policy", r/"scripts/prepare-seccomp.py"); m=importlib.util.module_from_spec(s); s.loader.exec_module(m); print(m.verify_prepared(r))', root], { encoding: 'utf8', timeout: 15000 }).trim();
 const plan = JSON.parse(execFileSync(binary, ['sandbox-plan', workspaceRoot, workspaceName, image], { encoding: 'utf8', timeout: 15000 }));
 plan[plan.indexOf('--name') + 1] = name;
-plan.splice(1, 0, '-i', `--security-opt=seccomp=${profile}`);
+plan.splice(1, 0, '--cidfile', join(controlDirectory, 'worker.cid'), '-i', `--security-opt=seccomp=${profile}`);
 plan[plan.length - 1] = '/opt/agentmeld/computer-worker.mjs';
 let authority; let computer;
 const report = { phase: 'm0', native: 'codex_dynamic_tools', fixtureModel: true, liveInference: false, image, runId, cases: [] };
 const stop = () => { try { docker(['stop', '--time', '1', name]); } catch { } };
 const deadline = setTimeout(() => { computer?.fail(new Error('probe deadline')); stop(); }, 90000);
 try {
+  await writeFile(join(workspace, 'fixture.txt'), 'synthetic workspace listing fixture\n');
   computer = new ContainerComputer('docker', ['--context', context, ...plan], () => { authority?.request({ op: 'disconnect' }).catch(() => {}); stop(); });
-  for (const scenario of ['allow', 'deny', 'revoke']) {
+  for (const scenario of ['allow', 'deny', 'revoke', 'workspace_list', 'ungranted']) {
     const start = performance.now();
     authority = await RustAuthority.open(binary, join(controlDirectory, scenario + '.jsonl'), () => { computer?.fail(new Error('authority lost')); stop(); });
-    const native = await computer.request('native_start');
-    const broker = new NativeToolBroker(authority, computer, { workspace: workspaceName, worker: name, thread: native.threadId, turn: native.turnId });
-    const proposal = await broker.propose(native.frame);
-    if (scenario === 'revoke') await authority.request({ op: 'cancel' });
-    const toolResult = await broker.decide(proposal.id, scenario !== 'deny');
-    assert.equal(toolResult.success, scenario === 'allow');
+    const tool = ['workspace_list', 'ungranted'].includes(scenario) ? 'workspace_list' : 'fixture_sum';
+    const native = await computer.request('native_start', { tool });
+    const id = (await readFile(join(controlDirectory, 'worker.cid'), 'utf8')).trim();
+    const grants = scenario === 'ungranted' ? ['fixture_sum'] : ['fixture_sum', 'workspace_list'];
+    const worker = await OwnedWorker.bind({ id, image, workspace, computer, runtime: dockerRuntime(context), tools: grants });
+    const broker = new NativeToolBroker(authority, worker, { workspace, worker: id, thread: native.threadId, turn: native.turnId }, grants);
+    let toolResult;
+    if (scenario === 'ungranted') {
+      await assert.rejects(broker.propose(native.frame), /grant/);
+      assert.equal(authority.current.approval, null);
+      toolResult = { success: false, contentItems: [{ type: 'inputText', text: 'Tool grant denied' }] };
+    } else {
+      const proposal = await broker.propose(native.frame);
+      if (scenario === 'revoke') await authority.request({ op: 'cancel' });
+      toolResult = await broker.decide(proposal.id, scenario !== 'deny');
+    }
+    assert.equal(toolResult.success, ['allow', 'workspace_list'].includes(scenario));
+    if (scenario === 'workspace_list') assert.ok(JSON.parse(toolResult.contentItems[0].text).entries.includes('fixture.txt'));
     const result = await computer.request('native_finish', { result: toolResult });
     assert.equal(result.turnStatus, 'completed');
     assert.equal(result.modelRequests, 2);
     assert.equal(result.toolOutputSeen, true);
-    report.cases.push({ scenario, nativeCallback: native.frame.method, toolSuccess: toolResult.success, turnCompleted: true, toolOutputReturned: true, nativeVmHwmKiB: result.nativeVmHwmKiB, launcherVmHwmKiB: result.launcherVmHwmKiB, elapsedMs: Math.round(performance.now() - start) });
+    report.cases.push({ scenario, runtimeIdentityVerified: true, nativeCallback: native.frame.method, toolSuccess: toolResult.success, turnCompleted: true, toolOutputReturned: true, nativeVmHwmKiB: result.nativeVmHwmKiB, launcherVmHwmKiB: result.launcherVmHwmKiB, elapsedMs: Math.round(performance.now() - start) });
     await authority.close(); authority = null;
   }
   report.resources = await computer.request('metrics');

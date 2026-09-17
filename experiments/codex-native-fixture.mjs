@@ -1,4 +1,5 @@
 // Real Codex process, synthetic Responses stream. No external model or credentials.
+import { toolSchemas } from './tool-contract.mjs';
 import { createServer } from 'node:http';
 import { spawn } from 'node:child_process';
 import { mkdir, readFile, readlink } from 'node:fs/promises';
@@ -10,7 +11,8 @@ function latch() {
   promise.catch(() => {});
   return { promise, resolve, reject };
 }
-export async function startNativeFixture() {
+export async function startNativeFixture(tool = 'fixture_sum') {
+  if (!Object.hasOwn(toolSchemas, tool)) throw new Error('unsupported fixture tool');
   const home = `/tmp/native-${randomUUID()}`;
   await mkdir(home + '/.codex', { recursive: true });
   let modelRequests = 0; let toolOutputSeen = false;
@@ -25,7 +27,7 @@ export async function startNativeFixture() {
     toolOutputSeen ||= Boolean(returned);
     const item = returned
       ? { type: 'message', id: 'msg_fixture', role: 'assistant', status: 'completed', content: [{ type: 'output_text', text: 'Fixture complete.' }] }
-      : { type: 'function_call', id: 'fc_fixture', call_id: 'call_fixture', name: 'fixture_sum', arguments: '{"a":2,"b":3}' };
+      : { type: 'function_call', id: 'fc_fixture', call_id: 'call_fixture', name: tool, arguments: tool === 'fixture_sum' ? '{"a":2,"b":3}' : '{}' };
     const response = { id: `resp_${modelRequests}`, status: 'completed', output: [item], usage: { input_tokens: 1, output_tokens: 1, total_tokens: 2 } };
     res.writeHead(200, { 'Content-Type': 'text/event-stream' });
     for (const event of [{ type: 'response.created', response: { id: response.id } }, { type: 'response.output_item.done', output_index: 0, item }, { type: 'response.completed', response }]) res.write(`event: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`);
@@ -72,9 +74,9 @@ export async function startNativeFixture() {
   try {
     await request('initialize', { clientInfo: { name: 'agentmeld_m0', title: 'AgentMeld M0', version: '0.1.0' }, capabilities: { experimentalApi: true } });
     proc.stdin.write(JSON.stringify({ method: 'initialized' }) + '\n');
-    const thread = await request('thread/start', { cwd: '/workspace', model: 'fixture-model', modelProvider: 'm0', sandbox: 'read-only', approvalPolicy: 'untrusted', ephemeral: true, dynamicTools: [{ type: 'function', name: 'fixture_sum', description: 'Add two fixture integers', inputSchema: { type: 'object', properties: { a: { type: 'integer' }, b: { type: 'integer' } }, required: ['a','b'], additionalProperties: false } }] });
+    const thread = await request('thread/start', { cwd: '/workspace', model: 'fixture-model', modelProvider: 'm0', sandbox: 'read-only', approvalPolicy: 'untrusted', ephemeral: true, dynamicTools: [{ type: 'function', name: tool, description: 'Explicit M0 fixture tool', inputSchema: toolSchemas[tool] }] });
     threadId = thread.thread.id;
-    const turn = await request('turn/start', { threadId, input: [{ type: 'text', text: 'Use fixture_sum on 2 and 3.', text_elements: [] }] });
+    const turn = await request('turn/start', { threadId, input: [{ type: 'text', text: tool === 'fixture_sum' ? 'Use fixture_sum on 2 and 3.' : 'List the workspace with workspace_list.', text_elements: [] }] });
     turnId = turn.turn.id;
     const frame = await called.promise;
     return {

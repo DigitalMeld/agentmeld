@@ -1,12 +1,12 @@
 # M0 durable approval and native Codex tools
 
-Date: 2026-09-17. Scope: the real Codex 0.154.0 process, a synthetic loopback Responses stream, one integer-sum dynamic tool, and a trusted host reviewer fixture. No live model, provider credentials, user approval UI or production identity service is involved.
+Date: 2026-09-17. Scope: the real Codex 0.154.0 process, a synthetic loopback Responses stream, integer-sum and bounded workspace-listing dynamic tools, and a trusted host reviewer fixture. No live model, provider credentials, user approval UI or production identity service is involved.
 
 ## Request path
 
 `probe-native.mjs` launches the existing offline, non-root, read-only container with only its disposable workspace mounted. The container runs Codex with an empty temporary HOME/CODEX_HOME and a local synthetic Responses server. The server emits a `fixture_sum` function call, then a terminal message after receiving the tool output. No network interface other than loopback is available.
 
-Codex emits its actual `item/tool/call` callback. The worker forwards it as response data over the bounded computer transport. The host adapter checks the expected thread and turn, rejects unsupported methods, tools, namespaces and malformed arguments, and binds workspace, worker, thread, turn and request identity into a proposal. Only `fixture_sum` with exactly two safe integers is supported. A maximum of 128 distinct requests is retained per broker instance; a repeated request or concurrent proposal is rejected. This is a qualification adapter, not a general tool registry.
+Codex emits its actual `item/tool/call` callback. The worker forwards it as response data over the bounded computer transport. The host adapter checks the expected thread and turn, rejects unsupported methods, tools, namespaces and malformed arguments, and binds workspace, worker, thread, turn and request identity into a proposal. `fixture_sum` accepts exactly two safe integers; `workspace_list` accepts no arguments and returns at most 128 immediate workspace names. Explicit grants and verified local worker binding are described in [worker lifecycle](worker-lifecycle.md). A maximum of 128 distinct requests is retained per broker instance; a repeated request or concurrent proposal is rejected. This is a qualification adapter, not a general tool registry.
 
 Rust stores the approval before acknowledging it. The proposal includes an action digest, controller generation, expiry and scope. Allow requires every field to match and creates a one-time action ticket. The host obtains payload-bound dispatch authorization before executing the tool and records settlement only after a validated result. Denial or expiry creates no ticket. The native callback receives Codex's `success` and `contentItems` response shape, and the synthetic model receives the resulting tool output.
 
@@ -31,9 +31,9 @@ node scripts/probe-native.mjs --context YOUR_CONTEXT
 node scripts/measure-authority.mjs
 ```
 
-The native probe makes automated fixture decisions for allow, deny and cancellation before approval. All three reached a completed Codex turn with the tool output returned to the fixture model. Only allow executed the sum. These are real native-process protocol checks with synthetic model output, not authenticated inference. Seven additional default tests cover request validation, all scope fields, altered payloads, duplicate/concurrent requests, expiry, revocation, restart and uncertain execution using the actual host Rust process.
+The native probe makes automated fixture decisions for allow, deny and cancellation before approval, and separately tests granted and ungranted workspace listing. All five reach a completed Codex turn with the tool output returned to the fixture model. Only allowed tools execute. These are real native-process protocol checks with synthetic model output, not authenticated inference. Eleven native-broker default tests cover request validation, all scope fields, altered payloads, duplicate/concurrent requests, expiry, revocation, restart and uncertain execution using the actual host Rust process.
 
-Reports and journals are retained under ignored `.local/m0/control/<run-id>/`. Each native run stops its uniquely named container, closes native children and preserves evidence. Unexpected supervisor loss stops the owned container. Full worker/process-tree cancellation and cross-host recovery remain separate qualification work.
+Reports and journals are retained under ignored `.local/m0/control/<run-id>/`. Each native run stops its uniquely named container, closes native children and preserves evidence. Unexpected supervisor loss stops the owned container. The separated viewer now qualifies whole-container cancellation through its HTTP endpoint; the all-in-one comparator and native logical-revocation case remain distinct. Cross-host recovery remains unqualified.
 
 ## Resource sample
 

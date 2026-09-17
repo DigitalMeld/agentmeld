@@ -10,8 +10,10 @@ Date: 2026-09-17. Status: **started, not complete**. These are experimental cont
 | Python policy integrity | 2 tests passed | Rejects unverified upstream bytes and locally modified policy |
 | Node Ollama loop | 4 tests passed, including invoking the Rust fixture tool | Injected HTTP transport; no model inference |
 | Browser control and viewer HTTP | 7 tests passed | In-process queue and local HTTP authentication; no native harness mediation |
-| Durable Rust subprocess integration | 9 tests passed, including private-screen restart and capture fencing: replacement, exclusive lock, SIGKILL with unfinished action, corruption, fencing, cancellation, payload binding and one-time dispatch | Trusted host caller/storage; production identity remains open |
-| Native tool approval | 9 tests passed; reconnect replay and ledger exhaustion, scope/payload binding, expiry, duplicates, concurrent proposals, revocation and uncertain recovery | Fixed Codex sum tool; fixture reviewer, no production grant service |
+| Durable Rust subprocess integration | 10 tests passed, including private-screen restart and capture fencing: replacement, exclusive lock, SIGKILL with unfinished action, corruption, fencing, cancellation, payload binding and one-time dispatch | Trusted host caller/storage; production identity remains open |
+| Native tool approval | 11 tests passed; reconnect replay and ledger exhaustion, scope/payload binding, expiry, duplicates, concurrent proposals, revocation and uncertain recovery | Two bounded Codex tools; fixture reviewer, no production grant service |
+| Owned worker | 4 tests passed: identity/scope/grants, termination readback failures and reconciliation | Trusted local runtime; no remote authentication |
+| Workspace listing | 3 tests passed: bounds, arguments, names and non-recursive symlink behavior | Names only; no file contents |
 | Computer response boundary | 4 tests passed: unsolicited commands, unmatched/oversized responses, malformed images and invalid dimensions | No malicious-browser or kernel-escape certification |
 | Rust formatting and Clippy | Passed with warnings denied | Local checks only |
 | Codex 0.154.0 app-server | Real container process initialized; empty thread list; nonexistent continuation rejected | Dynamic-tool allow/deny/revoke also passed with a synthetic model; no authenticated inference or successful resume |
@@ -25,9 +27,9 @@ Date: 2026-09-17. Status: **started, not complete**. These are experimental cont
 
 The original default-profile failure is now reproduced and resolved for this offline fixture. Namespace creation failed under Docker defaults. The Playwright profile then exposed a `chroot` denial after dropping capabilities. An explicit browser policy permits that syscall while the outer container still has no effective capabilities and cannot chroot. The normal probe now exits 0; the Docker-default comparison still exits 1. See [diagnosis and policy](browser-sandbox.md).
 
-The probe ran in a dedicated Colima Linux VM on an Apple Silicon Mac, configured with 2 vCPUs, 4 GiB memory and 20 GiB disk. Each probe container was limited to 1 CPU, 1 GiB RAM, 256 PIDs and a 256 MiB temporary filesystem. The last probe took about 2.84 seconds with the viewer fixture and container startup; this is a single offline sample, not an inference benchmark or sizing recommendation. The [native-tool report](native-tools.md) now records Rust latency/RSS, Codex peak RSS and native/browser cgroup memory samples.
+The probe ran in a dedicated Colima Linux VM on an Apple Silicon Mac, configured with 2 vCPUs, 4 GiB memory and 20 GiB disk. Each probe container was limited to 1 CPU, 1 GiB RAM, 256 PIDs and a 256 MiB temporary filesystem. The last probe took about 2.64 seconds with the viewer fixture and container startup; this is a single offline sample, not an inference benchmark or sizing recommendation. The [native-tool report](native-tools.md) now records Rust latency/RSS, Codex peak RSS and native/browser cgroup memory samples.
 
-The final local image ID was `sha256:391a6baf59845c75045e7115dd230b9001e5c429f1fb47e0b7b871a7e830d898`. It is not published. Raw machine-local evidence is retained under ignored `.local/m0/evidence/`. No host credentials or browser profiles were mounted.
+The final local image ID was `sha256:b588c24b989f6119444f002fe7433a8ed14f5528866a8c6e2085ca3e035b4c17`. It is not published. Raw machine-local evidence is retained under ignored `.local/m0/evidence/`. No host credentials or browser profiles were mounted.
 
 ## Versions and distribution notes
 
@@ -44,16 +46,18 @@ Exact JavaScript resolution is recorded in `package-lock.json`; Rust resolution 
 
 ## Next M0 work, in order
 
-1. Extend the [qualified Codex dynamic-tool adapter](native-tools.md) to authenticated worker identity and broader native tool coverage; extend private-screen suppression to secure credential entry and qualify worker recovery. Keep the renderer sandbox and control-ordering checks as regression gates.
+1. Extend the [qualified Codex dynamic-tool adapter](native-tools.md) beyond its verified local worker identity and tool grants to remote authentication and broader native tool coverage; extend private-screen suppression to secure credential entry and qualify worker recovery. Keep the renderer sandbox and control-ordering checks as regression gates.
 2. Define scoped provider credentials and mediated egress. Run actual Claude/Codex streamed answers, native tools, allow/deny, cancellation and process-replacement continuation. Do not import personal host auth directories.
 3. Select a local Ollama tool model and run the bounded tool loop against real inference, including failures and cancellation. Current cloud aliases do not satisfy this check.
-4. Extend the qualified reconnect ledger and whole-container stop probe to production lifecycle integration, workspace quotas and sustained resource measurements.
+4. Extend the qualified reconnect ledger and whole-container stop probe and integrated HTTP cancellation to production recovery, workspace quotas and sustained resource measurements.
 5. Configure an explicitly designated iMessage test identity and paired Mac bridge; qualify real correlation, attachments, reconnect and uncertain delivery.
 
 M1 remains gated on these integration results. Only an experimental fixture viewer UI exists; no application control plane, hosted service, training pipeline or production deployment has been created.
 
-The separated supervisor probe passed in 0.58 seconds in one local sample using the same final image. Its run-specific report and protected fixture files remain under ignored `.local/m0/control/`. This is not a performance benchmark.
+The separated supervisor probe passed in 0.63 seconds in one local sample using the same final image. Its run-specific report and protected fixture files remain under ignored `.local/m0/control/`. This is not a performance benchmark.
 
-The default suite now passes 48 tests (13 Rust, 33 Node, 2 Python), plus formatting, Clippy, build and documentation checks. The separated native probe completed allow, deny and revoke through actual Codex callbacks with a synthetic model stream. See [native approvals and measurements](native-tools.md) for scope and reproduction.
+The default suite now passes 58 tests (13 Rust, 43 Node, 2 Python), plus formatting, Clippy, build and documentation checks. The separated native probe completed allow, deny, revoke, granted listing and ungranted listing through actual Codex callbacks with a synthetic model stream. See [native approvals and measurements](native-tools.md) for scope and reproduction.
 
 [Reconnect, private screen and cancellation](recovery-privacy.md) adds durable logical-call replay protection, screenshot suppression across restart, and a whole-container termination probe with uncooperative child/grandchild processes. The four container probes remain offline and synthetic.
+
+[Local worker lifecycle](worker-lifecycle.md) verifies container IDs from host-owned cidfiles, enforces explicit dynamic-tool grants, and confirms termination through the viewer HTTP cancellation path.

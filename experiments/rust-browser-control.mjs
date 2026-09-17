@@ -60,7 +60,7 @@ export class RustAuthority {
 }
 
 export class RustBrowserControl {
-  constructor(computer, authority) { this.computer = computer; this.authority = authority; this.tail = Promise.resolve(); this.queued = 0; }
+  constructor(computer, authority, lifecycle = null) { this.lifecycle = lifecycle; this.computer = computer; this.authority = authority; this.tail = Promise.resolve(); this.queued = 0; }
   get generation() { return this.authority.current.generation; }
   state() { const { mode, generation, private: hidden } = this.authority.current; return { mode: this.authority.dead ? 'unavailable' : mode, generation, private: hidden }; }
   enqueue(fn) {
@@ -119,5 +119,9 @@ export class RustBrowserControl {
     });
   }
   async disconnect() { await this.authority.request({ op: 'disconnect' }); return this.enqueue(() => this.state()); }
-  async cancel() { await this.authority.request({ op: 'cancel' }); return this.enqueue(() => this.state()); }
+  async cancel() {
+    await this.authority.request({ op: 'cancel' });
+    const receipt = this.lifecycle ? await this.lifecycle.terminate() : {};
+    return this.enqueue(() => ({ ...this.state(), ...receipt }));
+  }
 }

@@ -1,6 +1,6 @@
 # M0 supervisor outside the agent container
 
-Date: 2026-09-17. Scope: local host control, offline Linux ARM64 browser computer, and payload-bound fixture dispatch. A narrow Codex dynamic-tool path is now qualified separately in [native tools](native-tools.md); general native-tool mediation and hostile-tenant isolation remain open.
+Date: 2026-09-17. Scope: local host control, offline Linux ARM64 browser computer, and payload-bound fixture dispatch. Two bounded Codex dynamic tools are now qualified separately in [native tools](native-tools.md); general native-tool mediation and hostile-tenant isolation remain open.
 
 ## Boundary
 
@@ -37,7 +37,7 @@ The runner retains its report, journal, canary and computer screenshot in its ru
 ## Remaining work
 
 - Native Codex/Claude approval and tool dispatch must route through an authenticated, scoped interface. Their native tools are not automatically governed by this browser broker.
-- The Codex dynamic-tool fixture now uses durable scoped approvals. Production requests still need authenticated grant evaluation, broader tool coverage and a reviewer UI.
+- The Codex dynamic-tool fixture now uses durable scoped approvals. The local probes now bind immutable runtime identity and explicit tool grants. Production requests still need remote identity, broader tool coverage and a reviewer UI.
 - A compromised computer can alter its own workspace or lie about results. Its OS-level tool access and network policy still need qualification, including effects outside the broker.
 - Worker identity, process-replacement fencing across machines, secret brokering, mediated egress, resource quotas and credential-entry suppression remain open.
 - The host itself and its configured Docker context are trusted. Another host process running as the owner can read control files; this design does not isolate malicious peers sharing that account.

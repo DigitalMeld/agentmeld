@@ -1,0 +1,44 @@
+# M0 local worker identity, grants and cancellation
+
+Date: 2026-09-17. Scope: trusted local Docker runtime, host-owned control files, two explicit Codex dynamic tools and authenticated viewer cancellation. This is not remote worker authentication, a production grant service or live inference.
+
+## Local identity binding
+
+The host Docker client writes an immutable container ID to a fresh cidfile in the owner-only control directory. The worker cannot access that directory. Before binding tool execution, the host inspects that ID through the explicitly selected Docker context. It requires the exact image ID, running state, M0 ownership label, UID/GID 1000, nonprivileged read-only root, disabled network and exactly one bind mount at `/workspace` with the expected source.
+
+The owned worker uses this immutable ID for scope checks and termination. A claimed name or identity in model output is not accepted as runtime identity. Native approval scope now records the verified container ID and full workspace path. A replacement container has a different scope and requires explicit new binding. Reconnecting to the same worker/journal retains the existing replay fence.
+
+This establishes the tested local launch binding through a trusted Docker client, cidfile and dedicated stdio connection. It does not authenticate a remote machine, user, native process inside the container or an independently supplied transport. The host account, Docker daemon and launch code remain trusted. The existing sandbox/renderer probes separately verify the full execution policy; binding checks are not an exhaustive runtime security audit.
+
+## Explicit tool grants
+
+The native broker defaults to no grants and checks its host-configured tool set before creating an approval. The owned worker independently checks that the tool is granted and that workspace and worker scope match. These checks run again before dispatch. Revocation after review prevents execution and leaves the unused ticket revoked. Cancellation permanently revokes that owned-worker object's grants, even if runtime shutdown cannot be confirmed.
+
+Two tools are implemented:
+
+| Tool | Arguments | Result and limits |
+| --- | --- | --- |
+| `fixture_sum` | Exactly two safe integers | Validated safe-integer sum |
+| `workspace_list` | Empty object; no path selection | Sorted immediate workspace entry names, at most 128 entries, at most 255 bytes each |
+
+The listing implementation iterates the bound workspace root, does not recurse, does not follow entry symlinks and does not read file contents. It rejects an oversized listing rather than silently truncating it. The broker rejects malformed names, control characters, duplicates, path separators and additional result fields. Filenames are still untrusted data. A compromised worker can lie about its workspace; schema checks cannot prove filesystem truth.
+
+Grant configuration is supplied by trusted host code. No model-supplied grant, shell operation, arbitrary path, file contents or control-plane command is admitted through this adapter. Codex built-in tools and arbitrary code running in the container remain outside this narrow dynamic-tool broker. The older fixture-only callers can still use an explicitly trusted raw computer; the native container probe uses the owned-worker binding.
+
+## Confirmed cancellation
+
+The separated browser control now accepts an owned-worker lifecycle handler. Its existing authenticated `/cancel` endpoint first persists cancellation in Rust, then terminates that immutable container ID. Success includes `termination: stopped` only after a successful runtime inventory confirms the ID is absent. The transport is then invalidated and queued work cannot obtain fresh journal admission.
+
+If stop fails and the container remains present, or runtime inventory fails, the endpoint rejects the operation. Cancellation remains durable and grants remain revoked, but termination is unconfirmed. A subsequent cancellation can reconcile a lost stop response using fresh inventory. Concurrent termination attempts share one operation. A durable cancelled state alone is not proof of process termination; the stop receipt is a live runtime observation and is not persisted in this journal format.
+
+The cancellation probe now uses the viewer HTTP endpoint instead of calling Docker stop directly as its tested action. Its child and grandchild ignore SIGTERM, produce heartbeats before cancellation, then stop producing them after the endpoint confirms container absence. Rust replacement still reads cancelled state. Failure cleanup remains scoped to that probe's unique container.
+
+The all-in-one comparator has no external lifecycle owner and returns logical cancellation only, without a stopped receipt. The native `revoke` scenario also remains a logical approval-revocation test so the native callback can return a denial. Neither is represented as a whole-container stop. Automatic failure cleanup, remote runtime recovery and production lifecycle orchestration still need qualification.
+
+## Verification and continuity
+
+Use the commands in the [M0 guide](README.md) and [recovery probe guide](recovery-privacy.md). The native probe now completes five real Codex callback cases against its synthetic loopback provider: allow, deny, revoke, granted workspace listing and ungranted listing. The latter creates no approval. The listing case verifies a known synthetic workspace filename in the returned tool result.
+
+New default tests cover runtime binding mismatches, foreign scope, missing/revoked grants, termination readback failures and retry, supervisor acknowledgement ordering, grant revocation after review, listing bounds and symlink behavior. No provider credentials, personal files or Messages account are used.
+
+Verified: 58 default tests (13 Rust, 43 Node, 2 Python), formatting, Clippy, build and documentation checks passed. All four container probes passed against local image `sha256:b588c24b989f6119444f002fe7433a8ed14f5528866a8c6e2085ca3e035b4c17`, which is not published. The HTTP cancellation sample took 313 ms including a 200 ms post-stop heartbeat check. Run-specific evidence remains under ignored `.local/m0/control/` and `.local/m0/evidence/`. Remaining M0 work includes remote worker authentication, broader native-tool policy, scoped provider credentials and mediated egress, live provider/local-model qualification, workspace quotas and designated iMessage setup.

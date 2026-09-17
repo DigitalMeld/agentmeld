@@ -1,0 +1,46 @@
+// Local runtime identity. The host's dedicated Docker transport and cidfile are trusted.
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
+import { toolSchemas } from './tool-contract.mjs';
+const execute = promisify(execFile);
+export function dockerRuntime(context) {
+  const run = async args => (await execute('docker', ['--context', context, ...args], { timeout: 15000, maxBuffer: 1024 * 1024 })).stdout;
+  return {
+    inspect: async id => JSON.parse(await run(['inspect', id]))[0],
+    stop: async id => { await run(['stop', '--time', '1', id]); },
+    ids: async () => (await run(['ps', '-a', '--no-trunc', '--format', '{{.ID}}'])).trim().split('\n'),
+  };
+}
+export class OwnedWorker {
+  static async bind({ id, image, workspace, computer, runtime, tools = [] }) {
+    if (!/^[a-f0-9]{64}$/.test(id) || !/^sha256:[a-f0-9]{64}$/.test(image)) throw new Error('immutable runtime identity required');
+    const actual = await runtime.inspect(id);
+    if (actual.Id !== id || actual.Image !== image || !actual.State?.Running || actual.Config?.User !== '1000:1000' || actual.Config?.Labels?.['io.digitalmeld.agentmeld.phase'] !== 'm0' || actual.HostConfig?.NetworkMode !== 'none' || actual.HostConfig?.Privileged !== false || actual.HostConfig?.ReadonlyRootfs !== true || actual.Mounts?.length !== 1 || actual.Mounts[0].Type !== 'bind' || actual.Mounts[0].Destination !== '/workspace' || actual.Mounts[0].Source !== workspace) throw new Error('worker runtime binding mismatch');
+    if (!Array.isArray(tools) || tools.some(tool => !Object.hasOwn(toolSchemas, tool))) throw new Error('unsupported grant');
+    return new OwnedWorker(id, workspace, computer, runtime, tools);
+  }
+  constructor(id, workspace, computer, runtime, tools) { this.id = id; this.workspace = workspace; this.computer = computer; this.runtime = runtime; this.tools = new Set(tools); this.revoked = false; this.termination = 'running'; this.stopping = null; }
+  authorize(tool, scope) {
+    if (this.revoked || this.computer.dead || !this.tools.has(tool) || scope.worker !== this.id || scope.workspace !== this.workspace) throw new Error('worker scope or grant denied');
+  }
+  async request(tool, args) {
+    this.authorize(tool, { worker: this.id, workspace: this.workspace });
+    return this.computer.request(tool, args);
+  }
+  async terminate() {
+    this.revoked = true;
+    if (this.termination === 'stopped') return { termination: 'stopped', worker: this.id };
+    if (this.stopping) return this.stopping;
+    this.termination = 'unconfirmed';
+    this.stopping = (async () => {
+      let stopError;
+      try { await this.runtime.stop(this.id); } catch (error) { stopError = error; }
+      // A successful inventory is required even when stop reports an already-removed container.
+      if ((await this.runtime.ids()).includes(this.id)) throw stopError || new Error('worker still present');
+      this.termination = 'stopped';
+      this.computer.fail(new Error('worker stopped'));
+      return { termination: 'stopped', worker: this.id };
+    })();
+    try { return await this.stopping; } finally { this.stopping = null; }
+  }
+}

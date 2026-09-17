@@ -1,4 +1,6 @@
 // Runs in the agent container. It has no journal handle, supervisor connection or viewer capability.
+import { listWorkspace } from './workspace-tools.mjs';
+import { normalizeArguments } from './tool-contract.mjs';
 import { spawn } from 'node:child_process';
 import { setTimeout as delay } from 'node:timers/promises';
 import { chromium } from 'playwright';
@@ -14,14 +16,18 @@ async function handle(op, args) {
     return { ready: true };
   }
   if (op === 'native_start' && !native) {
-    native = await startNativeFixture();
+    native = await startNativeFixture(args.tool || 'fixture_sum');
     return { frame: native.frame, threadId: native.threadId, turnId: native.turnId };
   }
   if (op === 'native_finish' && native) {
     try { return await native.finish(args.result); } finally { await native.close(); native = null; }
   }
+  if (op === 'workspace_list') {
+    normalizeArguments(op, args);
+    return listWorkspace('/workspace');
+  }
   if (op === 'fixture_sum') {
-    if (!Number.isSafeInteger(args.a) || !Number.isSafeInteger(args.b) || !Number.isSafeInteger(args.a + args.b)) throw new Error('invalid arguments');
+    normalizeArguments(op, args);
     return { sum: args.a + args.b };
   }
   if (op === 'linger_fixture') {

@@ -32,7 +32,7 @@ test('durable approval binds every scope field and payload before one-time dispa
 }));
 test('denied and expired approvals execute no tool and cannot be replayed', async () => fixture(async open => {
   const owner = await open(); let calls = 0;
-  const broker = new NativeToolBroker(owner, { request: async () => { calls++; } }, expected);
+  const broker = new NativeToolBroker(owner, { request: async () => { calls++; } }, expected, ['fixture_sum']);
   const proposed = await broker.propose(frame()); assert.equal((await broker.decide(proposed.id, false)).success, false);
   await assert.rejects(broker.propose(frame()), /duplicate/);
   const next = { ...frame(), id: 8, params: { ...frame().params, callId: 'next-call' } }; const expired = await broker.propose(next, 1); await delay(10);
@@ -51,7 +51,7 @@ test('restart, takeover, cancellation and disconnect revoke pending approval', a
 });
 test('native broker executes exact approved arguments once and rejects concurrent proposals', async () => fixture(async open => {
   const owner = await open(); const calls = [];
-  const broker = new NativeToolBroker(owner, { request: async (...args) => { calls.push(args); return { sum: 5 }; } }, expected);
+  const broker = new NativeToolBroker(owner, { request: async (...args) => { calls.push(args); return { sum: 5 }; } }, expected, ['fixture_sum']);
   const first = broker.propose(frame()); await assert.rejects(broker.propose({ ...frame(), id: 8 }), /pending/);
   const proposal = await first; assert.equal((await broker.decide(proposal.id, true)).success, true);
   assert.deepEqual(calls, [['fixture_sum', { a: 2, b: 3 }]]); assert.equal(owner.current.pending, null);
@@ -59,30 +59,30 @@ test('native broker executes exact approved arguments once and rejects concurren
 }));
 test('lost tool result pauses authority and recovers as uncertain without retry', async () => fixture(async open => {
   const owner = await open(); let calls = 0;
-  const broker = new NativeToolBroker(owner, { request: async () => { calls++; throw new Error('transport lost'); } }, expected);
+  const broker = new NativeToolBroker(owner, { request: async () => { calls++; throw new Error('transport lost'); } }, expected, ['fixture_sum']);
   const proposal = await broker.propose(frame()); assert.equal((await broker.decide(proposal.id, true)).success, false);
   assert.equal(owner.current.mode, 'paused'); assert.equal(owner.current.dispatched, true);
   await owner.close(); const recovered = await open(); assert.equal(recovered.current.uncertain, true); assert.equal(calls, 1);
 }));
 test('unexpected tool output cannot enter the native response or settle the ticket', async () => fixture(async open => {
   const owner = await open();
-  const broker = new NativeToolBroker(owner, { request: async () => ({ sum: 5, unexpected: 'untrusted content' }) }, expected);
+  const broker = new NativeToolBroker(owner, { request: async () => ({ sum: 5, unexpected: 'untrusted content' }) }, expected, ['fixture_sum']);
   const proposal = await broker.propose(frame()); const response = await broker.decide(proposal.id, true);
   assert.equal(response.success, false); assert.equal(JSON.stringify(response).includes('untrusted content'), false);
   assert.equal(owner.current.mode, 'paused'); assert.notEqual(owner.current.pending, null);
 }));
 test('request identity survives broker replacement, transport ID changes and supervisor restart', async () => fixture(async open => {
   let owner = await open(); const computer = { request: async () => ({ sum: 5 }) };
-  let broker = new NativeToolBroker(owner, computer, expected);
+  let broker = new NativeToolBroker(owner, computer, expected, ['fixture_sum']);
   const proposed = await broker.propose(frame()); await broker.decide(proposed.id, false);
-  broker = new NativeToolBroker(owner, computer, expected);
+  broker = new NativeToolBroker(owner, computer, expected, ['fixture_sum']);
   await assert.rejects(broker.propose({ ...frame(), id: 900 }), /duplicate/);
   await owner.close(); owner = await open();
   const human = await owner.request({ op: 'takeover' });
   await owner.request({ op: 'human_ready', generation: human.generation });
   const resumed = await owner.request({ op: 'resume', generation: human.generation });
   await owner.request({ op: 'observed', generation: resumed.generation, digest: 'a'.repeat(64) });
-  broker = new NativeToolBroker(owner, computer, expected);
+  broker = new NativeToolBroker(owner, computer, expected, ['fixture_sum']);
   await assert.rejects(broker.propose({ ...frame(), id: 901 }), /duplicate/);
   const next = { ...frame(), params: { ...frame().params, callId: 'new-call' } };
   const allowed = await broker.propose(next); assert.equal((await broker.decide(allowed.id, true)).success, true);
@@ -97,4 +97,20 @@ test('durable request ledger fails closed at capacity without dropping old ident
   assert.equal(owner.current.requests.length, 256);
   for (const request of ['0', 'overflow']) await assert.rejects(owner.request({ op: 'propose', generation: 0, scope: { ...scope, request }, action, ttl_ms: 30000 }), /ledger/);
   assert.equal(owner.current.requests.length, 256);
+}));
+test('workspace listing requires an explicit grant before proposing and validates its result', async () => fixture(async open => {
+  const owner = await open(); const call = { ...frame(), params: { ...frame().params, tool: 'workspace_list', arguments: {} } };
+  const computer = { request: async (tool, args) => { assert.equal(tool, 'workspace_list'); assert.deepEqual(args, {}); return { entries: ['fixture.txt'] }; } };
+  const denied = new NativeToolBroker(owner, computer, expected);
+  await assert.rejects(denied.propose(call), /grant/); assert.equal(owner.current.approval, null);
+  const allowed = new NativeToolBroker(owner, computer, expected, ['workspace_list']);
+  const proposal = await allowed.propose(call); assert.equal((await allowed.decide(proposal.id, true)).success, true);
+}));
+test('grant revocation after review prevents dispatch and clears an unused ticket', async () => fixture(async open => {
+  const owner = await open(); let revoked = false; let executions = 0;
+  const computer = { authorize: () => { if (revoked) throw new Error('grant revoked'); }, request: async () => { executions++; } };
+  const broker = new NativeToolBroker(owner, computer, expected, ['fixture_sum']);
+  const proposal = await broker.propose(frame()); revoked = true;
+  assert.equal((await broker.decide(proposal.id, true)).success, false);
+  assert.equal(executions, 0); assert.equal(owner.current.pending, null); assert.equal(owner.current.mode, 'paused');
 }));
