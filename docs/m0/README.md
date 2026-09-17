@@ -56,7 +56,15 @@ The probe runs real Codex app-server initialization, empty-session readback and 
 
 Use `--seccomp-profile docker-default` to reproduce the original failing browser configuration. This comparison is intentionally expected to exit nonzero on the qualified Linux ARM64 environment. The normal browser profile must pass without adding capabilities or disabling renderer sandboxing.
 
-Run it again to verify the workspace marker survives replacement of the container. A failed probe exits nonzero and retains details. The launcher records stdout, stderr, immutable image ID, exit code and elapsed time under `.local/m0/evidence/`; these files are ignored by Git. OS controls do not establish hostile-tenant isolation, and missing paths are not a general escape test.
+To exercise the supervisor crash-boundary tests against the packaged Linux Rust binary with Docker's default seccomp policy:
+
+```sh
+python3 scripts/probe-container.py --context YOUR_CONTEXT --probe recovery --seccomp-profile docker-default --workspace recovery-linux
+```
+
+This runs the same 16 recovery tests used on the host, with temporary journals inside the container's bounded `/tmp` filesystem. The runner retains TAP output, stderr, the immutable image ID and exit status under `.local/m0/evidence/`. It qualifies Linux process recovery, not power-loss durability. The default test suite still starts no containers.
+
+Run the native probe again to verify the workspace marker survives replacement of the container. A failed probe exits nonzero and retains details. The launcher records stdout, stderr, immutable image ID, exit code and elapsed time under `.local/m0/evidence/`; these files are ignored by Git. OS controls do not establish hostile-tenant isolation, and missing paths are not a general escape test.
 
 The bind-mounted workspace has no hard disk quota in this experiment. The 256-MiB `/tmp` mount is bounded, but retained files can consume host disk space. Storage quotas, full process cancellation, egress mediation and a production secret broker remain M0 work. Never use the fixture launcher for untrusted workloads.
 

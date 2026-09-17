@@ -33,9 +33,9 @@ The local suite now includes 16 additional subprocess recovery tests. Six kill t
 
 A separate recovery path requires takeover and a fresh observation before new proposals, rejects the old request identity, and accepts a new one. Eight malformed-history cases cover invalid pending/observation/approval digests, invalid decisions, empty or unrecorded approval scopes, and attempts to clear cancellation or uncertainty. A torn-record test cuts the final record at four byte offsets. Every rejected open leaves the supplied evidence byte-for-byte unchanged.
 
-Reproduce with `sh scripts/check-local.sh`, or after a Rust build, `node --test experiments/recovery-boundaries.test.mjs`. Fixtures use temporary directories owned by the test and remove only those directories. No provider, container, Messages account or user workspace is accessed.
+Reproduce with `sh scripts/check-local.sh`, or after a Rust build, `node --test experiments/recovery-boundaries.test.mjs`. Fixtures use temporary directories owned by the test and remove only those directories. The default host checks access no provider, container, Messages account or user workspace.
 
-These tests run on the host macOS filesystem. They cover process loss after acknowledged writes and supplied torn records, not injected filesystem write failures, power loss, loss of a complete trailing record, external effect reconciliation or recovery of a live worker. The existing container image was not rebuilt for this recovery batch; its previously recorded evidence does not qualify this new validator on Linux.
+These tests run on the host macOS filesystem and now also pass against the packaged Linux ARM64 binary in the offline container. Container test journals use the bounded `/tmp` tmpfs. They cover process loss after acknowledged writes and supplied torn records, not injected filesystem write failures, power loss, loss of a complete trailing record, external effect reconciliation or recovery of a live worker. The subsequent Linux requalification rebuilt the image and passed all 16 recovery cases; see [current runtime evidence](worker-lifecycle.md#linux-runtime-requalification).
 
 ## Trust and packaging limits
 

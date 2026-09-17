@@ -4,7 +4,8 @@ import { mkdtemp, rm, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { RustAuthority } from './rust-browser-control.mjs';
-const binary = 'target/debug/agentmeld-m0';
+// Explicit container runner selects its packaged Linux binary; default checks stay local.
+const binary = process.env.AGENTMELD_TEST_BINARY || 'target/debug/agentmeld-m0';
 const action = { tool: 'fixture_sum', arguments: { a: 2, b: 3 } };
 const scope = { workspace: 'fixture', worker: 'fixture', thread: 'thread', turn: 'turn', request: 'request' };
 async function fixture(run) {

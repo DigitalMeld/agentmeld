@@ -16,6 +16,9 @@ export class OwnedWorker {
     if (!/^[a-f0-9]{64}$/.test(id) || !/^sha256:[a-f0-9]{64}$/.test(image)) throw new Error('immutable runtime identity required');
     const actual = await runtime.inspect(id);
     if (actual.Id !== id || actual.Image !== image || !actual.State?.Running || actual.Config?.User !== '1000:1000' || actual.Config?.Labels?.['io.digitalmeld.agentmeld.phase'] !== 'm0' || actual.HostConfig?.NetworkMode !== 'none' || actual.HostConfig?.Privileged !== false || actual.HostConfig?.ReadonlyRootfs !== true || actual.Mounts?.length !== 1 || actual.Mounts[0].Type !== 'bind' || actual.Mounts[0].Destination !== '/workspace' || actual.Mounts[0].Source !== workspace) throw new Error('worker runtime binding mismatch');
+    const limits = actual.HostConfig;
+    const security = limits.SecurityOpt;
+    if (limits.Memory !== 1073741824 || limits.NanoCpus !== 1000000000 || limits.PidsLimit !== 256 || limits.Init !== true || !Array.isArray(limits.CapDrop) || limits.CapDrop.length !== 1 || limits.CapDrop[0] !== 'ALL' || (limits.CapAdd != null && (!Array.isArray(limits.CapAdd) || limits.CapAdd.length !== 0)) || !Array.isArray(security) || !security.some(value => value === 'no-new-privileges:true' || value === 'no-new-privileges') || security.some(value => /^(seccomp|apparmor)[=:]unconfined$/.test(value)) || (limits.PidMode ?? '') !== '' || (limits.IpcMode !== 'private' && limits.IpcMode !== '') || (limits.Devices?.length ?? 0) !== 0 || (limits.DeviceRequests?.length ?? 0) !== 0) throw new Error('worker runtime limits mismatch');
     if (!Array.isArray(tools) || tools.some(tool => !Object.hasOwn(toolSchemas, tool))) throw new Error('unsupported grant');
     return new OwnedWorker(id, workspace, computer, runtime, tools);
   }

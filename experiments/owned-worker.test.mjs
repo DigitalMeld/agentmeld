@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { OwnedWorker } from './owned-worker.mjs';
 const id = 'a'.repeat(64); const image = 'sha256:' + 'b'.repeat(64); const workspace = '/fixture/workspace';
-const record = () => ({ Id: id, Image: image, State: { Running: true }, Config: { User: '1000:1000', Labels: { 'io.digitalmeld.agentmeld.phase': 'm0' } }, HostConfig: { NetworkMode: 'none', Privileged: false, ReadonlyRootfs: true }, Mounts: [{ Type: 'bind', Source: workspace, Destination: '/workspace' }] });
+const record = () => ({ Id: id, Image: image, State: { Running: true }, Config: { User: '1000:1000', Labels: { 'io.digitalmeld.agentmeld.phase': 'm0' } }, HostConfig: { NetworkMode: 'none', Privileged: false, ReadonlyRootfs: true, Memory: 1073741824, NanoCpus: 1000000000, PidsLimit: 256, Init: true, CapDrop: ['ALL'], CapAdd: null, SecurityOpt: ['no-new-privileges:true'], PidMode: '', IpcMode: 'private', Devices: [], DeviceRequests: null }, Mounts: [{ Type: 'bind', Source: workspace, Destination: '/workspace' }] });
 function fixture(overrides = {}) {
   const calls = [];
   const computer = { dead: false, request: async (...args) => { calls.push(args); return { sum: 5 }; }, fail: () => { computer.dead = true; } };
@@ -38,4 +38,21 @@ test('termination coalesces concurrent requests and allows reconciliation after 
   assert.equal(stops, 1); remaining = [];
   assert.equal((await worker.terminate()).termination, 'stopped');
   assert.equal((await worker.terminate()).termination, 'stopped'); assert.equal(stops, 2);
+});
+
+test('binding rejects missing resource limits and weakened process isolation', async () => {
+  for (const [key, value] of [
+    ['Memory', 0], ['Memory', 2147483648], ['NanoCpus', 0], ['PidsLimit', -1],
+    ['Init', false], ['CapDrop', []], ['CapAdd', ['SYS_ADMIN']], ['SecurityOpt', []],
+    ['SecurityOpt', ['no-new-privileges:true', 'seccomp=unconfined']],
+    ['SecurityOpt', ['no-new-privileges:true', 'apparmor=unconfined']],
+    ['PidMode', 'host'], ['IpcMode', 'host'], ['Devices', [{}]], ['DeviceRequests', [{}]],
+  ]) {
+    const actual = record(); actual.HostConfig[key] = value;
+    await assert.rejects(OwnedWorker.bind(fixture({ inspect: async () => actual })), /limits/, key);
+  }
+  for (const key of ['Memory', 'NanoCpus', 'PidsLimit', 'Init', 'CapDrop', 'SecurityOpt', 'IpcMode']) {
+    const actual = record(); delete actual.HostConfig[key];
+    await assert.rejects(OwnedWorker.bind(fixture({ inspect: async () => actual })), /limits/, key);
+  }
 });
