@@ -8,7 +8,7 @@ Date: 2026-09-17. Status: **started, not complete**. These are experimental cont
 | --- | --- | --- |
 | Rust conformance | 13 tests passed | Synthetic protocol/policy/channel inputs |
 | Python policy integrity | 2 tests passed | Rejects unverified upstream bytes and locally modified policy |
-| Node Ollama loop | 4 tests passed, including invoking the Rust fixture tool | Injected HTTP transport; no model inference |
+| Ollama readiness and loop | 13 tests passed: preflight, streaming budgets, stalled HTTP, interruption, durable approvals and CLI workflow | Injected and loopback synthetic HTTP; no real local inference |
 | Browser control and viewer HTTP | 7 tests passed | In-process queue and local HTTP authentication; no native harness mediation |
 | Durable Rust subprocess integration | 10 tests passed, including private-screen restart and capture fencing: replacement, exclusive lock, SIGKILL with unfinished action, corruption, fencing, cancellation, payload binding and one-time dispatch | Trusted host caller/storage; production identity remains open |
 | Native tool approval | 11 tests passed; reconnect replay and ledger exhaustion, scope/payload binding, expiry, duplicates, concurrent proposals, revocation and uncertain recovery | Two bounded Codex tools; fixture reviewer, no production grant service |
@@ -48,7 +48,7 @@ Exact JavaScript resolution is recorded in `package-lock.json`; Rust resolution 
 
 1. Extend the [qualified Codex dynamic-tool adapter](native-tools.md) beyond its verified local worker identity and tool grants to remote authentication and broader native tool coverage; extend private-screen suppression to secure credential entry and qualify worker recovery. Keep the renderer sandbox and control-ordering checks as regression gates.
 2. Define scoped provider credentials and mediated egress. Run actual Claude/Codex streamed answers, native tools, allow/deny, cancellation and process-replacement continuation. Do not import personal host auth directories.
-3. Select a local Ollama tool model and run the bounded tool loop against real inference, including failures and cancellation. Current cloud aliases do not satisfy this check.
+3. Select/install a local Ollama tool model and use the [qualification runner](ollama-qualification.md) for real inference, denied tools and caller-stream cancellation. The current cloud aliases are explicitly rejected.
 4. Extend the qualified reconnect ledger and whole-container stop probe and integrated HTTP cancellation to production recovery, workspace quotas and sustained resource measurements.
 5. Configure an explicitly designated iMessage test identity and paired Mac bridge; qualify real correlation, attachments, reconnect and uncertain delivery.
 
@@ -56,8 +56,10 @@ M1 remains gated on these integration results. Only an experimental fixture view
 
 The separated supervisor probe passed in 0.63 seconds in one local sample using the same final image. Its run-specific report and protected fixture files remain under ignored `.local/m0/control/`. This is not a performance benchmark.
 
-The default suite now passes 58 tests (13 Rust, 43 Node, 2 Python), plus formatting, Clippy, build and documentation checks. The separated native probe completed allow, deny, revoke, granted listing and ungranted listing through actual Codex callbacks with a synthetic model stream. See [native approvals and measurements](native-tools.md) for scope and reproduction.
+The default suite now passes 67 tests (13 Rust, 52 Node, 2 Python), plus formatting, Clippy, build and documentation checks. The separated native probe completed allow, deny, revoke, granted listing and ungranted listing through actual Codex callbacks with a synthetic model stream. See [native approvals and measurements](native-tools.md) for scope and reproduction.
 
 [Reconnect, private screen and cancellation](recovery-privacy.md) adds durable logical-call replay protection, screenshot suppression across restart, and a whole-container termination probe with uncooperative child/grandchild processes. The four container probes remain offline and synthetic.
 
 [Local worker lifecycle](worker-lifecycle.md) verifies container IDs from host-owned cidfiles, enforces explicit dynamic-tool grants, and confirms termination through the viewer HTTP cancellation path.
+
+The Ollama readiness batch rechecked the installed 0.34.1 service and rejected a cloud alias without inference. Its new runner is fully exercised against a synthetic HTTP server. The four earlier container probes were not rerun for this host-only adapter change; their image evidence above is retained from the prior batch.

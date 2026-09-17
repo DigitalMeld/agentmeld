@@ -4,6 +4,7 @@ This milestone has begun. The Rust crate contains experimental contracts and tes
 
 ## What exists
 
+- [Local Ollama qualification runner](ollama-qualification.md) with cloud-alias rejection, bounded streaming and durable Rust fixture approvals.
 - [Local worker identity, grants and cancellation](worker-lifecycle.md): verified container binding, a bounded workspace-listing tool and runtime-confirmed HTTP cancellation.
 - [Reconnect, private screen and cancellation](recovery-privacy.md): durable request IDs, screenshot suppression and an explicit whole-container stop probe.
 - [Durable approvals and native Codex callback](native-tools.md), tested with a synthetic model stream and measured locally.

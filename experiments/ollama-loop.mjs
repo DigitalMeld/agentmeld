@@ -1,8 +1,12 @@
 // HTTP transport spike for Rust-produced tool results. Fixture/default mode never calls
 // a provider. Live callers must explicitly supply an endpoint, model and executor.
+import { normalizeArguments, validateResult } from './tool-contract.mjs';
 import { pathToFileURL } from 'node:url';
 
-export async function runLoop({ endpoint, model, execute, fetchImpl = fetch, maxTurns = 4, signal }) {
+export async function runLoop({ endpoint, model, execute, fetchImpl = fetch, maxTurns = 4, signal, timeoutMs = 60000, onChunk = () => {} }) {
+  if (!Number.isSafeInteger(maxTurns) || maxTurns < 1 || maxTurns > 8 || !Number.isSafeInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 300000 || typeof model !== 'string' || !model || typeof execute !== 'function') throw new Error('invalid loop configuration');
+  const deadline = AbortSignal.timeout(timeoutMs);
+  signal = signal ? AbortSignal.any([signal, deadline]) : deadline;
   const url = new URL(endpoint);
   if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password || url.search || url.hash)
     throw new Error('invalid operator endpoint');
@@ -12,14 +16,15 @@ export async function runLoop({ endpoint, model, execute, fetchImpl = fetch, max
     signal?.throwIfAborted();
     const response = await fetchImpl(new URL('/api/chat', url), {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model, stream: true, messages, tools }), signal,
+      body: JSON.stringify({ model, stream: true, think: false, keep_alive: 0, options: { temperature: 0, num_predict: 512 }, messages, tools }), signal,
       redirect: 'error',
     });
     if (!response.ok) throw new Error(`Ollama HTTP ${response.status}`);
-    let pending = ''; let bytes = 0; let done = false;
+    let pending = ''; let bytes = 0; let frames = 0; let done = false;
     const message = { role: 'assistant', content: '', tool_calls: [] };
     const decoder = new TextDecoder('utf-8', { fatal: true });
     for await (const chunk of response.body) {
+      onChunk(); signal.throwIfAborted();
       bytes += chunk.length;
       if (bytes > 1024 * 1024) throw new Error('turn output limit');
       pending += decoder.decode(chunk, { stream: true });
@@ -27,10 +32,12 @@ export async function runLoop({ endpoint, model, execute, fetchImpl = fetch, max
       while ((end = pending.indexOf('\n')) >= 0) {
         const line = pending.slice(0, end); pending = pending.slice(end + 1);
         if (!line.trim()) continue;
+        if (++frames > 4096) throw new Error('frame count limit');
         if (done) throw new Error('data after terminal frame');
         const frame = JSON.parse(line);
         if (frame.error || typeof frame.done !== 'boolean') throw new Error('invalid Ollama frame');
         if (frame.message) {
+          if (frame.message.role && frame.message.role !== 'assistant') throw new Error('invalid assistant role');
           if (typeof frame.message.content !== 'string') throw new Error('invalid content');
           message.content += frame.message.content;
           if (frame.message.tool_calls) {
@@ -44,16 +51,19 @@ export async function runLoop({ endpoint, model, execute, fetchImpl = fetch, max
     }
     pending += decoder.decode();
     if (pending.trim() || !done) throw new Error('truncated Ollama stream');
+    signal.throwIfAborted();
     messages.push(message);
     if (!message.tool_calls.length) return { text: message.content, turns: turn + 1, messages };
     // Validate and execute only after the entire bounded stream is complete.
-    for (const call of message.tool_calls) {
+    const validated = message.tool_calls.map(call => {
+      if (call?.function?.name !== 'sum') throw new Error('ungranted or malformed tool');
+      return { name: 'sum', arguments: normalizeArguments('fixture_sum', call.function.arguments) };
+    });
+    for (const call of validated) {
       signal?.throwIfAborted();
-      const f = call?.function;
-      if (f?.name !== 'sum' || !f.arguments || typeof f.arguments !== 'object' || Array.isArray(f.arguments))
-        throw new Error('ungranted or malformed tool');
-      const result = await execute({ name: f.name, arguments: f.arguments });
-      messages.push({ role: 'tool', tool_name: f.name, content: JSON.stringify(result) });
+      const result = validateResult('fixture_sum', call.arguments, await execute(call, signal));
+      signal.throwIfAborted();
+      messages.push({ role: 'tool', tool_name: call.name, content: JSON.stringify(result) });
     }
   }
   throw new Error('turn budget exhausted');

@@ -42,3 +42,18 @@ test('tool error, non-OK response, and abort stop the loop', async () => {
 test('turn budget bounds repeated tool requests', async () => {
   await assert.rejects(runLoop({ endpoint: 'http://fixture.invalid', model: 'fixture', execute, maxTurns: 2, fetchImpl: async () => response([toolFrame, { done: true }]) }), /budget/);
 });
+test('the complete tool batch is validated before any execution', async () => {
+  let executions = 0;
+  const bad = { message: { content: '', tool_calls: [...toolFrame.message.tool_calls, { function: { name: 'sum', arguments: { a: 1, b: 2, shell: 'unexpected' } } }] }, done: true };
+  await assert.rejects(runLoop({ endpoint: 'http://fixture.invalid', model: 'fixture', execute: () => { executions++; }, fetchImpl: async () => response([bad]) }), /arguments/);
+  assert.equal(executions, 0);
+});
+test('cancellation during streaming never executes a partial tool', async () => {
+  const abort = new AbortController(); let executions = 0;
+  await assert.rejects(runLoop({ endpoint: 'http://fixture.invalid', model: 'fixture', signal: abort.signal, onChunk: () => abort.abort(), execute: () => { executions++; }, fetchImpl: async () => response([toolFrame, { done: true }]) }), { name: 'AbortError' });
+  assert.equal(executions, 0);
+});
+test('loop rejects invalid budgets and excessive frames', async () => {
+  for (const maxTurns of [0, 9, NaN]) await assert.rejects(runLoop({ endpoint: 'http://fixture.invalid', model: 'fixture', execute, maxTurns }), /configuration/);
+  await assert.rejects(runLoop({ endpoint: 'http://fixture.invalid', model: 'fixture', execute, fetchImpl: async () => response(Array.from({ length: 4097 }, () => ({ message: { content: '' }, done: false }))) }), /frame count/);
+});
