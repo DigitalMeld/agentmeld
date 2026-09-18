@@ -1,8 +1,14 @@
 # M0 evidence and remaining qualification
 
-Date: 2026-09-18. Status: **started, not complete**. These are experimental contracts and offline integration probes, not an installable agent product.
+Date: 2026-09-18. Status: **started, not complete**. These are experimental contracts and explicit native/live qualification probes, not an installable agent product. The current checklist and reports below supersede historical pending statuses.
 
-## Verified locally
+## Current qualification checkpoint
+
+The [exit checklist](exit-checklist.md) owns current status. Codex-only subscription qualification now includes [live streaming and native tool results](codex-subscription.md), [allow/deny and pending/running cancellation](live-control.md), and [bounded workspace integration across replacement workers](workspace-disk-limit.md#authenticated-worker-integration). The failed-command UI event gap remains open even though model-facing error delivery is verified. The default local suite now has 185 tests.
+
+M0 remains incomplete pending a requirement-by-requirement completion audit and unresolved qualification work. Whole-product UI, production persistence/recovery and self-hosted packaging are not supplied by these experiments. The entries below preserve historical batch evidence; their provider scope, test counts and next-action statements are not the current roadmap.
+
+## Historical verified batches
 
 | Check | Result | Limit |
 | --- | --- | --- |

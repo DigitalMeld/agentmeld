@@ -4,7 +4,7 @@ Updated: 2026-09-18. This records the local qualification image, not an approved
 
 ## Verified scope
 
-[Machine-readable inventory](runtime-inventory.json) records image `sha256:d3eff9a0d415b5f47293139997a8edc37d80805aae52bf7c815a8e4d4074ad01`, Linux ARM64, installed package versions, declared npm licenses and available notice-file SHA-256 hashes. The image's package lock matches the local lock byte-for-byte. Dockerfile and Cargo lock hashes describe the checkout; they are not an attestation of embedded build provenance.
+[Machine-readable inventory](runtime-inventory.json) records image `sha256:e3b83ac30199b998515fac528cd349a4b5b6b35b9e88df190d4ed2287ae26818`, Linux ARM64, installed package versions, declared npm licenses and available notice-file SHA-256 hashes. The image's package lock matches the local lock byte-for-byte. Dockerfile and Cargo lock hashes describe the checkout; they are not an attestation of embedded build provenance.
 
 | Surface | Observed inventory | Evidence boundary |
 | --- | --- | --- |
@@ -53,3 +53,5 @@ The latest image adds the explicit live execution probe and protocol client. Pac
 The command-error follow-up adds qualification-only native-history correlation and an offline lifecycle diagnostic. Package inventories remain unchanged. Live model-facing error evidence passes while the UI event gap remains explicitly open.
 
 The latest image adds the [live control probe](live-control.md). Runtime package versions and counts remain unchanged; mediated approval and cancellation evidence is tied to this exact image.
+
+The latest image adds the authenticated bounded-workspace probe. Runtime packages are unchanged; see [workspace integration evidence](workspace-disk-limit.md#authenticated-worker-integration).

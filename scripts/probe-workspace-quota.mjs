@@ -5,7 +5,7 @@ import { parseArgs } from 'node:util';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import assert from 'node:assert/strict';
-const { values } = parseArgs({ options: { context: { type: 'string' } } });
+const { values } = parseArgs({ options: { context: { type: 'string' }, subscription: { type: 'boolean', default: false } } });
 if (values.context !== 'colima-agentmeld-m0') throw Error('this operator probe requires the dedicated colima-agentmeld-m0 context');
 const docker = args => execFileSync('docker', ['--context', values.context, ...args], { encoding: 'utf8', timeout: 45000, maxBuffer: 1024 * 1024 });
 const vm = args => execFileSync('colima', ['ssh', '--profile', 'agentmeld-m0', '--', ...args], { encoding: 'utf8', timeout: 15000, maxBuffer: 1024 * 1024 });
@@ -30,7 +30,11 @@ try {
     const name = volume + '-' + i; containers.push(name);
     reports.push(JSON.parse(docker(['run', '--name', name, ...limits, '--user=1000:1000', '--env=AGENTMELD_QUOTA_INSTANCE=' + instance, '--env=AGENTMELD_QUOTA_FIRST=' + (i === 0 ? '1' : '0'), image, 'node', '/opt/agentmeld/workspace-quota-probe.mjs'])));
   }
-  const report = { phase: 'm0', image, budgetBytes: 67108864, backingBytes: Number(vm(['stat', '--format=%s', backing]).trim()), reports, synthetic: true };
+  const liveReports = [];
+  if (values.subscription) for (const stage of ['write', 'read']) {
+    liveReports.push(JSON.parse(execFileSync(process.execPath, [root + 'scripts/probe-provider-egress.mjs', '--context', values.context, '--workspace-stage', stage, '--workspace-instance', instance], { encoding: 'utf8', timeout: 120000, maxBuffer: 1024 * 1024 })));
+  }
+  const report = { liveReports, phase: 'm0', image, budgetBytes: 67108864, backingBytes: Number(vm(['stat', '--format=%s', backing]).trim()), reports, synthetic: true };
   assert.equal(report.backingBytes, report.budgetBytes);
   await mkdir(root + '.local/m0/quota', { recursive: true }); await writeFile(root + '.local/m0/quota/' + instance + '.json', JSON.stringify(report, null, 2) + '\n', { mode: 0o600 });
   console.log(JSON.stringify(report));
