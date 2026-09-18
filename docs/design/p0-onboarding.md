@@ -213,6 +213,12 @@ Owner's correction on v5: they already have a working prototype (`apps/poc/publi
 
 Verification for v6: inline JS passes `node --check`; `scripts/check-docs.py` passes; all `getElementById`/`data-go` targets resolve; no `border-left` remains. Visual review still pending on the owner's Mac.
 
+## 16. Prototype v7: agent-name row (2026-09-18)
+
+Owner's marking on the screenshot: the avatar should span exactly the label row and the text box. The "Agent name" label is now a real 20px/600 heading (up from 15px, which read as a form caption), and the avatar preview is 84px — exactly label (28px) + gap (8px) + input (48px) — so its top edge aligns with the label's top and its bottom with the input's bottom.
+
+**Full-app note (not P0):** the owner wants an avatar color mode and highlight picker in the real app (the way Muse's own picker works). Explicitly out of scope for this prototype; recorded here so it survives the handoff.
+
 ---
 
 ## 10. Open questions for the owner
