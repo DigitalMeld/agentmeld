@@ -140,3 +140,7 @@ Owner feedback supersedes the Activity filter-heavy design: retain search and hi
 ## Composer refinements
 
 The [13-change composer batch](design/composer-refinements.md) removes the header subtitle, improves attachment input and recovery, and protects unfinished drafts from navigation and sample replacement. Drafts remain memory-only; `/new` still explicitly clears the composer.
+
+## Quieter run inspection
+
+The [run-details batch](design/run-details-polish.md) keeps only Codex subscription in the footer and adds 12 refinements to detail navigation, keyboard focus, controls and history readability. It adds no filters or execution capabilities.
