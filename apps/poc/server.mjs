@@ -1,3 +1,4 @@
+import { agentProfile, updateProfile, profileContext } from './profile.mjs';
 import { workspaceView, workspaceFile } from './filesystem.mjs';
 import { recordEvent } from './events.mjs';
 import http from 'node:http';
@@ -15,11 +16,15 @@ function pump(){
   if(active||closing||!healthy())return;
   const task=state.tasks.find(t=>t.status==='queued');if(!task)return;
   const conversation=state.conversations.find(c=>c.id===task.conversationId);
-  const control={id:task.id,stop:null};active=control;
+  const profile=agentProfile(state);
+  const control={id:task.id,stop:null,agentContext:profileContext(profile)};active=control;
   control.done=(async()=>{
     if(conversation.continuation!=='ready'){
       task.status='failed';task.activity='Continuation unavailable';task.error='Start a new chat; earlier work is preserved.';return;
     }
+    // Changed or deleted preferences must not survive in a resumed provider context.
+    if((conversation.agentRevision??0)!==profile.revision){conversation.session=null;conversation.agentRevision=profile.revision;}
+    task.agentRevision=profile.revision;
     recordEvent(task,'started');task.status='running';task.activity='Connecting';await save();
     await execute(task,save,control,conversation);
   })().catch(()=>{
@@ -39,7 +44,16 @@ const server=http.createServer(async(req,res)=>{
     if(req.headers.host!=='127.0.0.1:'+port || (req.headers.origin && req.headers.origin!==origin)) return send(res,403,{error:'This app is available only from its local address.'});
     if(url.pathname.startsWith('/api/')){
       if(!authorized(req)) return send(res,401,{error:'Open the local app link printed by the server.'});
-      if(req.method==='GET'&&url.pathname==='/api/state')return send(res,200,{tasks:state.tasks.map(publicTask),conversations:state.conversations.map(publicConversation),active:active?.id??null});
+      if(req.method==='GET'&&url.pathname==='/api/state')return send(res,200,{agentName:agentProfile(state).name,tasks:state.tasks.map(publicTask),conversations:state.conversations.map(publicConversation),active:active?.id??null});
+      if(req.method==='GET'&&url.pathname==='/api/agent')return send(res,200,agentProfile(state));
+      if(req.method==='POST'&&url.pathname==='/api/agent'){
+        const data=await body(req);
+        const action=admissions.then(async()=>{
+          if(closing||!healthy())return send(res,503,{error:'The local service is unavailable.'});
+          if(active||state.tasks.some(t=>t.status==='queued'))return send(res,409,{error:'Wait for queued and running work to finish before changing agent context.'});
+          const profile=updateProfile(state,data);await save();send(res,200,profile);
+        });admissions=action.catch(()=>{});await action;return;
+      }
       if(req.method==='POST'&&url.pathname==='/api/conversations'){
         const data=await body(req);
         const action=admissions.then(async()=>{
@@ -87,7 +101,7 @@ const server=http.createServer(async(req,res)=>{
       }
       return send(res,404,{error:'Not found.'});
     }
-    const assets={'/':'index.html','/app.js':'app.js','/style.css':'style.css','/brain.svg':'brain.svg','/icons.js':'icons.js','/tooltips.js':'tooltips.js','/composer.js':'composer.js','/organization.js':'organization.js','/file-browser.js':'file-browser.js','/artifact-tools.js':'artifact-tools.js','/conversation-tools.js':'conversation-tools.js','/preview-reader.js':'preview-reader.js'};
+    const assets={'/agent-settings.js':'agent-settings.js','/':'index.html','/app.js':'app.js','/style.css':'style.css','/brain.svg':'brain.svg','/icons.js':'icons.js','/tooltips.js':'tooltips.js','/composer.js':'composer.js','/organization.js':'organization.js','/file-browser.js':'file-browser.js','/artifact-tools.js':'artifact-tools.js','/conversation-tools.js':'conversation-tools.js','/preview-reader.js':'preview-reader.js'};
     if(req.method!=='GET'||!assets[url.pathname])return send(res,404,{error:'Not found.'});
     const file=assets[url.pathname];res.setHeader('Content-Type',file.endsWith('.svg')?'image/svg+xml':file.endsWith('.css')?'text/css':file.endsWith('.js')?'text/javascript':'text/html');
     res.end(await readFile(new URL('./public/'+file,import.meta.url)));

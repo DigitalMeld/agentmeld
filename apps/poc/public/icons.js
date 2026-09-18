@@ -1,5 +1,6 @@
 // Original outline symbols shared by navigation and file results.
 const paths={
+ settings:'<path d="M4 6h16M4 12h16M4 18h16"/><circle cx="8" cy="6" r="2"/><circle cx="16" cy="12" r="2"/><circle cx="10" cy="18" r="2"/>',
  shield:'<path d="M12 3 4 6v6c0 5 8 9 8 9s8-4 8-9V6ZM8 12l3 3 5-6"/>',
  clock:'<circle cx="12" cy="12" r="9" stroke-dasharray="3 3"/><path d="M12 6v6l4 2"/>',
  check:'<path d="m5 12 4 4L19 6"/>',

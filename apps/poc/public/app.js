@@ -389,7 +389,7 @@ $('prompt').onkeydown=e=>{if(e.key==='Enter'&&!e.shiftKey&&!e.isComposing&&!comp
 $('stop').onclick=async()=>{try{$('stop').disabled=true;await api('/api/stop',{method:'POST',body:JSON.stringify({taskId:$('stop').dataset.task})});await refresh();}catch(e){error(e.message);}finally{$('stop').disabled=false;}};
 async function refresh(){
   if(refreshing)return;refreshing=true;let sessionExpired=false;
-  try{state=await(await api('/api/state',{signal:AbortSignal.timeout(8000)})).json();connected=true;
+  try{state=await(await api('/api/state',{signal:AbortSignal.timeout(8000)})).json();connected=true;$('agentDisplayName').textContent=state.agentName||'AgentMeld';
     if(restoreSelection){restoreSelection=false;let saved;try{saved=sessionStorage.getItem('agentmeld-selection');}catch{}if(state.conversations.some(c=>c.id===saved)){selected=saved;showArchived=!!selectedChat()?.archived;}else saveSelection();}
   }catch(e){connected=false;sessionExpired=e.status===401;}finally{
     refreshing=false;$('connectionMessage').textContent=sessionExpired?'Local session expired. Reopen the current app link from the server to reconnect. Your saved work is preserved.':'Connection interrupted. Your saved work is preserved.';

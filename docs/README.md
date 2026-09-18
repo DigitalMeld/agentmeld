@@ -56,3 +56,7 @@ For a meaningful change, record the reason, affected behavior, evidence/checks, 
 - [Run details polish](design/run-details-polish.md): contextual run navigation, compact controls, focus restoration and quieter history.
 
 - [File preview recovery](design/preview-recovery.md): retry, cancellation, focus, media lifetime and workspace loading states.
+
+- [MVP completion ledger](mvp-progress.md): current functional gaps, dependency order and acceptance evidence.
+
+- [Agent context](design/agent-context.md): editable identity, approved memory, revisions, runtime context and deletion limits.
