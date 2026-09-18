@@ -1,6 +1,8 @@
 // Explicit subscription usage. Reports booleans only; native history contains synthetic fixture data.
 import { spawn, execFileSync } from 'node:child_process';
-import { readFile, stat, writeFile } from 'node:fs/promises';
+import { readFile, stat, writeFile, open, realpath } from 'node:fs/promises';
+import { constants } from 'node:fs';
+import { commandResultEvidence } from './native-command-evidence.mjs';
 import { randomUUID } from 'node:crypto';
 import assert from 'node:assert/strict';
 import { authHome, validateRuntimeAuthConfig } from './codex-auth-store.mjs';
@@ -35,11 +37,23 @@ try {
   assert.equal(await readFile('/workspace/m0-live-marker.txt', 'utf8'), marker); report.commandSuccess = true;
   stage = 'command-failure';
   await writeFile('/workspace/m0-failure.cjs', "require('node:fs').writeFileSync('/workspace/m0-failure-ran.txt', 'ran');process.exit(23);", { flag: 'wx' });
-  const failureThread = await client.request('thread/start', { cwd: '/workspace', model: 'gpt-5.5', allowProviderModelFallback: false, permissions: 'agentmeld', approvalPolicy: 'on-request', ephemeral: true });
-  const failure = await client.turn(failureThread.thread.id, 'Actually execute this fixture using your shell tool: node /workspace/m0-failure.cjs . The period is sentence punctuation. This fixture intentionally fails; do not infer its result without running it. Do not retry or repair it. Report the observed exit code.');
+  const failureThread = await client.request('thread/start', { cwd: '/workspace', model: 'gpt-5.5', allowProviderModelFallback: false, permissions: 'agentmeld', approvalPolicy: 'on-request', ephemeral: false });
+  const failure = await client.turn(failureThread.thread.id, 'Use exec_command with cmd exactly equal to node /workspace/m0-failure.cjs to execute this fixture. This fixture intentionally fails; do not infer its result without running it. Do not retry or repair it. Report the observed exit code.');
   report.failureDiagnostic = client.lastDiagnostic; report.failureMarkerExists = await stat('/workspace/m0-failure-ran.txt').then(() => true, () => false); report.deniedCallbacks = client.deniedCallbacks; report.failureTurnCompleted = failure.status === 'completed'; report.failureCommandExitCodes = failure.items.filter(i => i.type === 'commandExecution').map(i => Number.isInteger(i.exitCode) ? i.exitCode : null);
   assert.equal(failure.status, 'completed'); assert.equal(await readFile('/workspace/m0-failure-ran.txt', 'utf8'), 'ran');
-  report.commandFailure = failure.items.some(i => i.type === 'commandExecution' && i.exitCode === 23);
+  report.commandErrorEvent = failure.items.some(i => i.type === 'commandExecution' && i.exitCode === 23);
+  const historyPath = failureThread.thread.path;
+  assert.ok(typeof historyPath === 'string' && historyPath.startsWith(authHome + '/.codex/sessions/'));
+  assert.equal(await realpath(historyPath), historyPath);
+  const history = await open(historyPath, constants.O_RDONLY | constants.O_NOFOLLOW);
+  try {
+    assert.ok((await history.stat()).size <= 1024 * 1024);
+    const bytes = Buffer.alloc(1024 * 1024 + 1);
+    const { bytesRead } = await history.read(bytes, 0, bytes.length, 0);
+    assert.ok(bytesRead <= 1024 * 1024);
+    report.nativeHistoryErrorResult = commandResultEvidence(bytes.subarray(0, bytesRead).toString('utf8'), 'node /workspace/m0-failure.cjs', 23);
+  } finally { await history.close(); }
+  report.commandFailure = report.nativeHistoryErrorResult;
   stage = 'process-replacement'; await client.close(); client = start(); await client.initialize(); report.processReplacement = true;
   stage = 'thread-resume';
   const resumed = await client.request('thread/resume', { threadId: thread.thread.id, cwd: '/workspace', permissions: 'agentmeld', approvalPolicy: 'on-request', model: 'gpt-5.5' });
@@ -51,6 +65,6 @@ try {
   validateRuntimeAuthConfig(await readFile(authHome + '/.codex/config.toml', 'utf8'));
 } catch (error) { report.failedStage = stage; if (error.reusedTurn) report.reusedTurn = true; if (Number.isInteger(error.rpcCode)) report.rpcCode = error.rpcCode; if (error.experimentalRequired) report.experimentalRequired = true; process.exitCode = 1; }
 finally { if (client) await client.close(); }
-report.qualified = report.commandSuccess && report.commandFailure && report.conversationContinued;
+report.qualified = !report.failedStage && report.commandSuccess && report.commandFailure && report.conversationContinued;
 if (!report.qualified) process.exitCode = 1;
 console.log(JSON.stringify(report));
