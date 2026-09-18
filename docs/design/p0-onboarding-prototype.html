@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AgentMeld — P0 onboarding prototype (not production code)</title>
+<style>
+:root{
+  --bg:#101011; --panel:#161617; --surface:#232325; --raised:#222224;
+  --line:#2b2b2e; --line-soft:#1d1d20;
+  --text:#eeeef0; --muted:#96969f; --faint:#767680;
+  --accent:#496edb; --link:#adc2ff; --focus:#94b1ff;
+  --user-bubble:#303a56; --send-bg:#dddde5; --send-ink:#222;
+  --good:#afd1ba; --good-bg:#23382e; --bad:#efbac4; --bad-bg:#422b31; --bad-line:#63414b;
+  --warn:#dfc589; --info-bg:#242e40; --info-text:#d6e2f5;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size:15px;line-height:1.6;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+button{font:inherit;cursor:pointer;color:inherit;border:0;background:none}
+button:focus-visible,input:focus-visible,textarea:focus-visible,a:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+button:disabled{opacity:.45;cursor:default}
+a{color:var(--link);text-decoration:none}
+a:hover{text-decoration:underline}
+::selection{background:#39415d}
+.proto{background:#17171a;color:var(--muted);font-size:12.5px;padding:7px 16px;
+  border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:12px}
+.app{max-width:620px;margin:0 auto;padding:0 24px 90px;transition:max-width .3s ease}
+.app.wide{max-width:1040px}
+.top{display:flex;justify-content:space-between;align-items:center;padding:20px 0 12px}
+.linklike{background:none;border:none;color:var(--muted);font-size:14px;cursor:pointer;padding:6px 0;border-radius:6px}
+.linklike:hover{color:var(--text)}
+.linklike:disabled{visibility:hidden}
+.stepcount{font-size:13px;color:var(--faint);font-variant-numeric:tabular-nums}
+.track{height:2px;background:var(--line);border-radius:1px;margin:0 0 44px}
+.track i{display:block;height:100%;width:0;background:var(--accent);border-radius:1px;transition:width .45s ease}
+h1{font-size:29px;font-weight:550;letter-spacing:-.8px;margin:0 0 12px;line-height:1.25}
+.lede{color:var(--muted);margin:0 0 34px;font-size:14px;line-height:1.7}
+.lede strong{color:var(--text);font-weight:600}
+p{color:var(--muted);margin:0 0 14px}
+p strong{color:var(--text);font-weight:600}
+section.screen{display:none}
+section.screen.on{display:block;animation:rise .28s cubic-bezier(.2,.7,.3,1)}
+@keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){section.screen.on{animation:none}.msg{animation:none}}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:22px 24px;margin:0 0 20px}
+.card h3{margin:0 0 6px;font-size:15px;letter-spacing:-.01em}
+.card p{font-size:14px;margin:0 0 8px}
+.card p:last-child{margin-bottom:0}
+.facts{list-style:none;padding:0;margin:0 0 34px}
+.facts li{display:flex;gap:14px;padding:15px 0;border-bottom:1px solid var(--line-soft);font-size:14.5px;color:var(--muted)}
+.facts li:last-child{border-bottom:none}
+.facts li strong{color:var(--text);font-weight:600}
+.facts .mk{flex:none;width:24px;height:24px;border-radius:50%;background:rgba(73,110,219,.14);
+  color:#9db4f0;font-size:13px;display:flex;align-items:center;justify-content:center;margin-top:2px}
+.row{display:flex;gap:10px;flex-wrap:wrap;margin-top:30px;align-items:center;justify-content:flex-end}
+.row.left{justify-content:flex-start}
+button.primary{background:var(--send-bg);color:var(--send-ink);border-radius:20px;padding:12px 26px;font-weight:600;font-size:15px;border:none}
+button.primary:hover{background:#e9e9f0}
+button.ghost{background:transparent;color:var(--muted);border:none;padding:12px 16px;font-size:15px}
+button.ghost:hover{color:var(--text)}
+button.small{font-size:13px;padding:8px 14px;border-radius:9px}
+input[type=text]{width:100%;background:#252528;border:1px solid #424248;border-radius:10px;
+  color:var(--text);font:inherit;font-size:15px;padding:12px 16px}
+.check{list-style:none;padding:0;margin:20px 0}
+.check li{display:flex;gap:12px;align-items:center;padding:13px 0;border-bottom:1px solid var(--line-soft);font-size:14.5px}
+.check li:last-child{border-bottom:none}
+.check .st{width:22px;height:22px;flex:none;border-radius:50%;border:1px solid var(--line);
+  display:flex;align-items:center;justify-content:center;font-size:13px;color:var(--faint)}
+.check .st.spin{border-top-color:var(--accent);animation:sp .8s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+.check .st.ok{border-color:var(--good);color:var(--good)}
+.check .st.bad{border-color:var(--bad);color:var(--bad)}
+.check .st.warn{border-color:var(--warn);color:var(--warn)}
+.code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13.5px;background:#0c0c0e;
+  border:1px solid var(--line-soft);border-radius:12px;padding:16px 18px;color:#c9c9d4;overflow-x:auto;line-height:1.7}
+.code b{color:var(--link)}
+.copyrow{display:flex;align-items:center;gap:12px;margin-top:12px}
+.statusline{font-size:13.5px;color:var(--faint);margin-top:12px}
+.statusline b{color:var(--warn)}
+.err{background:#1e1a1d;border:1px solid var(--bad-line);border-radius:14px;color:var(--bad);
+  padding:18px 20px;margin:0 0 20px;font-size:14px}
+.err p{color:var(--muted);margin:0 0 6px}
+.err p strong{color:var(--bad)}
+.note{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 20px;margin:0 0 20px;font-size:14px}
+.lab{margin-top:36px;border:1px dashed var(--line);border-radius:14px;padding:14px 18px;font-size:13px;color:var(--faint)}
+.lab summary{cursor:pointer;color:var(--muted);font-size:13.5px}
+.lab .row{margin-top:14px}
+.degraded-shell{border:1px solid var(--line);border-radius:14px;overflow:hidden;margin:0 0 24px}
+.degraded-shell .banner{background:var(--info-bg);color:var(--info-text);border-bottom:1px solid var(--line);
+  padding:12px 18px;font-size:13px}
+.degraded-shell .chat{background:var(--panel);padding:22px 18px}
+.degraded-shell .composer{border-radius:0 0 13px 13px;border:none;box-shadow:none;background:var(--panel);
+  padding:14px 18px;text-align:center;font-size:14px}
+.hero-ok{text-align:center;padding:16px 0 8px}
+.hero-ok .big{font-size:44px;color:var(--good)}
+.recap{list-style:none;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:8px 24px;margin:0 0 24px}
+.recap li{display:flex;gap:12px;align-items:center;padding:11px 0;border-bottom:1px solid var(--line-soft);font-size:14px;color:var(--muted)}
+.recap li:last-child{border-bottom:none}
+.recap li strong{color:var(--text)}
+.ok{color:var(--good)}
+.warn{color:var(--warn)}
+.center{text-align:center}
+.fine{font-size:12px;color:var(--faint);margin-top:16px}
+/* ---- device code ---- */
+.devcode{border:1px solid var(--line);border-radius:18px;background:#151518;padding:30px 24px 24px;margin:0 0 20px;text-align:center}
+.devcode-code{display:flex;align-items:center;justify-content:center;gap:16px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:32px;letter-spacing:.14em;color:var(--text)}
+.copybtn{display:inline-flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--line);border-radius:10px;color:var(--muted);font-size:13px;padding:8px 14px;letter-spacing:0;cursor:pointer;font-family:inherit}
+.copybtn:hover{color:var(--text)}
+.devcode-exp{margin-top:14px;font-size:13px;color:var(--faint)}
+/* ---- approval example ---- */
+.approval{border:1px solid var(--line);border-radius:18px;margin:0 0 20px;background:var(--panel);overflow:hidden}
+.appr-head{display:flex;gap:14px;align-items:center;padding:20px 22px 16px;border-bottom:1px solid var(--line-soft)}
+.appr-ic{width:38px;height:38px;flex:none;border-radius:50%;background:rgba(223,197,137,.1);color:var(--warn);display:flex;align-items:center;justify-content:center;font-size:16px}
+.appr-head strong{display:block;font-size:15px;letter-spacing:-.01em}
+.appr-sub{font-size:12.5px;color:var(--faint)}
+.appr-action{padding:18px 22px 4px;font-size:16px;color:var(--text)}
+.appr-meta{padding:10px 22px 4px}
+.appr-meta div{display:flex;gap:12px;padding:7px 0;font-size:13.5px}
+.appr-meta span{color:var(--faint);width:58px;flex:none}
+.appr-meta b{color:var(--muted);font-weight:500}
+.appr-btns{display:flex;justify-content:flex-end;gap:10px;padding:14px 22px 20px}
+/* ---- agent name ---- */
+.agentrow{display:flex;gap:18px;align-items:center;margin:8px 0 12px}
+.avatar.big{width:84px;height:84px;font-size:32px;flex:none}
+.field{flex:1;min-width:0}
+.field label{display:block;font-size:20px;font-weight:600;color:var(--text);margin:0 0 8px;line-height:1.4}
+/* ---- disclosures ---- */
+.disclose{max-width:560px;margin:0 auto;padding:20px 0 8px;text-align:center}
+.dmark{width:56px;height:56px;margin:0 auto 28px;color:#d8d8e2}
+.dmark svg{width:100%;height:100%}
+.disclose h1{margin-bottom:40px}
+.dfacts{list-style:none;padding:0;margin:0 0 36px;text-align:left}
+.dfacts li{display:flex;gap:18px;padding:0 0 28px}
+.dfacts li:last-child{padding-bottom:0}
+.dic{width:26px;height:26px;flex:none;color:var(--muted);margin-top:3px}
+.dic svg{width:100%;height:100%}
+.dfacts strong{display:block;font-size:16px;margin-bottom:6px;letter-spacing:-.01em;color:var(--text)}
+.dfacts p{font-size:14px;margin:0}
+.dterms{font-size:13px;color:var(--faint);margin:0 0 28px;line-height:1.7}
+button.big{width:100%;padding:15px;font-size:15px;border-radius:14px}
+/* ---- app shell: chat ---- */
+.shell{display:flex;align-items:stretch}
+.rail{width:64px;flex:none;display:flex;flex-direction:column;align-items:center;gap:16px;
+  padding:22px 0;background:#141415;border-right:1px solid var(--line);margin-right:28px}
+.brand{width:29px;height:29px;color:#d8d8e2;margin-bottom:6px}
+.brand svg{width:100%;height:100%}
+.rail-btn{width:42px;height:42px;border-radius:12px;border:none;background:transparent;
+  color:var(--muted);display:grid;place-items:center;padding:0;font-size:25px}
+.rail-btn:hover{background:var(--surface);color:var(--text)}
+.rail-btn.active{background:#303034;color:#fff}
+.rail-btn svg{width:25px;height:25px}
+.rail-spacer{flex:1}
+@media (max-width:680px){.rail{display:none}}
+.pane{flex:1;min-width:0;max-width:700px;margin:0 auto;width:100%}
+.chathead{display:flex;justify-content:center;padding:18px 0;border-bottom:1px solid var(--line-soft);margin-bottom:26px}
+.identity{display:flex;gap:12px;align-items:center}
+.avatar{width:43px;height:43px;flex:none;border-radius:50%;background:#303034;border:1px solid #46464b;
+  color:var(--text);display:grid;place-items:center;font-weight:600;font-size:16px}
+.who strong{display:block;font-size:15px;font-weight:600}
+.who small{display:block;font-size:11px;color:var(--muted);margin-top:5px}
+#chat-presence{color:var(--good)}
+.thread{display:flex;flex-direction:column;gap:22px;margin-bottom:20px;min-height:220px}
+.msg{line-height:1.65;font-size:15px;animation:rise .24s ease-out;overflow-wrap:anywhere}
+.msg p{margin:0 0 12px;color:var(--muted)}
+.msg p:last-child{margin:0}
+.msg p strong{color:var(--text)}
+.msg.agent{align-self:flex-start;background:var(--raised);padding:19px 23px;border-radius:22px 22px 22px 6px;max-width:95%}
+.msg.user{align-self:flex-end;background:var(--user-bubble);padding:15px 20px;border-radius:24px 24px 6px 24px;max-width:86%;color:var(--text)}
+.msg.user p{color:var(--text)}
+.typing{color:var(--faint);font-size:13px;padding:4px 2px;display:flex;gap:10px;align-items:center}
+.pill{display:inline-block;background:var(--good-bg);color:var(--good);border-radius:6px;font-size:11px;padding:3px 7px;margin:8px 0 0}
+.composer{background:#242426;border:1px solid #36363a;border-radius:28px;padding:12px}
+.chiprow{padding:0 4px 10px}
+.chiprow:empty{display:none}
+.chip{display:inline-flex;gap:10px;align-items:center;background:#2a2a2f;border:1px solid #42424b;
+  border-radius:10px;font-size:12px;padding:8px 10px;color:var(--text);max-width:100%}
+.chip button{color:var(--muted);font-size:14px;padding:2px 6px;border-radius:6px}
+.chip button:hover{color:var(--text)}
+.cbar{display:flex;align-items:flex-end;gap:10px}
+.attachbtn{font-size:27px;color:#b5b5bd;width:30px;min-height:34px;display:grid;place-items:center;background:none;border:none;cursor:pointer;flex:none}
+.attachbtn:hover{color:var(--text)}
+.composer textarea{flex:1;min-width:0;background:transparent;border:0;resize:none;color:var(--text);
+  font:inherit;font-size:15px;line-height:1.5;min-height:34px;max-height:140px;padding:5px 0;display:block}
+.composer textarea::placeholder{color:#91919b}
+.composer textarea:focus{outline:none}
+.send{width:35px;height:35px;flex:none;border-radius:50%;background:var(--send-bg);color:var(--send-ink);
+  font-size:18px;display:grid;place-items:center;border:none;cursor:pointer;line-height:1}
+.send:hover{background:#e9e9f0}
+#composer-off{padding:20px 22px;text-align:center}
+#composer-off p{font-size:14px}
+#composer-off .row{margin-top:14px}
+.hint{font-size:12.5px;color:var(--faint);margin-top:12px;text-align:center}
+.nextstep{margin-top:6px}
+.inmsg-actions{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+</style>
+</head>
+<body>
+<div class="proto">
+  <span><strong>Prototype</strong> · clickable mock of the P0 first-run flow — sign-in, task runs and pairing are simulated.</span>
+  <a href="#" id="restart">Restart</a>
+</div>
+
+<div class="app">
+  <div class="top">
+    <button class="linklike" id="back">← Back</button>
+    <span class="stepcount" id="step-label"></span>
+  </div>
+  <div class="track" aria-hidden="true"><i id="track-fill"></i></div>
+
+  <!-- 1 · Welcome -->
+  <section class="screen" data-stage="0" id="s-welcome">
+    <h1>Welcome to AgentMeld</h1>
+    <p class="lede">Your own agent, running on <strong>your Mac</strong> — not in someone else's cloud.</p>
+    <ul class="facts">
+      <li><span class="mk">1</span><span>It works inside <strong>its own isolated computer</strong> on this Mac. It can't see your files or accounts unless you say so.</span></li>
+      <li><span class="mk">2</span><span>It runs on <strong>your ChatGPT subscription</strong>. You sign in with ChatGPT directly — we never see your password.</span></li>
+      <li><span class="mk">3</span><span>Anything that reaches outside its workspace <strong>asks you first</strong>, right in the chat.</span></li>
+    </ul>
+    <div class="row"><button class="primary" data-go="s-service">Get started</button></div>
+  </section>
+
+  <!-- 2 · Service check -->
+  <section class="screen" data-stage="1" id="s-service">
+    <h1>Getting your Mac ready</h1>
+    <p class="lede">Starting the agent service and checking its isolated workspace. This takes a few seconds.</p>
+    <ul class="check" id="svc-list">
+      <li data-k="svc"><span class="st">·</span><span>Control service<small data-sub></small></span></li>
+      <li data-k="run"><span class="st">·</span><span>Isolated worker runtime<small data-sub></small></span></li>
+      <li data-k="store"><span class="st">·</span><span>Local storage<small data-sub></small></span></li>
+    </ul>
+    <div class="row"><button class="primary" id="svc-next" data-go="s-provider" disabled>Continue</button></div>
+    <details class="lab"><summary>Preview other states</summary>
+      <div class="row left"><button class="small ghost" id="svc-fail">Worker runtime missing</button></div>
+    </details>
+  </section>
+
+  <!-- 3a · Provider intro -->
+  <section class="screen" data-stage="2" id="s-provider">
+    <h1>Connect your ChatGPT subscription</h1>
+    <p class="lede">AgentMeld runs on <strong>your subscription</strong>. You'll sign in to ChatGPT in your browser — <strong>we never see your password</strong>.</p>
+    <div class="card">
+      <p>Your subscription stays yours. Only this Mac's agent service can use it, and only when you ask it to work.</p>
+      <p>Checking the connection never starts billable work. Nothing runs until you send a message.</p>
+    </div>
+    <div class="row">
+      <button class="ghost" id="defer-provider">I'll do this later</button>
+      <button class="primary" data-go="s-deviceflow">Connect ChatGPT subscription</button>
+    </div>
+  </section>
+
+  <!-- 3b · Device flow -->
+  <section class="screen" data-stage="2" id="s-deviceflow">
+    <h1>Sign in to ChatGPT</h1>
+    <p class="lede">Enter this code on the ChatGPT device page in your browser, then come back here.</p>
+    <div class="devcode">
+      <div class="devcode-code"><span id="dev-code">KQRT-4821</span><button class="copybtn" id="dev-copy"><span aria-hidden="true">&#10697;</span><span id="dev-copy-label">Copy</span></button></div>
+      <div class="devcode-exp">Expires in <span id="dev-count">09:59</span></div>
+    </div>
+    <p class="statusline" id="dev-status"><span class="spin"></span>&nbsp; Waiting for you to sign in…</p>
+    <div class="row">
+      <button class="ghost" data-go="s-provider">Cancel</button>
+      <button class="primary" id="dev-check">I've signed in — check</button>
+    </div>
+    <details class="lab"><summary>Preview other states</summary>
+      <div class="row left">
+        <button class="small ghost" data-devfail="denied">Sign-in denied</button>
+        <button class="small ghost" data-devfail="expired">Code expired</button>
+        <button class="small ghost" data-devfail="nosub">No subscription found</button>
+        <button class="small ghost" data-devfail="offline">Provider unreachable</button>
+      </div>
+    </details>
+  </section>
+
+  <!-- 3c · Device flow error -->
+  <section class="screen" data-stage="2" id="s-deviceerr">
+    <div class="err"><h3 id="de-title"></h3><p id="de-body"></p></div>
+    <div class="row">
+      <button class="ghost" data-go="s-provider">Back</button>
+      <button class="primary" id="de-retry">Try again</button>
+    </div>
+  </section>
+
+  <!-- 3d · Provider connected -->
+  <section class="screen" data-stage="2" id="s-connected">
+    <div class="hero-ok">✓</div>
+    <h1>ChatGPT connected</h1>
+    <p class="lede"><strong>Subscription active</strong> · verified just now.</p>
+    <div class="card">
+      <p>AgentMeld refreshes this connection quietly. If it ever can't, you'll see a "needs attention" banner here — work waits, it never silently switches providers.</p>
+    </div>
+    <div class="row"><button class="primary" data-go="s-approvals">Continue</button></div>
+  </section>
+
+  <!-- 3e · Degraded mode -->
+  <section class="screen" data-stage="2" id="s-degraded">
+    <h1>Take a look around first</h1>
+    <p class="lede">No provider, no problem — you can explore setup and settings. Chat stays off until a provider is connected: an enabled input that fails on send would be dishonest.</p>
+    <div class="degraded-shell">
+      <div class="banner">No provider connected — <a href="#" data-go="s-provider">connect your ChatGPT subscription</a> to run tasks.</div>
+      <div class="chat">This is where your conversations will live.</div>
+      <div class="composer">Connect a provider to start ▸</div>
+    </div>
+    <div class="row">
+      <button class="ghost" data-go="s-approvals">Continue setup without a provider</button>
+      <button class="primary" data-go="s-provider">Connect provider now</button>
+    </div>
+  </section>
+
+  <!-- 4 · Approvals intro -->
+  <section class="screen" data-stage="3" id="s-approvals">
+    <h1>How permissions work</h1>
+    <p class="lede">There is no permissions screen. There are three facts:</p>
+    <ul class="facts">
+      <li><span class="mk">1</span><span>Your agent works inside <strong>its own isolated computer</strong> — it can't see your Mac's files or accounts.</span></li>
+      <li><span class="mk">2</span><span>Anything that reaches <strong>outside</strong> — sending a message, changing a file you didn't attach, using a connection — <strong>asks you first, right in the chat</strong>, naming exactly what and where.</span></li>
+      <li><span class="mk">3</span><span>You approve each action as it comes: <strong>allow once</strong>, set a standing rule for a specific action, or deny. Every decision is recorded and revocable in Settings.</span></li>
+    </ul>
+    <div class="approval">
+      <div class="appr-head">
+        <div class="appr-ic">&#9679;</div>
+        <div><strong>Approval needed</strong><span class="appr-sub">Example &mdash; nothing will run</span></div>
+      </div>
+      <div class="appr-action">Save <strong>report.md</strong> to Downloads</div>
+      <div class="appr-meta">
+        <div><span>Agent</span><b>Assistant &middot; this Mac</b></div>
+        <div><span>Scope</span><b>This file only, this once</b></div>
+      </div>
+      <div class="appr-btns">
+        <button class="ghost" id="ex-deny">Deny</button>
+        <button class="primary" id="ex-allow">Allow once</button>
+      </div>
+      <p id="ex-result" class="hint" style="padding:0 22px 18px"></p>
+    </div>
+    <div class="row"><button class="primary" data-go="s-agent">Continue</button></div>
+  </section>
+
+  <!-- 5 · Create agent -->
+  <section class="screen" data-stage="4" id="s-agent">
+    <h1>Name your agent</h1>
+    <p class="lede">This is the agent you'll talk to. You can rename it and edit how it describes itself later in Settings.</p>
+    <div class="agentrow">
+      <div class="avatar big" id="agent-avatar">A</div>
+      <div class="field">
+        <label for="agent-name">Agent name</label>
+        <input type="text" id="agent-name" value="Assistant" maxlength="60" autocomplete="off">
+      </div>
+    </div>
+    <p class="hint">Pick anything — a name, a role, a joke only you get.</p>
+    <div class="row"><button class="primary" id="agent-create">Create agent</button></div>
+  </section>
+
+  <!-- 5b · Disclosures -->
+  <section class="screen" data-stage="5" id="s-disclosures">
+    <div class="disclose">
+      <div class="dmark"><svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 7a4 4 0 0 0-7.7-1.5A5 5 0 0 0 4 13a5.5 5.5 0 0 0 1 9.5A5 5 0 0 0 16 25V7Zm0 0a4 4 0 0 1 7.7-1.5A5 5 0 0 1 28 13a5.5 5.5 0 0 1-1 9.5A5 5 0 0 1 16 25"/><path d="M8.3 5.5V9m15.4-3.5V9M4 13h3a4 4 0 0 1 4 4m17-4h-3a4 4 0 0 0-4 4M5 22.5h3a4 4 0 0 0 4-4m15 4h-3a4 4 0 0 1-4-4M16 12h-3m3 10h3"/></svg></div>
+      <h1>A few things to know</h1>
+      <ul class="dfacts">
+        <li><span class="dic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 3l7 3v5c0 4.5-3 7.6-7 9-4-1.4-7-4.5-7-9V6l7-3z"/><path d="M9 11.5l2.2 2.2 4.3-4.7"/></svg></span><div><strong>Can take actions for you</strong><p>With your approval, your agent can send messages, make purchases, and take actions in apps you've connected. It can make mistakes or take unexpected actions, so review its work.</p></div></li>
+        <li><span class="dic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg></span><div><strong>Keeps working when you leave</strong><p>Your agent can keep working even after you've closed the app. Check in to keep it on track, and step in any time.</p></div></li>
+        <li><span class="dic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="5.5" y="10.5" width="13" height="9.5" rx="2.5"/><path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5"/></svg></span><div><strong>Stays in your control</strong><p>Choose which apps to connect, what your agent may access, and which actions need your approval — all in Settings.</p></div></li>
+      </ul>
+      <p class="dterms">By continuing, you agree to the <a href="#" class="dead">AgentMeld Terms</a> and <a href="#" class="dead">AgentMeld AI Terms</a>, which include important information about your rights and responsibilities. Learn more about our approach to privacy in the <a href="#" class="dead">AgentMeld Privacy Policy</a>.</p>
+      <button class="primary big" id="disclose-go">Get started</button>
+    </div>
+  </section>
+
+  <!-- 6 · Chat: first task pre-filled -->
+  <section class="screen" data-stage="5" id="s-chat">
+  <div class="shell">
+    <nav class="rail" aria-label="Primary">
+      <span class="brand"><svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 7a4 4 0 0 0-7.7-1.5A5 5 0 0 0 4 13a5.5 5.5 0 0 0 1 9.5A5 5 0 0 0 16 25V7Zm0 0a4 4 0 0 1 7.7-1.5A5 5 0 0 1 28 13a5.5 5.5 0 0 1-1 9.5A5 5 0 0 1 16 25"/><path d="M8.3 5.5V9m15.4-3.5V9M4 13h3a4 4 0 0 1 4 4m17-4h-3a4 4 0 0 0-4 4M5 22.5h3a4 4 0 0 0 4-4m15 4h-3a4 4 0 0 1-4-4M16 12h-3m3 10h3"/></svg></span>
+      <button class="rail-btn active" title="Chat"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3.5 4.5A2.5 2.5 0 0 1 6 2h8a2.5 2.5 0 0 1 2.5 2.5v6a2.5 2.5 0 0 1-2.5 2.5H9l-4.2 3.2c-.3.2-.8 0-.8-.4V13H6a2.5 2.5 0 0 1-2.5-2.5v-6z"/></svg></button>
+      <button class="rail-btn" title="Library"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="4" width="14" height="12" rx="2.5"/><path d="M3 8h14M7 4v4"/></svg></button>
+      <button class="rail-btn" title="Activity"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M2 10h3.5l2-5.5 3.5 11 2-5.5H18"/></svg></button>
+      <div class="rail-spacer"></div>
+      <button class="rail-btn" title="Settings"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 6.5h14M3 10h14M3 13.5h14"/><circle cx="8" cy="6.5" r="2"/><circle cx="13" cy="10" r="2"/><circle cx="7" cy="13.5" r="2"/></svg></button>
+    </nav>
+    <div class="pane">
+    <div class="chathead">
+      <div class="identity">
+        <div class="avatar" id="chat-avatar">B</div>
+        <div class="who"><strong id="chat-agent">My Helper</strong><small><span id="chat-presence">&#9679;</span> ready</small></div>
+      </div>
+    </div>
+    <div class="thread" id="thread"></div>
+    <div class="composer" id="composer">
+      <div id="composer-live">
+        <div class="chiprow" id="chiprow"><span class="chip" id="attach-chip">&#128206; sample-sales.csv <button id="chip-x" aria-label="Remove attachment">&#10005;</button></span></div>
+        <div class="cbar">
+          <button class="attachbtn" id="attach-btn" aria-label="Attach files">+</button>
+          <textarea id="chat-input" rows="1">Summarize what’s happening in the sample sales data and write a short report.</textarea>
+          <button class="send" id="chat-send" aria-label="Send">&#8593;</button>
+        </div>
+      </div>
+      <div id="composer-off" hidden>
+        <p>No provider connected — chat stays off until one is. An enabled input that fails on send would be dishonest.</p>
+        <div class="row" style="margin-top:0"><button class="primary" data-go="s-provider">Connect ChatGPT subscription</button></div>
+      </div>
+    </div>
+    <p class="hint" id="chat-hint">Just hit send — or clear the box and ask anything.</p>
+    <details class="lab"><summary>Preview other states</summary>
+      <div class="row left"><button class="small ghost" id="chat-fail-preview">Task fails</button></div>
+    </details>
+    </div>
+  </div>
+  </section>
+
+
+  <!-- 7a · Pair iPhone -->
+  <section class="screen" data-stage="6" id="s-pair">
+    <h1>Take AgentMeld with you</h1>
+    <p class="lede">Pair your iPhone to chat, approve actions, and view artifacts from your phone. Pairing is explicit: you see the device and exactly what it may do.</p>
+    <div class="note">Pairs on your <strong>local network</strong> today. Away-from-home access is set up separately once the secure connection is qualified — your paired phone picks it up automatically. No date is promised here.</div>
+    <div class="row">
+      <button class="ghost" data-go="s-done" id="pair-skip">Skip for now</button>
+      <button class="primary" data-go="s-paircode">Pair iPhone</button>
+    </div>
+  </section>
+
+  <!-- 7b · Pairing code -->
+  <section class="screen" data-stage="6" id="s-paircode">
+    <h1>Pairing your iPhone</h1>
+    <p class="lede">Enter this code in the AgentMeld app on your iPhone:</p>
+    <div class="devcode">
+      <div class="devcode-code"><span>731 942</span></div>
+      <div class="devcode-exp">Expires in <span id="pair-count">04:59</span></div>
+    </div>
+    <div class="row">
+      <button class="ghost" data-go="s-pair">Cancel</button>
+      <button class="primary" id="pair-done-btn">Simulate: phone paired</button>
+    </div>
+    <details class="lab"><summary>Preview other states</summary>
+      <div class="row left"><button class="small ghost" id="pair-fail">Phone can't reach this Mac</button></div>
+    </details>
+  </section>
+
+  <!-- 7c · Pairing error -->
+  <section class="screen" data-stage="6" id="s-pairerr">
+    <div class="err">
+      <h3>Your iPhone can't reach this Mac</h3>
+      <p>Check two things: is the phone on the <strong>same network</strong> as this Mac, and is this Mac awake and reachable? Then try a fresh code.</p>
+    </div>
+    <div class="row">
+      <button class="ghost" data-go="s-done">Skip for now</button>
+      <button class="primary" data-go="s-paircode">New code &amp; retry</button>
+    </div>
+  </section>
+
+  <!-- 8 · Done -->
+  <section class="screen" data-stage="7" id="s-done">
+    <div class="hero-ok"><div class="big">✓</div></div>
+    <h1 class="center">You're all set</h1>
+    <p class="lede center"><strong id="done-agent">Assistant</strong> is ready. Here's where things stand:</p>
+    <ul class="recap" id="done-recap"></ul>
+    <p class="hint" id="done-time"></p>
+    <div class="note">Next, when it's ready: iMessage setup is a separate, best-effort step — it never blocks anything here.</div>
+    <div class="row"><button class="primary" data-go="s-end">Open AgentMeld</button></div>
+  </section>
+
+  <!-- End -->
+  <section class="screen" data-stage="7" id="s-end">
+    <h1>End of prototype</h1>
+    <p class="lede">Thanks for clicking through. This was a mock of the <strong>P0 first-run onboarding journey</strong> — see <code>docs/design/p0-onboarding.md</code> for the full design.</p>
+    <div class="row"><button class="primary" id="restart2">Restart prototype</button></div>
+  </section>
+
+  <p class="fine">P0 onboarding prototype · v5 · nothing here is production code</p>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  var stages = ["Welcome","Mac setup","Provider","Approvals","Agent","First task","Pair iPhone","Done"];
+  var stack = ["s-welcome"];
+  var timers = [];
+  var state = { provider:false, agent:"Assistant", taskDone:false, paired:false, chatSent:false, chatFail:false, t0:Date.now() };
+  function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+  var trackFill = document.getElementById("track-fill");
+
+  function clearTimers(){ timers.forEach(clearTimeout); timers=[]; if(window.__tick){clearInterval(window.__tick);window.__tick=null;} }
+  function later(fn,ms){ timers.push(setTimeout(fn,ms)); }
+
+  function show(id){
+    clearTimers();
+    document.querySelectorAll("section.screen").forEach(function(s){ s.classList.remove("on"); });
+    var el = document.getElementById(id);
+    el.classList.add("on");
+    document.querySelector(".app").classList.toggle("wide", id==="s-chat");
+    var st = +el.dataset.stage;
+    trackFill.style.width = (st/(stages.length-1)*100) + "%";
+    document.getElementById("step-label").textContent = "Step " + (st+1) + " of " + stages.length + " · " + stages[st];
+    document.getElementById("back").disabled = stack.length<=1;
+    window.scrollTo(0,0);
+    var init = { "s-service":initService, "s-deviceflow":initDevice, "s-chat":initChat,
+                 "s-paircode":initPair, "s-done":initDone }[id];
+    if(init) init();
+  }
+  function go(id){ stack.push(id); show(id); }
+  document.getElementById("back").addEventListener("click",function(){
+    if(stack.length>1){ stack.pop(); show(stack[stack.length-1]); }
+  });
+  document.querySelectorAll("[data-go]").forEach(function(b){
+    b.addEventListener("click",function(e){ e.preventDefault(); go(b.getAttribute("data-go")); });
+  });
+  function restart(e){ if(e) e.preventDefault(); stack=["s-welcome"];
+    state={provider:false,agent:"Assistant",taskDone:false,paired:false,t0:Date.now()}; show("s-welcome"); }
+  document.getElementById("restart").addEventListener("click",restart);
+  document.getElementById("restart2").addEventListener("click",restart);
+
+  /* ---- service check ---- */
+  function initService(){
+    var items = document.querySelectorAll("#svc-list li");
+    var next = document.getElementById("svc-next"); next.disabled = true; next.textContent = "Continue";
+    items.forEach(function(li){
+      li.querySelector(".st").innerHTML='<span class="spin"></span>';
+      li.querySelector("[data-sub]").textContent="";
+    });
+    var seq = [["svc","starting…"],["run","checking…"],["store","initializing…"]];
+    seq.forEach(function(s,i){
+      later(function(){
+        var li = document.querySelector('#svc-list li[data-k="'+s[0]+'"]');
+        li.querySelector(".st").innerHTML='<span class="ok">✓</span>';
+        li.querySelector("[data-sub]").textContent = i===0 ? "running" : (i===1 ? "ready" : "ready");
+        if(i===seq.length-1) next.disabled=false;
+      }, 700*(i+1));
+    });
+  }
+  document.getElementById("svc-fail").addEventListener("click",function(){
+    clearTimers();
+    var li = document.querySelector('#svc-list li[data-k="run"]');
+    li.querySelector(".st").innerHTML='<span class="bad">✕</span>';
+    li.querySelector("[data-sub]").textContent="missing — install the worker runtime, then re-run this check.";
+    var next = document.getElementById("svc-next"); next.disabled = true;
+    next.textContent = "Fix the runtime to continue";
+  });
+
+  /* ---- device flow ---- */
+  var devFails = {
+    denied:  ["Sign-in denied at the provider","No problem — nothing was connected. Your subscription was not touched."],
+    expired: ["That code expired","Codes last 10 minutes. A fresh one is ready — no need to restart."],
+    nosub:   ["No usable subscription found","This ChatGPT account doesn't have a subscription Codex can use. Try signing in with a different account, or check your subscription status."],
+    offline: ["Couldn't reach the provider","Your Mac seems to be offline, or the provider didn't answer. Check your connection and retry."]
+  };
+  function freshCode(){
+    var chars="ABCDEFGHJKMNPQRSTUVWXYZ23456789", out="";
+    for(var i=0;i<8;i++) out+=chars[Math.floor(Math.random()*chars.length)];
+    return out.slice(0,4)+"-"+out.slice(4);
+  }
+  function tick(el, secs, onExpire){
+    if(window.__tick) clearInterval(window.__tick);
+    var left = secs;
+    function paint(){ var m=String(Math.floor(left/60)).padStart(2,"0"), s=String(left%60).padStart(2,"0"); el.textContent=m+":"+s; }
+    paint();
+    window.__tick = setInterval(function(){ left--; if(left<0){ if(onExpire) onExpire(); return; } paint(); },1000);
+  }
+  function initDevice(){
+    document.getElementById("dev-status").innerHTML='<span class="spin"></span>&nbsp; Waiting for you to sign in…';
+    tick(document.getElementById("dev-count"), 599, function(){ showFail("expired"); });
+  }
+  function showFail(k){
+    clearTimers();
+    document.getElementById("de-title").textContent = devFails[k][0];
+    document.getElementById("de-body").textContent = devFails[k][1];
+    document.getElementById("de-retry").onclick = function(){
+      if(k==="expired") document.getElementById("dev-code").textContent = freshCode();
+      go("s-deviceflow");
+    };
+    stack.push("s-deviceerr"); show("s-deviceerr");
+  }
+  document.querySelectorAll("[data-devfail]").forEach(function(b){
+    b.addEventListener("click",function(){ showFail(b.getAttribute("data-devfail")); });
+  });
+  document.getElementById("dev-check").addEventListener("click",function(){
+    clearTimers();
+    document.getElementById("dev-status").innerHTML='<span class="spin"></span>&nbsp; Sign-in seen — verifying your subscription…';
+    later(function(){ state.provider=true; go("s-connected"); }, 1600);
+  });
+  document.getElementById("dev-copy").addEventListener("click",function(){
+    var code = document.getElementById("dev-code").textContent.trim();
+    var label = document.getElementById("dev-copy-label");
+    function done(){ label.textContent="Copied ✓"; setTimeout(function(){ label.textContent="Copy"; },1600); }
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(code).then(done, done);
+    } else { done(); }
+  });
+  document.getElementById("defer-provider").addEventListener("click",function(){ go("s-degraded"); });
+
+  /* ---- approvals example ---- */
+  document.getElementById("ex-allow").addEventListener("click",function(){
+    document.getElementById("ex-result").textContent =
+      "In the real app, “Allow once” would run exactly this action — this file, this once — and record your decision.";
+  });
+  document.getElementById("ex-deny").addEventListener("click",function(){
+    document.getElementById("ex-result").textContent =
+      "In the real app, “Deny” rejects this action only. The agent would report the limitation or try another permitted path.";
+  });
+
+  document.getElementById("disclose-go").addEventListener("click",function(){ go("s-chat"); });
+  document.querySelectorAll("a.dead").forEach(function(a){
+    a.addEventListener("click",function(e){ e.preventDefault(); });
+  });
+
+  /* ---- agent ---- */
+  document.getElementById("agent-name").addEventListener("input",function(e){
+    var v=e.target.value.trim();
+    document.getElementById("agent-avatar").textContent=(v.charAt(0)||"A").toUpperCase();
+  });
+  document.getElementById("agent-create").addEventListener("click",function(){
+    var v=document.getElementById("agent-name").value.trim()||"Assistant";
+    state.agent=v; go("s-disclosures");
+  });
+
+  /* ---- chat: first task pre-filled ---- */
+  function agentMsg(html){
+    var d=document.createElement("div"); d.className="msg agent"; d.innerHTML=html;
+    document.getElementById("thread").appendChild(d); return d;
+  }
+  function userMsg(text){
+    var d=document.createElement("div"); d.className="msg user";
+    var p=document.createElement("p"); p.textContent=text; d.appendChild(p);
+    document.getElementById("thread").appendChild(d);
+  }
+  function typing(){
+    var d=document.createElement("div"); d.className="msg agent"; d.id="typing";
+    d.innerHTML='<span class="typing"><i></i><i></i><i></i></span>';
+    document.getElementById("thread").appendChild(d);
+  }
+  function untype(){ var t=document.getElementById("typing"); if(t) t.remove(); }
+
+  function initChat(){
+    state.chatSent=false; state.chatFail=false;
+    document.getElementById("chat-agent").textContent=state.agent;
+    document.getElementById("chat-avatar").textContent=(state.agent.charAt(0)||"A").toUpperCase();
+    document.getElementById("thread").innerHTML="";
+    document.getElementById("chiprow").style.display="";
+    document.getElementById("composer").style.display="";
+    var live=state.provider;
+    document.getElementById("composer-live").hidden=!live;
+    document.getElementById("composer-off").hidden=live;
+    document.getElementById("chat-hint").style.display=live?"":"none";
+    if(live) document.getElementById("chat-input").value="Summarize what\u2019s happening in the sample sales data and write a short report.";
+    agentMsg("<p>Hi, I'm <strong>"+esc(state.agent)+"</strong> \u2014 everything's ready on your Mac.</p>"
+      +(live
+        ? "<p>I've loaded a sample task so you can see me work. Just hit send \u2014 or clear the box and ask me anything.</p>"
+        : "<p>Connect your ChatGPT subscription and I can start working. Until then, I'm just here to say hi.</p>"));
+  }
+  document.getElementById("chip-x").addEventListener("click",function(){
+    document.getElementById("chiprow").style.display="none";
+  });
+  document.getElementById("chat-send").addEventListener("click",function(){
+    if(state.chatSent) return;
+    state.chatSent=true;
+    var text=document.getElementById("chat-input").value.trim()||"(sent an empty message)";
+    userMsg(text);
+    document.getElementById("composer").style.display="none";
+    document.getElementById("chat-hint").style.display="none";
+    runTask();
+  });
+  document.getElementById("chat-fail-preview").addEventListener("click",function(){
+    if(state.chatSent) return;
+    state.chatSent=true; state.chatFail=true;
+    userMsg(document.getElementById("chat-input").value.trim()||"(sent an empty message)");
+    document.getElementById("composer").style.display="none";
+    document.getElementById("chat-hint").style.display="none";
+    runTask();
+  });
+  function runTask(){
+    typing();
+    if(state.chatFail){
+      later(function(){ untype();
+        var m=agentMsg("<p><strong>The task could not finish.</strong></p>"
+          +"<p>Check that the local service is running and your subscription is connected, then try again. Earlier saved files remain available.</p>"
+          +'<div class="inmsg-actions"><button class="small primary" id="chat-retry">Try again</button></div>');
+        m.querySelector("#chat-retry").addEventListener("click",function(){
+          state.chatFail=false; runTask();
+        });
+      },1400);
+      return;
+    }
+    later(function(){ untype();
+      agentMsg("<p>On it \u2014 reading <strong>sample-sales.csv</strong>\u2026</p>"); typing();
+      later(function(){ untype();
+        agentMsg("<p>Found 24 rows. Computing totals and writing <strong>report.md</strong>\u2026</p>"); typing();
+        later(function(){ untype(); state.taskDone=true;
+          agentMsg('<span class="pill">\u2713 First task complete</span>'
+            +"<p>Done \u2014 <strong>report.md</strong> is in your Library.</p>"
+            +"<p>Revenue <strong>110,000</strong> \u00b7 cost <strong>44,800</strong> \u00b7 profit <strong>65,200</strong>.</p>"
+            +'<div class="nextstep"><p>Want to take me with you? Pair your iPhone to chat and approve actions from your phone.</p>'
+            +'<div class="inmsg-actions"><button class="small primary" id="ns-pair">Pair iPhone</button>'
+            +'<button class="small ghost" id="ns-later">I\u2019ll explore on my own</button></div></div>');
+          document.getElementById("ns-pair").addEventListener("click",function(){ go("s-pair"); });
+          document.getElementById("ns-later").addEventListener("click",function(){ go("s-done"); });
+        },1700);
+      },1500);
+    },900);
+  }
+
+  /* ---- pairing ---- */
+  function initPair(){ tick(document.getElementById("pair-count"), 299, null); }
+  document.getElementById("pair-fail").addEventListener("click",function(){ go("s-pairerr"); });
+  document.getElementById("pair-skip").addEventListener("click",function(){ state.paired=false; });
+  document.getElementById("pair-done-btn").addEventListener("click",function(){ state.paired=true; go("s-done"); });
+
+  /* ---- done ---- */
+  function initDone(){
+    var rows=[
+      ["<span class='ok'>✓</span>","Mac service and isolated workspace ready"],
+      [state.provider?"<span class='ok'>✓</span>":"<span class='warn'>○</span>",
+       state.provider?"ChatGPT subscription connected":"Provider deferred — connect anytime from Settings"],
+      ["<span class='ok'>✓</span>","Agent <strong>“"+esc(state.agent)+"”</strong> created"],
+      [state.taskDone?"<span class='ok'>✓</span>":"<span class='warn'>○</span>",
+       state.taskDone?"First task complete — report.md in Library":"First task pending a provider connection"],
+      [state.paired?"<span class='ok'>✓</span>":"<span class='warn'>○</span>",
+       state.paired?"iPhone paired":"iPhone not paired — pair anytime from Devices"]
+    ];
+    document.getElementById("done-recap").innerHTML =
+      rows.map(function(r){return "<li><span>"+r[0]+"</span><span>"+r[1]+"</span></li>";}).join("");
+    document.getElementById("done-agent").textContent = state.agent;
+    if(state.taskDone){
+      var s=Math.floor((Date.now()-state.t0)/1000), m=Math.floor(s/60);
+      document.getElementById("done-time").textContent =
+        "Time to first useful task (simulated): "+m+":"+String(s%60).padStart(2,"0")+" — target p50 ≤ 15 min.";
+    } else {
+      document.getElementById("done-time").textContent = "Connect a provider to run your first task.";
+    }
+  }
+
+  show("s-welcome");
+})();
+</script>
+</body>
+</html>
