@@ -24,15 +24,27 @@ $('newChat').onclick=newTask;$('mobileNew').onclick=newTask;
 $('chatNav').onclick=()=>{showChat();if(matchMedia('(max-width:720px)').matches)document.querySelector('.history').classList.toggle('open');};$('filesNav').onclick=()=>{view='files';render();};
 $('details').onclick=()=>{$('inspector').classList.toggle(matchMedia('(min-width:1001px)').matches?'closed':'open');};
 function fileButton(task,f){return '<button class="file" aria-label="Open '+esc(f.name)+'" data-tooltip data-task="'+task.id+'" data-file="'+esc(f.name)+'"><span class="fileIcon">'+icon('file')+'</span><span>'+esc(f.name)+'<small>'+Math.max(1,Math.round(f.size/1024))+' KB · Open</small></span></button>';}
+let lastActivity='';
+function renderActivity(){
+  let day='';
+  const content=[...state.tasks].reverse().map(task=>{
+    const date=new Date(task.createdAt), key=date.toLocaleDateString();
+    const heading=key!==day?'<h3>'+esc(date.toLocaleDateString([], {month:'short',day:'numeric',year:'numeric'}))+'</h3>':'';
+    day=key;
+    return heading+'<article class="activityEntry"><button class="activityLink" data-jump="'+task.id+'" aria-label="Open conversation: '+esc(task.prompt)+'"><strong>'+esc(task.prompt)+'</strong><span class="activityMeta">'+esc(task.status)+' · '+esc(date.toLocaleTimeString([], {hour:'numeric',minute:'2-digit'}))+'</span><span class="activitySummary">'+esc(task.error||task.activity)+'</span></button>'+task.artifacts.map(f=>fileButton(task,f)).join('')+'</article>';
+  }).join('')||'<p class="muted">Your activity will appear here.</p>';
+  // Polling must not replace a focused row or reset the panel when nothing changed.
+  if(content!==lastActivity){$('activity').innerHTML=content;lastActivity=content;}
+}
 function render(){
   $('chatNav').classList.toggle('active',view==='chat');$('filesNav').classList.toggle('active',view==='files');
   $('conversation').hidden=view!=='chat';$('library').hidden=view!=='files';$('composeWrap').hidden=view!=='chat';
   $('history').innerHTML=state.conversations.length?[...state.conversations].reverse().map(t=>'<button class="historyItem '+(t.id===selected?'selected':'')+'" data-select="'+t.id+'">'+esc(t.title)+'</button>').join(''):'<div class="emptyHistory">Your chats will appear here.</div>';
   const turns=state.tasks.filter(t=>t.conversationId===selected);
   const task=turns.at(-1);
-  const content=turns.length?turns.map(task=>'<div class="time">'+esc(new Date(task.createdAt).toLocaleString([], {month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}))+'</div><div class="turn"><div class="message user">'+esc(task.prompt)+(task.inputs.length?'<div class="messageLabel">'+task.inputs.map(f=>esc(f.name)).join(' · ')+'</div>':'')+'</div>'+(task.answer?'<div class="message assistant">'+formatted(task.answer)+'</div>':'')+(['queued','running','cancelling'].includes(task.status)?'<div class="pending"><span class="pulse"></span>'+esc(task.activity)+'</div>':'<div class="pending">'+esc(task.error||task.activity)+'</div>')+task.artifacts.map(f=>fileButton(task,f)).join('')+'</div>').join(''):'<div class="welcome"><span class="avatar large"><img src="/brain.svg" alt="" aria-hidden="true"></span><h1>What would you like to get done?</h1><p>Bring a file and a question.<br>I’ll do the work and bring back the result.</p><button class="suggestion" id="sample">Find the story in my sales data<small>Try a sample CSV and get a real report ↗</small></button></div>';
+  const content=turns.length?turns.map(task=>'<div class="time">'+esc(new Date(task.createdAt).toLocaleString([], {month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}))+'</div><div class="turn" id="turn-'+task.id+'" tabindex="-1"><div class="message user">'+esc(task.prompt)+(task.inputs.length?'<div class="messageLabel">'+task.inputs.map(f=>esc(f.name)).join(' · ')+'</div>':'')+'</div>'+(task.answer?'<div class="message assistant">'+formatted(task.answer)+'</div>':'')+(['queued','running','cancelling'].includes(task.status)?'<div class="pending"><span class="pulse"></span>'+esc(task.activity)+'</div>':'<div class="pending">'+esc(task.error||task.activity)+'</div>')+task.artifacts.map(f=>fileButton(task,f)).join('')+'</div>').join(''):'<div class="welcome"><span class="avatar large"><img src="/brain.svg" alt="" aria-hidden="true"></span><h1>What would you like to get done?</h1><p>Bring a file and a question.<br>I’ll do the work and bring back the result.</p><button class="suggestion" id="sample">Find the story in my sales data<small>Try a sample CSV and get a real report ↗</small></button></div>';
   if(content!==lastRender){const nearBottom=$('conversation').scrollHeight-$('conversation').scrollTop-$('conversation').clientHeight<100; $('conversation').innerHTML=content;lastRender=content;if(nearBottom)$('conversation').scrollTop=$('conversation').scrollHeight;}
-  $('activity').textContent=task?task.activity:'Ready when you are.';
+  renderActivity();
   $('taskFiles').innerHTML=task?.artifacts.length?task.artifacts.map(f=>fileButton(task,f)).join(''):'Finished files will appear here.';
   $('libraryFiles').innerHTML=state.tasks.flatMap(t=>t.artifacts.map(f=>fileButton(t,f))).join('')||'<p class="muted">Nothing created yet. Start a task to make something.</p>';
   const stoppable=turns.find(t=>['running','cancelling','queued'].includes(t.status));
@@ -42,10 +54,11 @@ function render(){
   $('send').hidden=false;$('send').disabled=submitting||unavailable;
   $('send').innerHTML=pending?'Retry':icon('send');$('send').setAttribute('aria-label',pending?'Retry pending message':'Send message');
   $('prompt').disabled=submitting||!!pending||unavailable;$('upload').disabled=submitting||!!pending||unavailable;$('attach').disabled=$('upload').disabled;
-  $('prompt').placeholder=unavailable?'Start a new chat to continue':'Message AgentMeld · /new for a fresh chat';
+  $('prompt').placeholder='Message';
   $('attachments').innerHTML=files.map((f,i)=>'<span class="chip">'+esc(f.name)+'<button data-remove="'+i+'" aria-label="Remove '+esc(f.name)+'" data-tooltip>×</button></span>').join('');
 }
 document.addEventListener('click',async e=>{
+  const jump=e.target.closest('[data-jump]');if(jump){const task=state.tasks.find(t=>t.id===jump.dataset.jump);if(task){selectConversation(task.conversationId);$('inspector').classList.remove('open');const turn=$('turn-'+task.id);turn?.focus({preventScroll:true});turn?.scrollIntoView({block:'start',behavior:'instant'});}}
   const choose=e.target.closest('[data-select]');if(choose){selectConversation(choose.dataset.select);}
   const remove=e.target.closest('[data-remove]');if(remove&&!submitting&&!drafts.get(draftKey())?.pending){files.splice(Number(remove.dataset.remove),1);render();}
   const file=e.target.closest('[data-file]');if(file){try{const res=await api('/api/file?task='+file.dataset.task+'&name='+encodeURIComponent(file.dataset.file));const blob=await res.blob();previewFile={blob,name:file.dataset.file};$('previewTitle').textContent=file.dataset.file;$('previewBody').innerHTML=/\.(md|txt|csv|json|log)$/i.test(file.dataset.file)?(/\.md$/i.test(file.dataset.file)?markdown(await blob.text()):'<pre>'+esc(await blob.text())+'</pre>'):'This file is ready to download.';$('preview').showModal();}catch(e){error(e.message);}}
