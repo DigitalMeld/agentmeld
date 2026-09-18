@@ -2,12 +2,15 @@
   "upstream": "https://github.com/openai/codex",
   "revision": "6b9826e3aa83b1a5947db50f4332cb9c65f1b340",
   "tag": "rust-v0.154.0",
-  "patchSha256": "8dfb9526dbe7156f8792560765a4627b4f794d777fa99b040e9fe689eb08d691",
+  "patchSha256": "b37899474ca51160d0df339845e2ee49e1e8607f9f2234dbd2b6d2d4a8ec260c",
   "status": "compiled-partially-qualified",
   "ownerAuthorization": "2026-09-18: Prepare the scoped Codex patch",
   "removalCondition": "Replace with an upstream release that passes the command-error event regression and requalifies the existing isolation and live lifecycle probes.",
   "scope": "Emit native begin/end lifecycle for early SandboxDenied output without altering sandbox, approval, execution or model error semantics.",
   "strippedBinarySha256": "cf2131e5cc8a444fea6d610d46082e600f270d8ba33a724b92adc678f9516887",
   "experimentalImage": "sha256:fdd0e186168169deb31435a37bbe11771960804a40b3193149bbe996c750bc26",
-  "runtimeActivated": false
+  "runtimeActivated": false,
+  "upstreamTargetedRegression": "Denied-write startup regression fails unpatched with no lifecycle events and passes patched; ran as UID 1000 on Linux aarch64 with bundled bwrap.",
+  "upstreamSuite": "43 selected unified-exec tests: 40 passed, 3 failed on patched and baseline comparisons. Glob-deny-read and two network-denial failures remain; full workspace suite not run.",
+  "localImageAvailability": "Missing after regression-build cleanup and VM restart; historical qualification hashes retained. Rebuild and verify retention before use."
 }

@@ -48,35 +48,24 @@ The fully regenerated lockfile from an earlier diagnostic was discarded.
 
 After that narrow normalization, `cargo build --locked -p codex-cli --bin codex`
 entered compilation in a disposable Linux builder using Rust 1.95.0, two jobs,
-no incremental compilation and no debug symbols. Compilation completed successfully in 5m 14s. The upstream regression test
-has not been compiled or run: creating a reusable test-builder snapshot and an
-initial runtime packaging attempt exhausted the VM Docker disk. Failed packaging
-artifacts were removed; the public source and compiled experimental runtime remain
-available locally. The disposable compilation cache was later removed. A smaller stripped binary was packaged successfully. Host free
-space had also fallen to approximately 3 GiB, so further compilation stopped.
-The subsequent documented cleanup restored approximately 17 GiB of host space;
-the upstream test has not yet been resumed. The dedicated VM temporarily used 8 GiB rather than
-4 GiB for this build. Cleanup restored the original configuration from the
-recorded settings; byte comparison against the backup under ignored
-`.local/m0/config-backups/` shows no differences.
+no incremental compilation and no debug symbols. Compilation completed successfully in 5m 14s. A stripped binary was packaged
+and qualified as described below. The first test-builder snapshot exhausted
+Docker storage; subsequent builds reused one disposable cache without snapshots.
 
 ## Remaining qualification
 
-1. Provide sufficient build space and run the upstream targeted regression through its
-   `just test` harness; verify execution rather than a skip.
-2. Completed: identical native command diagnostic passes on the patched binary.
-3. Credential isolation, process replacement and live command delivery pass.
-   Investigate the running-command interruption failure described below.
-4. Exact binary/image hashes and upstream notices are recorded; do not change
-   runtime pins until the upstream regression and remaining checks pass.
-5. VM configuration restoration is verified; finish the remaining qualification
-   before updating M0 completion status.
+The corrected upstream regression now has verified unpatched failure and patched
+success. The broader targeted suite retains three baseline failures detailed
+below; the full upstream workspace suite has not been run. Before activation,
+finish reproducible source-build/runtime pinning and the remaining M0 audit.
+The selected runtime stays unpatched. Temporary build resources are removed
+after qualification; see [build storage](build-storage.md).
 
 ## Verified patched runtime evidence
 
 Experimental image: `sha256:fdd0e186168169deb31435a37bbe11771960804a40b3193149bbe996c750bc26`.
 Stripped binary SHA-256: `cf2131e5cc8a444fea6d610d46082e600f270d8ba33a724b92adc678f9516887`.
-The selected `agentmeld-m0:local` tag remains unpatched.
+The last selected `agentmeld-m0:local` image was unpatched. After build cleanup and VM restart, neither baseline nor candidate is present locally; see [storage readback](build-storage.md#regression-build-cleanup-readback). The hashes below identify tested historical artifacts.
 
 - Offline command matrix: all four exit 0/23 and feature-flag cases pass. Each
   case reports exactly one command-result item with the expected exit code and
@@ -100,26 +89,55 @@ node scripts/probe-provider-egress.mjs --context colima-agentmeld-m0 \
 ```
 
 AgentMeld's default local checks pass (194 tests plus formatting, lint, build and
-documentation checks). They do not substitute for the unrun upstream test.
+documentation checks). They do not substitute for full upstream qualification.
 
-## Control-check limitation
+## Control-check evidence and limitation
 
-The patched image passed allow, deny and interruption while awaiting approval,
-but failed the running-command interruption stage. An immediate unpatched
-baseline comparison passed all four stages. The coarse report does not establish
-the cause; treat this as an unresolved qualification failure, not a proven patch
-regression or a pass. Added sanitized `runningCheckpoint` labels distinguish
-waiting for a child, process tracking, interruption and stopped-process checks
-on the next run. That refined diagnostic has not yet been executed.
+The first patched live control probe failed during running-command interruption,
+while an immediate unpatched comparison passed. Its exact failure checkpoint
+cannot be recovered. Two subsequent instrumented interruption-only runs passed.
 
-Evidence: `live-control-patched.log` and `live-control-baseline.log` under ignored
-`.local/m0/patch-build/`. No runtime activation is authorized by these results.
+Source inspection then established that Codex intentionally preserves background
+terminals across turn interruption. The corrected [control probe](live-control.md#explicit-terminal-cleanup-follow-up)
+requests explicit terminal cleanup and verifies stopped processes and stable
+heartbeats. All four live control cases pass in `control-clean.log`.
+This establishes the required cancellation protocol, not the cause of the
+earlier unclassified failure. No selected runtime was activated.
 
-## Build storage follow-up
+## Upstream regression evidence
 
-The owner requested immediate cleanup after the build attempts increased disk
-usage. Qualification was stopped. Cleanup targets only inventoried AgentMeld
-images, disposable Codex builder containers and duplicate binaries. The selected
-runtime, one compiled patch candidate, credential store, retained workspaces,
-source patch and compact evidence are preserved. See [build storage](build-storage.md)
-for the verified cleanup result and the policy for subsequent build cycles.
+The integration-test compilation exceeded a 3 GiB container limit (one OOM kill).
+Reusing the same cache with a temporary 7 GiB limit completed compilation.
+The first sandboxed tests aborted because Cargo had not installed the bundled
+`codex-resources/bwrap` beside the test executable. The existing upstream sandbox
+test also failed. Supplying the retained runtime's exact helper resolved that
+harness issue without changing sandbox policy. Helper SHA-256:
+`58bd88f39d02a0b5ac553c2f334edfff1ec74afb9b8f4233dfc5b69225038f92`.
+
+An initial plain exit-23 test passed on unpatched source and was insufficient.
+The final test, `sandboxed_startup_denial_emits_complete_command_lifecycle`,
+attempts a forbidden write under read-only permissions, then exits 23. It
+asserts the write was prevented, exactly one begin/end pair with exit 23, and
+the unchanged model-facing exit result.
+
+- Unpatched production source: regression fails with an empty lifecycle list.
+- Patched production source: regression passes (0.224 seconds).
+- Tests ran as UID 1000 on Linux aarch64 with neither sandbox skip environment
+  variable present. The selected regression exercised its assertions.
+- Broader patched unified-exec suite: **40 passed, 3 failed** across 43 tests.
+  The baseline comparison also reports 40/3, using the earlier plain-exit test.
+  The separate final denied-write baseline run provides the actual red proof.
+- Both broader comparisons fail `unified_exec_enforces_glob_deny_read_policy`,
+  `unified_exec_network_denial_emits_failed_background_end_event`, and
+  `unified_exec_short_lived_network_denial_emits_failed_end_event`.
+  The network failures differ: baseline times out waiting for events; patched
+  events report exit 1 where those fixtures expect -1. These remain limitations,
+  not a green suite.
+- Some platform-specific cases return early on Linux. Counts do not establish
+  Windows coverage. The full upstream workspace suite has not been run.
+
+Ignored evidence in `.local/m0/patch-build/`:
+`upstream-denial-baseline.log`, `upstream-denial-patched-suite.log`,
+`upstream-unified-exec-baseline.log`, and `upstream-regression-with-bwrap.log`.
+The latter separately verifies the existing sandbox and interrupt-preserves-session
+tests; its original plain-exit test is superseded by the final regression.

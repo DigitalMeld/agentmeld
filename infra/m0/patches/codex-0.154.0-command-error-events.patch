@@ -42,16 +42,16 @@ index f19147f..96a8bc6 100644
                  return Err(err);
              }
 diff --git a/codex-rs/core/tests/suite/unified_exec.rs b/codex-rs/core/tests/suite/unified_exec.rs
-index ad3f248..5eb2b7c 100644
+index ad3f248..bf985e7 100644
 --- a/codex-rs/core/tests/suite/unified_exec.rs
 +++ b/codex-rs/core/tests/suite/unified_exec.rs
-@@ -4041,3 +4041,56 @@ fn assert_command(command: &[String], expected_args: &str, expected_cmd: &str) {
+@@ -4041,3 +4041,68 @@ fn assert_command(command: &[String], expected_args: &str, expected_cmd: &str) {
      assert_eq!(command[1], expected_args);
      assert_eq!(command[2], expected_cmd);
  }
 +
 +#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-+async fn sandboxed_fast_failure_emits_complete_command_lifecycle() -> Result<()> {
++async fn sandboxed_startup_denial_emits_complete_command_lifecycle() -> Result<()> {
 +    skip_if_target_windows!(Ok(()), "uses a POSIX-only command fixture");
 +    skip_if_no_network!(Ok(()));
 +    skip_if_sandbox!(Ok(()));
@@ -59,7 +59,9 @@ index ad3f248..5eb2b7c 100644
 +    let mut builder = test_codex();
 +    let test = builder.build_with_auto_env(&server).await?;
 +    let call_id = "uexec-fast-failure";
-+    let args = json!({ "cmd": "exit 23", "yield_time_ms": 1000 });
++    let denied_path = test.cwd.path().join("denied-write");
++    let command = format!("printf forbidden > {denied_path:?}; exit 23");
++    let args = json!({ "cmd": command, "yield_time_ms": 1000 });
 +    let responses = vec![
 +        sse(vec![
 +            ev_response_created("resp-1"),
@@ -74,6 +76,7 @@ index ad3f248..5eb2b7c 100644
 +    let request_log = mount_sse_sequence(&server, responses).await;
 +    submit_unified_exec_turn(&test, "run failing command", PermissionProfile::read_only()).await?;
 +    let mut lifecycle = Vec::new();
++    let mut command_output = String::new();
 +    loop {
 +        let event = wait_for_event_match(&test.codex, |event| Some(event.clone())).await;
 +        match event {
@@ -81,13 +84,22 @@ index ad3f248..5eb2b7c 100644
 +                lifecycle.push(("begin", None));
 +            }
 +            EventMsg::ExecCommandEnd(event) if event.call_id == call_id => {
++                command_output = event.aggregated_output;
 +                lifecycle.push(("end", Some(event.exit_code)));
 +            }
 +            EventMsg::TurnComplete(_) => break,
 +            _ => {}
 +        }
 +    }
-+    assert_eq!(lifecycle, vec![("begin", None), ("end", Some(23))]);
++    assert!(
++        !denied_path.exists(),
++        "read-only sandbox must deny the write"
++    );
++    assert_eq!(
++        lifecycle,
++        vec![("begin", None), ("end", Some(23))],
++        "{command_output}"
++    );
 +    let bodies = request_log
 +        .requests()
 +        .into_iter()

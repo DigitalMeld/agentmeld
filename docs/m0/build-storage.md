@@ -55,5 +55,27 @@ Detailed inventory and deletion outcomes remain in ignored `.local/m0/cleanup/`.
    of the original configuration and verify unrelated settings are unchanged.
 
 The [Codex patch](codex-command-event-patch.md) remains partially qualified. Cleanup
-resolves the immediate storage pressure; it does not resolve the unrun upstream
-regression or the running-command interruption finding.
+resolves the immediate storage pressure; it does not establish full upstream qualification or activate the candidate.
+The corrected regression and explicit terminal-cleanup evidence are recorded
+in the patch qualification document.
+
+## Regression-build cleanup readback
+
+After the final upstream regression run, the disposable regression container,
+test-builder image and duplicate control-probe image were removed. The VM was
+restored from 8 GiB to 4 GiB; its configuration byte-matches the original backup,
+and the named AppArmor policy was reloaded. Host free space rose from about
+20 GiB to 28 GiB during cleanup.
+
+**Unexpected retention failure:** after the VM restart, Docker reports zero
+images and zero containers, including the baseline and candidate intended to
+remain. The credential volume `agentmeld-m0-codex-auth` remains present.
+No global prune or volume deletion was issued in this cleanup. The precise
+cause of the missing retained images is unestablished; do not count their space
+as intentional reclamation or claim the local runtime is ready.
+
+Source, final patch, digest and compact qualification logs remain. No local
+image archive or retained standalone candidate binary was found in the inspected
+patch-build directories. Restore the baseline and rebuild the pinned candidate
+before further runtime qualification; verify image retention across VM restart.
+This is an additional M0 operational gap.
