@@ -1,6 +1,6 @@
 # M0 evidence and remaining qualification
 
-Date: 2026-09-18. Status: **started, not complete**. These are experimental contracts and explicit native/live qualification probes, not an installable agent product. The current checklist and reports below supersede historical pending statuses.
+Date: 2026-09-18. Status: **complete with recorded limitations**. These are experimental contracts and explicit native/live qualification probes, not an installable agent product. Closeout decisions are recorded in [completion-audit.md](completion-audit.md#closeout-decisions); the checklist and reports below supersede historical pending statuses.
 
 ## Current qualification checkpoint
 

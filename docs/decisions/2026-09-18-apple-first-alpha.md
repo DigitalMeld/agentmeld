@@ -2,11 +2,20 @@
 
 Date: 2026-09-18. Status: Apple-first, multi-system and away-from-home alpha requirements confirmed by Brad; client technology and remote transport remain proposed.
 
+## Addendum 2026-09-18 (later same day)
+
+Per Brad's direction after the comprehensive audit:
+
+- **iMessage is an alpha stretch goal** ("hopefully"), not post-alpha. WhatsApp remains post-alpha. The P7 iMessage journey stays specified as written; its alpha acceptance is best-effort and must not block the alpha on provider/bridge availability.
+- **Positioning is the best of both worlds:** the assistant bundle's behavioral architecture and personality (see the [Muse documentation review](../research/muse-documentation-review.md)), Muse's product breadth and restraint, and Grok Bot's collaboration model.
+- **Local-first definition:** the infrastructure and data are yours and self-hosted; the best models run in the cloud through your own subscriptions; local models are a roadmap item, not an alpha requirement.
+- **License:** the project will be open source; license selection is deferred (weeks out) and is not part of current work.
+
 ## Accepted direction
 
 Alpha targets macOS applications, a local browser, and an iOS application, with multiple named Mac hosts under one owner. Each enrolled Mac host owns its durable agent work and isolated Linux execution environment. A Mac may be a client, an execution host, or both. iPhone is a client for the same agents, tasks, approvals and artifacts, not a separate agent runtime. Alpha is Codex-only using the owner’s ChatGPT subscription, as reconfirmed by Brad on 2026-09-18. Claude Code and Ollama are post-alpha; earlier three-provider wording is superseded.
 
-Move iMessage, WhatsApp, Windows, general remote-browser access and additional connectivity integrations after alpha. One secure cross-network connection for native clients is required in alpha, following Brad's explicit clarification. Linq, BlueBubbles, imsg and Tailscale remain research candidates, with no installation or provider selection authorized by this decision. This supersedes the earlier iMessage M0 gate and M2/P7 requirement, including those in the historical OpenInstinct audit.
+Move WhatsApp, Windows, general remote-browser access and additional connectivity integrations after alpha. iMessage is an alpha stretch goal (see addendum above). One secure cross-network connection for native clients is required in alpha, following Brad's explicit clarification. Linq, BlueBubbles, imsg and Tailscale remain research candidates, with no installation or provider selection authorized by this decision. This supersedes the earlier iMessage M0 gate and M2/P7 requirement, including those in the historical OpenInstinct audit.
 
 Muse/Grok Bot breadth is the product direction. Alpha acceptance uses named workflows; complete vendor parity has not been established or scheduled. Retain the reference feature matrix to track verified observations, planned scope and deferred features without claiming all functions are implemented.
 
@@ -37,7 +46,7 @@ The Mac must be available; sleep, power loss and network loss appear as offline,
 
 ## Deferred work and remaining decisions
 
-Post-alpha: iMessage/WhatsApp and transport selection; Windows packaging; general remote browser access; additional network providers; collaboration; hosted service and custom model. Existing richer media, proactive goals, payments and connector breadth remain staged in the roadmap.
+Post-alpha: WhatsApp and transport selection; Windows packaging; general remote browser access; additional network providers; collaboration; hosted service and custom model. Existing richer media, proactive goals, payments and connector breadth remain staged in the roadmap.
 
 Before implementation: select and qualify one remote transport; qualify SwiftUI/service/viewer integration; choose minimum OS versions and an iOS development/distribution path; establish Mac resource requirements. Installation, signing, account enrollment, network exposure and deployment are separate actions requiring their applicable authorization.
 
