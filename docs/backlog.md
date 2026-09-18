@@ -96,3 +96,11 @@ This is turn history, not a complete tool-event ledger: ordered steps, per-actio
 New turns record application-owned milestones with stable IDs and timestamps: queued, started, working files ready, agent ready, saving results, and the final outcome after cleanup. Stop requests and restart interruptions are recorded where observed. Repeated recording of the same milestone is deduplicated. Raw provider payloads, commands and stdout are not copied into this log.
 
 Activity entries offer a live-updating details dialog and an Open conversation action. Older turns explicitly report unavailable milestone history; no past timestamps or successful steps are invented. The Files library now labels each output with its conversation and producing turn’s time, and links back to that turn. Same-name files retain separate original bytes. Native tool-step inspection remains pending.
+
+## Finding and revisiting work (2026-09-18)
+
+The chat list now filters by title; Files filters by filename or originating conversation title and displays newest turns first. Both searches are case-insensitive, trim surrounding whitespace and show an explicit no-results state. They filter already-authorized metadata in the browser without searching file bytes or sending a model request. This is not the planned full-content search index. Filtering does not change the selected conversation or erase its draft. Unchanged chat-list polling preserves keyboard focus.
+
+The selected conversation ID survives refresh in the same browser tab through session storage. It is validated against the authenticated conversation list before restoration. New chat and `/new` clear the saved selection; a stale ID falls back to the welcome screen. Draft text, attachments and scroll are still memory-only across chat switches and do not survive reload. This is navigation restoration, not a new provider session or credential storage path.
+
+Browser verification covers trimmed/case-insensitive searches, no results, clearing filters, retained transcript selection, unchanged-poll focus, file provenance and selected-conversation restoration after reload.

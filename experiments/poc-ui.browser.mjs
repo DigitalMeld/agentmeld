@@ -45,7 +45,7 @@ try{
  await mkdir('.local/m0/continuity-ui',{recursive:true});await page.screenshot({path:'.local/m0/continuity-ui/desktop.png'});
  await page.locator('#prompt').fill('/new');await page.locator('#send').click();
  await page.locator('.welcome').waitFor();assert.equal(await page.locator('.historyItem').count(),2);assert.equal(await page.locator('#prompt').inputValue(),'');
- await page.reload();await page.locator('.historyItem').first().waitFor();assert.equal(await page.locator('.historyItem').count(),2);
+ await page.reload();await page.locator('.historyItem').first().waitFor({state:'attached'});assert.equal(await page.locator('.historyItem').count(),2);
  assert.equal(await page.locator('.activityEntry').count(),3);
  await page.locator('[data-detail]').first().click();
  await page.locator('#runDetails[open]').waitFor();
@@ -55,8 +55,24 @@ try{
  assert.equal(await page.locator('.turn:focus .message.user').innerText(),'Second conversation');
  await page.locator('#filesNav').click();
  assert.equal(await page.locator('.outputOrigin').count(),3);
- await page.locator('.outputOrigin').first().click();
+ await page.locator('.outputOrigin').filter({hasText:'First conversation'}).last().click();
  assert.equal(await page.locator('.turn:focus .message.user').innerText(),'First conversation');
+ await page.reload();await page.locator('.message.assistant').first().waitFor();
+ assert.equal(await page.locator('.historyItem.selected').innerText(),'First conversation');
+ await page.locator('#chatSearch').fill(' SECOND ');
+ assert.equal(await page.locator('.historyItem').count(),1);
+ assert.equal(await page.locator('.historyItem').innerText(),'Second conversation');
+ assert.equal(await page.locator('.message.assistant').count(),2);
+ await page.locator('#chatSearch').fill('no-such-chat');assert.equal(await page.locator('.historyItem').count(),0);
+ await page.locator('#chatSearch').fill('');
+ await page.locator('.historyItem.selected').focus();await page.waitForTimeout(1200);
+ assert.equal(await page.locator('.historyItem.selected').evaluate(e=>e===document.activeElement),true);
+ await page.locator('#filesNav').click();
+ await page.locator('#fileSearch').fill('SECOND');assert.equal(await page.locator('.libraryEntry').count(),1);
+ await page.screenshot({path:'.local/m0/file-search.png'});
+ await page.locator('#fileSearch').fill('REPORT.TXT');assert.equal(await page.locator('.libraryEntry').count(),3);
+ await page.locator('#fileSearch').fill('no-such-file');assert.equal(await page.locator('.libraryEntry').count(),0);
+ await page.locator('#fileSearch').fill('');await page.locator('#chatNav').click();
  const firstActivity=page.locator('.activityEntry').filter({has:page.locator('strong',{hasText:'First conversation'})});
  await firstActivity.locator('.file').click();await page.locator('#preview[open]').waitFor();
  assert.equal(await page.locator('#previewBody').innerText(),'Output for First conversation');
@@ -67,6 +83,7 @@ try{
  assert.equal(await page.locator('.turn:focus .message.user').innerText(),'First conversation');
  await page.screenshot({path:'.local/m0/activity-history.png'});
  await page.setViewportSize({width:390,height:844});await page.locator('#chatNav').click();
+ await page.locator('#chatSearch').fill('First');
  await page.locator('.historyItem').filter({hasText:'First conversation'}).click();
  assert.equal(await page.locator('.message.assistant').count(),2);
  assert.equal(await page.locator('.history').isVisible(),false);
@@ -80,5 +97,9 @@ try{
  assert.equal(await page.locator('.turn:focus .message.user').innerText(),'Second conversation');
  await page.evaluate(()=>{document.documentElement.style.colorScheme='light';document.querySelector('.brand').style.background='#ffffff';});
  await page.locator('.brand').screenshot({path:'.local/m0/brain-light.png'});
+ await page.evaluate(()=>sessionStorage.setItem('agentmeld-selection','missing-conversation'));
+ await page.reload();await page.locator('.historyItem').first().waitFor({state:'attached'});
+ assert.equal(await page.locator('.welcome').isVisible(),true);
+ assert.equal(await page.evaluate(()=>sessionStorage.getItem('agentmeld-selection')),null);
  assert.deepEqual(errors,[]);console.log('Browser fixture passed: threaded transcript, draft switching, /new, reload, mobile history; no page errors');
 }finally{if(browser)await browser.close();await app.shutdown();await rm(directory,{recursive:true,force:true});}
