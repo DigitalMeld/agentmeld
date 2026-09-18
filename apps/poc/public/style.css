@@ -35,3 +35,12 @@ dialog{color:var(--text);background:#1c1c1f;border:1px solid #3b3b42;border-radi
 #runBody{padding:24px;overflow:auto;max-height:65dvh;line-height:1.6;font-size:14px}#runBody h3{font-size:13px}.runPrompt{white-space:pre-wrap;overflow-wrap:anywhere;margin-top:0}.milestones{padding-left:24px}.milestones li{padding:8px}.milestones time{display:block;color:var(--muted);font-size:12px}#runConversation{padding:10px 16px;background:var(--surface);border-radius:18px}
 
 .searchInput{display:block;width:100%;min-width:0;background:var(--surface);color:var(--text);border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin:0 0 16px;font-size:13px}.searchInput::placeholder{color:var(--muted)}.searchInput:focus-visible{outline:2px solid #94b1ff;outline-offset:2px}#fileSearch{max-width:420px;margin-bottom:24px}
+
+/* Composer feedback and compact secondary actions. */
+#composer textarea{height:34px;min-width:0}.characterCount{text-align:right;font-size:11px;color:var(--muted);padding:6px 12px 0}.chip small{color:var(--muted)}
+.copyReply{align-self:flex-start;font-size:11px;color:var(--muted);padding:5px 8px;margin-top:-16px;border-radius:6px}.copyReply:hover{background:var(--surface);color:var(--text)}
+#copyPreview{padding:10px 16px;border-radius:20px;background:var(--surface);font-size:13px}#previewOrigin{padding:14px 25px 0;font-size:12px;color:var(--muted);overflow-wrap:anywhere}
+#notice:not(.sr){position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:30;background:#303034;color:var(--text);border:1px solid #55555d;border-radius:12px;padding:12px 18px;max-width:min(520px,90vw);font-size:13px;box-shadow:0 8px 24px #0005}
+#dropHint{position:absolute;inset:12px;z-index:12;display:grid;place-items:center;border:2px dashed #94b1ff;border-radius:20px;background:#202533ed;font-size:18px;pointer-events:none}
+.inspectorHeader{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}.inspectorHeader h2{margin:0}.inspectorHeader .icon{width:30px;height:30px}#activityFilter{width:100%;background:var(--surface);border:1px solid var(--line);color:var(--text);border-radius:8px;padding:8px;font:inherit;font-size:12px;margin-bottom:20px}#activityFilter:focus-visible{outline:2px solid #94b1ff;outline-offset:2px}
+#retryConnection{display:block;text-align:left;color:#adc2ff;padding:8px 0 0;font-size:11px}.dot.offline{background:#d59473}#connectionBanner{padding:10px 16px;background:#352c25;color:#efd2ba;font-size:12px}#retryBanner{text-decoration:underline;padding:4px;color:inherit}
