@@ -4,6 +4,8 @@ This milestone has begun. The Rust crate contains experimental contracts and tes
 
 ## What exists
 
+- [Durable reviewed recovery](reviewed-recovery.md), distinct accepted-output and closed-unknown dispositions, with restart/readback and Linux checks.
+
 - [Recovery evidence assessment](recovery-assessment.md), scope-bound reports and an explicit local recovery command that preserve uncertain execution.
 
 - [Scoped result access](result-access.md), read-only local capabilities with absolute expiry, revocation and restart readback.
@@ -86,7 +88,7 @@ node scripts/probe-separated.mjs --context YOUR_CONTEXT
 
 This is the current storage-boundary qualification: Rust and the viewer stay on the host, and the browser stays in the container. See [evidence and limitations](protected-supervisor.md). The earlier all-in-one probe remains useful for native startup and viewer UI comparison, but its in-container journal is not protected from that same container.
 
-Journal format 5 adds required result references and a bounded settled-result index to the request ledger, private-screen state and scoped approvals. Old M0 journals are preserved and rejected; there is no implicit migration. Each probe creates a fresh synthetic journal.
+Journal format 6 adds durable reviewed dispositions alongside required result references, the settled-result index, request ledger, private-screen state and scoped approvals. Old M0 journals are preserved and rejected; there is no implicit migration. Each probe creates a fresh synthetic journal.
 
 Run the separate native Codex callback and host measurement probes as described in [native tool qualification](native-tools.md).
 

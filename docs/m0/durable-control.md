@@ -8,7 +8,7 @@ The Rust `supervise JOURNAL` command holds an exclusive OS file lock for its pro
 
 Control state includes a monotonically increasing generation, mode, pending action ticket and payload digest, one-time dispatch status, uncertainty flag and last accepted observation digest. The worker must obtain a ticket before submitting agent or human browser input, and settle that ticket only after the action returns successfully. Takeover fences new/queued agent dispatch before waiting for admitted work. Human control is acknowledged only after pending input settles. Resume captures an observation in the browser worker and commits its digest in Rust before admitting new agent input.
 
-Rust owns those transitions; `rust-browser-control.mjs` owns the serialized browser I/O and bounded stdio transport. The earlier in-memory Node controller remains a reference fixture for race tests, but the container browser probe now uses the Rust authority. The older approval-only `RunControl` remains a reference fixture. Journal format 5 persists scoped proposals, decisions, request identities and private-screen state; see [native approvals](native-tools.md) for binding, expiry and recovery semantics.
+Rust owns those transitions; `rust-browser-control.mjs` owns the serialized browser I/O and bounded stdio transport. The earlier in-memory Node controller remains a reference fixture for race tests, but the container browser probe now uses the Rust authority. The older approval-only `RunControl` remains a reference fixture. Journal format 6 persists scoped proposals, decisions, request identities and private-screen state; see [native approvals](native-tools.md) for binding, expiry and recovery semantics.
 
 ## Recovery semantics
 

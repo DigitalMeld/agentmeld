@@ -26,6 +26,6 @@ Its three successful tools (sum, listing and text read) each passed HTTP retriev
 
 ## Limits and next action
 
-The trusted host decides who receives a token and when to revoke it. Possession authorizes this one result until expiry or revocation; there is no account identity, membership lookup, persistent grant, remote listener, TLS deployment or production artifact API. This prototype does not establish a boundary against other hostile processes running as the host owner. It neither deletes archived data nor reconciles uncertain dispatches. Journal format 5 and archive envelope version 1 are unchanged.
+The trusted host decides who receives a token and when to revoke it. Possession authorizes this one result until expiry or revocation; there is no account identity, membership lookup, persistent grant, remote listener, TLS deployment or production artifact API. This prototype does not establish a boundary against other hostile processes running as the host owner. It neither deletes archived data nor reconciles uncertain dispatches. The endpoint still exposes only ordinary settlement. Current journal format 6 adds a separate [reviewed recovery history](reviewed-recovery.md); reviewed outputs do not become ordinary HTTP results. Archive envelopes remain version 1.
 
-Next: explicit reconciliation of unresolved execution and saved evidence, followed by owner/task integration and production retrieval authorization. Keep live-provider, iMessage identity and license decisions as separate qualification gates.
+Next: owner/task integration and production retrieval authorization, including a distinct presentation for reviewed output. Keep live-provider, iMessage identity and license decisions as separate qualification gates.

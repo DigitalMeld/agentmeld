@@ -20,6 +20,7 @@ pub struct Snapshot {
     pub pending_scope: Option<String>,
     pub result_required: bool,
     pub results: Vec<SettledResult>,
+    pub resolutions: Vec<Resolution>,
     pub dispatched: bool,
     pub uncertain: bool,
     pub observation: Option<String>,
@@ -64,6 +65,29 @@ pub struct SettledResult {
     pub result: ResultRef,
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum ResolutionOutcome {
+    AcceptOutput,
+    CloseUnknown,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct Resolution {
+    pub review_id: String,
+    pub reviewer: String,
+    pub reviewed_sequence: u64,
+    pub reviewed_generation: u64,
+    pub ticket: u64,
+    pub action_digest: String,
+    pub scope_digest: String,
+    pub worker: String,
+    pub worker_absent: bool,
+    pub outcome: ResolutionOutcome,
+    pub result: Option<ResultRef>,
+}
+
 #[derive(Debug, Deserialize)]
 #[serde(tag = "op", rename_all = "snake_case", deny_unknown_fields)]
 pub enum Command {
@@ -96,6 +120,18 @@ pub enum Command {
     Settle {
         ticket: u64,
         action: Value,
+        result: Option<ResultRef>,
+    },
+    Reconcile {
+        sequence: u64,
+        generation: u64,
+        ticket: u64,
+        action: Value,
+        scope: ApprovalScope,
+        review_id: String,
+        reviewer: String,
+        worker_absent: bool,
+        outcome: ResolutionOutcome,
         result: Option<ResultRef>,
     },
     PrivateBegin {
@@ -152,7 +188,7 @@ impl Journal {
             return Err("incomplete journal; manual reconciliation required".into());
         }
         let mut state = Snapshot {
-            version: 5,
+            version: 6,
             sequence: 0,
             generation: 0,
             mode: "agent".into(),
@@ -161,6 +197,7 @@ impl Journal {
             pending_scope: None,
             result_required: false,
             results: Vec::new(),
+            resolutions: Vec::new(),
             dispatched: false,
             uncertain: false,
             observation: None,
@@ -171,14 +208,16 @@ impl Journal {
         };
         for line in data.lines() {
             let next: Snapshot = serde_json::from_str(line).map_err(|_| "corrupt journal")?;
-            if next.version != 5
+            let resolution_step = next.resolutions != state.resolutions;
+            if next.version != 6
+                || (resolution_step && !valid_resolution_step(&state, &next))
                 || !valid_results(&state, &next)
                 || next.pending_scope.as_ref().is_some_and(|s| {
                     next.pending.is_none() || !valid_digest(s) || !next.requests.contains(s)
                 })
                 || (next.result_required && next.pending_scope.is_none())
                 || (state.mode == "cancelled" && next.mode != "cancelled")
-                || (state.uncertain && !next.uncertain)
+                || (state.uncertain && !next.uncertain && !resolution_step)
                 || next
                     .pending_digest
                     .as_deref()
@@ -462,6 +501,41 @@ impl Journal {
                 next.result_required = false;
                 next.dispatched = false;
             }
+            Command::Reconcile {
+                sequence,
+                generation,
+                ticket,
+                action,
+                scope,
+                review_id,
+                reviewer,
+                worker_absent,
+                outcome,
+                result,
+            } => {
+                if !valid_scope(&scope)
+                    || action.get("provider").and_then(Value::as_str) != Some("codex")
+                    || action.get("target").and_then(Value::as_str) != Some(scope.worker.as_str())
+                {
+                    return Err("invalid reconciliation scope".into());
+                }
+                next = resolve_state(
+                    &next,
+                    Resolution {
+                        review_id,
+                        reviewer,
+                        reviewed_sequence: sequence,
+                        reviewed_generation: generation,
+                        ticket,
+                        action_digest: action_digest(&action)?,
+                        scope_digest: scope_digest(&scope)?,
+                        worker: scope.worker,
+                        worker_absent,
+                        outcome,
+                        result,
+                    },
+                )?;
+            }
             Command::PrivateBegin { generation } | Command::PrivateEnd { generation } => {
                 require("human", generation)?;
                 let entering = matches!(command, Command::PrivateBegin { .. });
@@ -572,6 +646,71 @@ fn valid_results(previous: &Snapshot, next: &Snapshot) -> bool {
     }
     true
 }
+fn resolve_state(state: &Snapshot, resolution: Resolution) -> Result<Snapshot, String> {
+    if !["paused", "cancelled"].contains(&state.mode.as_str())
+        || !state.dispatched
+        || !state.result_required
+        || state.pending != Some(resolution.ticket)
+        || state.pending_digest.as_ref() != Some(&resolution.action_digest)
+        || state.pending_scope.as_ref() != Some(&resolution.scope_digest)
+        || state.sequence != resolution.reviewed_sequence
+        || state.generation != resolution.reviewed_generation
+        || !resolution.worker_absent
+        || !valid_digest(&resolution.worker)
+        || resolution.worker.bytes().any(|b| b.is_ascii_uppercase())
+        || !valid_digest(&resolution.review_id)
+        || resolution.review_id.bytes().any(|b| b.is_ascii_uppercase())
+        || resolution.reviewer.trim().is_empty()
+        || resolution.reviewer.len() > 128
+        || resolution.reviewer.chars().any(char::is_control)
+        || state.resolutions.len() >= 16
+        || state
+            .resolutions
+            .iter()
+            .any(|item| item.review_id == resolution.review_id)
+    {
+        return Err("stale or invalid reconciliation".into());
+    }
+    match (&resolution.outcome, &resolution.result) {
+        (ResolutionOutcome::AcceptOutput, Some(result)) if valid_ref(result) => (),
+        (ResolutionOutcome::CloseUnknown, None) => (),
+        _ => return Err("invalid reconciliation outcome or result".into()),
+    }
+    let mut next = state.clone();
+    next.resolutions.push(resolution);
+    next.pending = None;
+    next.pending_digest = None;
+    next.pending_scope = None;
+    next.result_required = false;
+    next.dispatched = false;
+    next.uncertain = false;
+    next.observation = None;
+    next.generation = next
+        .generation
+        .checked_add(1)
+        .ok_or("generation exhausted")?;
+    Ok(next)
+}
+
+fn valid_resolution_step(previous: &Snapshot, next: &Snapshot) -> bool {
+    if next.resolutions.len() != previous.resolutions.len() + 1
+        || !next.resolutions.starts_with(&previous.resolutions)
+    {
+        return false;
+    }
+    let Some(entry) = next.resolutions.last() else {
+        return false;
+    };
+    let Ok(mut expected) = resolve_state(previous, entry.clone()) else {
+        return false;
+    };
+    let Some(sequence) = previous.sequence.checked_add(1) else {
+        return false;
+    };
+    expected.sequence = sequence;
+    expected == *next
+}
+
 fn valid_scope(scope: &ApprovalScope) -> bool {
     [
         &scope.workspace,

@@ -16,7 +16,7 @@ The broker orders operations as dispatch, execution, result validation, archive 
 
 ## Settled-result index and recovery
 
-Journal format 5 persists the archive receipt, dispatch ticket, canonical action digest and scope digest in the same synced snapshot that clears the pending action. Archive-enabled proposals set `result_required`; Rust rejects settlement without a bounded, well-formed reference. The index retains at most 64 entries and blocks further approval proposals at capacity without evicting history. Existing request-ledger and journal-byte limits also remain in force.
+Journal format 6 retains the archive receipt, dispatch ticket, canonical action digest and scope digest in the same synced snapshot that clears the pending action. Archive-enabled proposals set `result_required`; Rust rejects settlement without a bounded, well-formed reference. The index retains at most 64 entries and blocks further approval proposals at capacity without evicting history. Existing request-ledger and journal-byte limits also remain in force.
 
 `ResultArchive.readSettled(authority, scope)` locates the result from the durable index, reads and verifies its bytes, and checks its envelope against the persisted ticket, action and full scope. It works after supervisor replacement without an in-memory receipt. The Rust journal trusts the host adapter to save the blob; it validates reference shape and transition binding, not blob existence. Retrieval refuses missing, corrupt or mismatched content.
 
@@ -41,7 +41,7 @@ Linux qualification exposed and fixed a read-only subprocess pipe-close race; wr
 
 The directory and its parents must be owned by the trusted supervisor. Symlink checks do not protect against a malicious directory owner racing path replacement. Scope checks are binding checks for trusted callers, not user authentication or an ACL. Content hashes detect corruption but do not authenticate a compromised worker or host. Files are immutable through this interface, not against their OS owner.
 
-Journal format 5 is intentionally incompatible with earlier fixture journals. Old files are preserved and rejected; no automatic migration is attempted. Archive envelopes remain version 1 and can still be inspected separately. Archive bytes and journal writes are not one filesystem transaction, but settlement and its reference share one journal record. There is no production artifact API, account-authenticated retrieval endpoint, automatic reconciliation, retention workflow or backup/restore service. A lost acknowledgement must not trigger tool re-execution. Preserve staged/unsettled evidence for explicit reconciliation.
+Journal format 6 is intentionally incompatible with format 5 and earlier fixture journals. Old files are preserved and rejected; no automatic migration is attempted. Archive envelopes remain version 1 and can still be inspected separately. Archive bytes and journal writes are not one filesystem transaction, but settlement and its reference share one journal record. There is no production artifact API, account-authenticated retrieval endpoint, automatic reconciliation, retention workflow or backup/restore service. A lost acknowledgement must not trigger tool re-execution. Preserve staged/unsettled evidence for explicit reconciliation.
 
 Power-loss durability and filesystem fault injection remain unqualified. Linux subprocess tests use tmpfs; protected native-probe archives use the host filesystem. Unix file locking and permissions are tested on macOS and Linux only. The archive stores all tool-result data supplied by the configured trusted caller, so production privacy/retention and artifact authorization need separate design before use with personal data.
 
@@ -49,4 +49,6 @@ A [local capability endpoint](result-access.md) now qualifies scoped HTTP retrie
 
 [Recovery assessment](recovery-assessment.md) now checks supplied evidence against the exact pending or settled action without clearing uncertainty.
 
-Next: production retrieval authorization, durable reviewed reconciliation and task/event integration. Preserve existing approval/restart boundaries and retain unresolved archive evidence.
+A separate [reviewed recovery history](reviewed-recovery.md) now persists explicit dispositions. Reviewed output uses `readReviewed` with review provenance and never enters the normal settlement index.
+
+Next: production retrieval authorization and authenticated task/event integration. Preserve existing approval/restart boundaries and retain unresolved archive evidence.

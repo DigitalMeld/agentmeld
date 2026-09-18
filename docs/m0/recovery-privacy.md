@@ -4,7 +4,7 @@ Date: 2026-09-17. This batch extends local qualification without model credentia
 
 ## Durable request identity
 
-Journal format 5 retains a bounded ledger of accepted proposal identities. Rust hashes the workspace, worker, thread, turn and logical tool-call ID, then records that key in the same synced snapshot as the proposal. The Codex adapter no longer includes the transport envelope ID in this identity. Reconnecting a broker or restarting the supervisor cannot obtain another approval for the same logical request by changing its transport ID or arguments.
+Journal format 6 retains a bounded ledger of accepted proposal identities. Rust hashes the workspace, worker, thread, turn and logical tool-call ID, then records that key in the same synced snapshot as the proposal. The Codex adapter no longer includes the transport envelope ID in this identity. Reconnecting a broker or restarting the supervisor cannot obtain another approval for the same logical request by changing its transport ID or arguments.
 
 The ledger retains proposals regardless of whether they were allowed, denied, expired, revoked or abandoned. It never evicts old keys: after 256 accepted proposals, new proposals fail closed. The existing 16 MiB journal cap can also stop writes. This small qualification journal has no compaction or reset API. Earlier formats are preserved and rejected, with no implicit migration.
 

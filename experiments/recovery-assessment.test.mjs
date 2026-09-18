@@ -142,7 +142,7 @@ test('fresh worker evidence refines recovery needs without resolving the action'
   for (const state of ['present', 'absent', 'unavailable']) {
     const worker = { observeTermination: async expected => { assert.deepEqual(expected, scope); return { worker: scope.worker, state }; } };
     const report = await assessRecovery(owner, archive, { scope, ticket, receipt }, worker);
-    assert.equal(report.version, 2); assert.equal(report.workerState, state);
+    assert.equal(report.version, 3); assert.equal(report.workerState, state);
     assert.equal(report.requiresWorkerReconciliation, state !== 'absent');
     assert.equal(report.requiresOutcomeReview, true); assert.equal(report.settlementRecorded, false);
     assert.equal(report.retryAuthorized, false); assert.equal(report.resumeAuthorized, false);

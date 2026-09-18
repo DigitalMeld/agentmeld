@@ -1,6 +1,6 @@
 # M0 recovery evidence assessment
 
-Date: 2026-09-17. Scope: trusted host assessment of one scoped native-tool action. This is the evidence-gathering step before explicit reconciliation, not permission to retry, resume or mark an uncertain action complete.
+Date: 2026-09-18. Scope: trusted host assessment of one scoped native-tool action. This is the evidence-gathering step before explicit reconciliation, not permission to retry, resume or mark an uncertain action complete.
 
 ## What the report establishes
 
@@ -15,9 +15,11 @@ Date: 2026-09-17. Scope: trusted host assessment of one scoped native-tool actio
 | `pending_outcome_unknown` | Dispatch exists without a supplied result receipt | No conclusion about returned output or external effects |
 | `pending_not_dispatched` | Pending action has no recorded dispatch | Report the journal fact; do not grant retry or resume |
 
-Settled actions use their journal receipt, ignoring a supplied replacement. Pending evidence must pass the archive's byte/hash/schema/tool-result checks and match the exact persisted action, scope and ticket. Reports contain status, sequence/generation, controller mode, ticket and verified receipt, but no tool arguments, output contents, archive paths or subprocess errors. All reports explicitly leave retry and resume unauthorized. Report version 2 adds `workerState` and `requiresOutcomeReview`. A dispatched pending action requires worker reconciliation unless a fresh observation confirms absence; that flag is not proof that a settled action's worker has stopped. Every unsettled action still requires outcome review, including when its worker is absent.
+Settled actions use their journal receipt, ignoring a supplied replacement. Pending evidence must pass the archive's byte/hash/schema/tool-result checks and match the exact persisted action, scope and ticket. Reports contain status, sequence/generation, controller mode, ticket and verified receipt, but no tool arguments, output contents, archive paths or subprocess errors. All reports explicitly leave retry and resume unauthorized. Report version 3 includes `workerState`, `requiresOutcomeReview`, `actionDigest` and `reviewRecorded`. A dispatched pending action requires worker reconciliation unless a fresh observation confirms absence; that flag is not proof that a settled action's worker has stopped. An action without settlement or a recorded review still requires outcome review, including when its worker is absent.
 
 The assessor checks journal sequence and generation again after reading storage and rejects a changed state. Reports are point-in-time evidence, not reusable authorization. Scope and request inputs are copied before asynchronous operations. An unavailable archive does not imply the original action failed or never ran.
+
+Reports also distinguish `reviewed_output_verified`, `reviewed_output_unavailable` and `closed_unknown` after an explicit disposition. They retain review provenance and keep `settlementRecorded` false. The review history, rather than worker absence alone, removes the outcome-review requirement.
 
 ## Worker observations
 
@@ -58,8 +60,8 @@ A successful command exits zero with a JSON report, including unresolved/unavail
 
 ## Verification and remaining work
 
-The local suite passes 132 tests (18 Rust, 112 Node, two Python), formatting, Clippy, build and documentation checks. Thirteen recovery tests cover actual Rust subprocesses, SIGKILL, settled/uncertain/missing/corrupt output, action/ticket/all-scope mismatches, cancelled and active controllers, concurrent state changes, CLI ownership and recovery writes, input bounds and FIFO/symlink rejection, worker evidence binding and journal changes during inventory. A separate archive regression test verifies scope preservation across an asynchronous journal lookup.
+The local suite passes 147 tests (18 Rust, 127 Node, two Python), formatting, Clippy, build and documentation checks. Thirteen recovery tests cover actual Rust subprocesses, SIGKILL, settled/uncertain/missing/corrupt output, action/ticket/all-scope mismatches, cancelled and active controllers, concurrent state changes, CLI ownership and recovery writes, input bounds and FIFO/symlink rejection, worker evidence binding and journal changes during inventory. A separate archive regression test verifies scope preservation across an asynchronous journal lookup.
 
-The Rust implementation, journal format 5 and archive envelope version 1 are unchanged. The cancellation probe was rerun on the existing qualified image for the worker-evidence increment; other container probes were not rerun. Earlier Linux/native evidence remains in the linked [archive](result-archive.md) and [result access](result-access.md) reports. No live inference, personal data or iMessage access was used.
+Journal format 6 now adds [durable reviewed dispositions](reviewed-recovery.md); archive envelopes remain version 1. The current rebuilt image and seven passing runtime probes are recorded there. No live inference, personal data or iMessage access was used.
 
-Next: design a durable reviewed disposition for uncertain actions, qualify reconstruction of worker ownership after host process loss, then connect recovery to owner/task state. This batch deliberately leaves pending tickets and uncertainty intact. No reconciliation commit, task/event service, account authentication or production recovery workflow is implemented.
+Assessment itself still leaves pending tickets and uncertainty intact. A separate [explicit review commit](reviewed-recovery.md) can record a disposition. Next: qualify reconstruction of worker ownership after host process loss and connect recovery to authenticated owner/task state. No task/event service, account authentication or production recovery workflow is implemented.

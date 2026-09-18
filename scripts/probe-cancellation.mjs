@@ -11,6 +11,7 @@ import { OwnedWorker, dockerRuntime } from '../experiments/owned-worker.mjs';
 import { startViewer } from '../experiments/viewer-server.mjs';
 import { ResultArchive } from '../experiments/result-archive.mjs';
 import { assessRecovery } from '../experiments/recovery-assessment.mjs';
+import { prepareRecoveryReview, commitRecoveryReview } from '../experiments/reviewed-recovery.mjs';
 import { setTimeout as delay } from 'node:timers/promises';
 
 const args = process.argv.slice(2);
@@ -83,6 +84,21 @@ try {
   assert.equal(authority.current.uncertain, true);
   await assert.rejects(archive.readSettled(authority, scope), /no settled/);
   report.recoveryAssessment = assessment;
+  const reviewPlan = await prepareRecoveryReview(authority, archive, worker, {
+    request: { scope, ticket: allowed.pending, receipt }, action,
+    outcome: 'accept_output', reviewer: 'fixture-reviewer',
+  });
+  await commitRecoveryReview(authority, archive, worker, reviewPlan);
+  assert.equal(authority.current.mode, 'cancelled');
+  assert.equal(authority.current.pending, null);
+  await authority.close();
+  authority = await RustAuthority.open(binary, join(controlDirectory, 'cancel.jsonl'));
+  const reviewed = await archive.readReviewed(authority, scope);
+  assert.deepEqual(reviewed.record.value, { sum: 5 });
+  assert.equal(reviewed.review.id, reviewPlan.review_id);
+  await assert.rejects(archive.readSettled(authority, scope), /no settled/);
+  assert.equal(authority.current.mode, 'cancelled');
+  report.reviewedRecovery = { reviewRecorded: true, readAfterRestart: true, normalSettlementUnchanged: true, cancelledPreserved: true };
   report.checks = { descendantsStarted: [...roles].sort(), httpCancellationConfirmed: true, runtimeIdentityVerified: true, heartbeatActiveBeforeCancel: true, containerAbsent: true, heartbeatStopped: true, restartCancelled: true, elapsedMs: Math.round(performance.now() - before) };
 } catch (error) { report.failure = error.message; process.exitCode = 1; }
 finally {

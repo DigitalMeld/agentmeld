@@ -30,8 +30,9 @@ export function scopeDigest(scope) {
 }
 export function resultBinding(record) {
   validate(record);
-  return { ticket: record.ticket, action_digest: digest(canonical(record.action)), scope_digest: scopeDigest(record.scope) };
+  return { ticket: record.ticket, action_digest: actionDigest(record.action), scope_digest: scopeDigest(record.scope) };
 }
+export const actionDigest = action => digest(canonical(action));
 export class ResultArchive {
   constructor(binary, directory) { this.binary = binary; this.directory = directory; }
   async put({ scope, action, ticket, value }) {
@@ -58,5 +59,14 @@ export class ResultArchive {
     const record = validate(JSON.parse(bytes));
     if (!expected || Object.keys(record.scope).some(key => record.scope[key] !== expected[key])) throw new Error('archive scope mismatch');
     return record;
+  }
+  async readReviewed(authority, expected) {
+    const scope = structuredClone(expected); const key = scopeDigest(scope);
+    const state = await authority.request({ op: 'state' });
+    const entry = state.resolutions.find(item => item.scope_digest === key);
+    if (!entry || entry.outcome !== 'accept_output') throw new Error('no reviewed output for scope');
+    const record = await this.read(entry.result, scope);
+    if (record.ticket !== entry.ticket || resultBinding(record).action_digest !== entry.action_digest) throw new Error('reviewed result binding mismatch');
+    return { record, review: { id: entry.review_id, reviewer: entry.reviewer, outcome: entry.outcome } };
   }
 }
