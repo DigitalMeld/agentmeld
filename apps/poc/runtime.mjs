@@ -121,7 +121,7 @@ print(json.dumps([str(p) for p in module.verify_prepared(root)]))`]);
       outputBytes+=Buffer.from(f.data,'base64').length;
       if(outputBytes>8*1024*1024)throw Error('Output limit exceeded');return true;
     });
-    conversation.workspace=listing;
+    conversation.workspace=listing;conversation.workspaceCapturedAt=new Date().toISOString();
     await changed();
     task.status = 'completed'; task.activity = 'Finished'; notify();
   } catch (error) {

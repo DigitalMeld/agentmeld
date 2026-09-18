@@ -40,3 +40,5 @@ Alpha is **Codex-only using ChatGPT subscription authentication**, with macOS, l
 Use `design/` for observed interaction patterns and visual acceptance, `specs/` for current intended behavior, `research/` for dated source-backed findings, `decisions/` for consequential choices and alternatives, and `m0/` for reproducible qualification evidence. Add an implementation/operations document only when there is a concrete feature or procedure to explain. Avoid duplicating task logs in every document.
 
 For a meaningful change, record the reason, affected behavior, evidence/checks, limitations and next action. Update current specs when a decision changes; preserve older research with a clear supersession note. Documentation is part of completion, not a later cleanup task. Run `python3 scripts/check-docs.py` for documentation changes. Never describe planned functionality as shipped.
+
+- [Complete saved workspace browser and universal file layouts](design/workspace-browser.md)

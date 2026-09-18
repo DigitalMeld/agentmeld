@@ -60,3 +60,5 @@ Verification: disposable browser checks cover category switching, sidebar separa
 The display menu closes on selection, outside click or Escape, and restores keyboard focus after selection or Escape.
 
 Empty artifact and media categories use text-only empty states; decorative icons were removed following visual feedback. Sidebar navigation icons remain.
+
+The artifact-only System Files limitation above is superseded by the [complete saved workspace browser](workspace-browser.md). Category Grid/List choices now persist independently and List is a full-width row view.
