@@ -4,6 +4,8 @@ This milestone has begun. The Rust crate contains experimental contracts and tes
 
 ## What exists
 
+- [Runtime distribution inventory](distribution-inventory.md), installed package versions and notice-file evidence with explicit release gaps.
+
 - [Offline resource baseline](resource-baseline.md), 150-second native/browser workload with verified command writes and cgroup measurements.
 
 - [Workspace disk limit](workspace-disk-limit.md), fixed-size persistent filesystem, disk-full recovery and container-replacement evidence.

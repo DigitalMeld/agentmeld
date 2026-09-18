@@ -17,7 +17,7 @@ Codex-only alpha using supported ChatGPT subscription login. Claude Code, Ollama
 | Recovery | Durable journals, unsettled output review, worker termination and fresh-process engine-bound assessment pass | Live transport reattachment, whole-machine restart and production recovery remain unqualified |
 | Storage and resources | Bounded temporary filesystem/archive; fixed-size persistent workspace passes disk-full/replacement tests; 150-second offline resource baseline passes | Integrate bounded storage with authenticated workers; qualify live workloads and longer soaks |
 | Browser workflow | Fixture viewer, takeover, resume and cancellation pass | Recheck in the authenticated harness workflow; protected credential-entry behavior remains unqualified |
-| Versions and licenses | Pinned runtime/image and component notes exist | Finish distribution inventory and resolve AgentMeld source license before release |
+| Versions and licenses | [Installed runtime inventory](distribution-inventory.md) verified: 107 npm / 197 Debian packages and local Rust resolution | Exclude historical Claude from alpha packaging; finish embedded notices and resolve source license before release |
 
 ## Working checkpoint
 
@@ -27,6 +27,6 @@ The current [dedicated-store qualification](codex-auth-store.md) passes using sy
 
 Native file-tool probes select pinned GPT-5.5 configuration with synthetic responses. Newer code-mode configurations remain unqualified; no product default has changed. The egress probe qualifies TLS to an enrolled provider and standalone sandbox network denial, not native app-server authentication. Its corrected host-bridge result supersedes the initial invalid input.
 
-Next: authorize/create the dedicated store, qualify native subscription login through the gateway, then live streaming/tool/error/approval/cancellation/continuation. Independently finish workspace integration, distribution inventory and the recovery/browser gates above. Preserve the full checklist; fixture success does not close authenticated gates.
+Next: authorize/create the dedicated store, qualify native subscription login through the gateway, then live streaming/tool/error/approval/cancellation/continuation. Independently finish workspace integration, alpha packaging and the recovery/browser gates above. Preserve the full checklist; fixture success does not close authenticated gates.
 
 The [workspace disk-limit experiment](workspace-disk-limit.md) passes with a fixed-size 64 MiB ext4 fixture, preserved files after disk-full, recovered writes and replacement-container readback. The normal bind launcher remains unbounded; production quota integration is not claimed. The [offline resource baseline](resource-baseline.md) passed 51 verified native/browser cycles with zero OOM kills and 212.04 MiB peak charged memory; authenticated workload sizing remains open.

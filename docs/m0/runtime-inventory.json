@@ -1,0 +1,4129 @@
+{
+  "schema": 1,
+  "platform": "linux",
+  "architecture": "arm64",
+  "node": "v24.21.0",
+  "packageLock": {
+    "path": "/opt/agentmeld/package-lock.json",
+    "bytes": 57453,
+    "sha256": "c48392babd4b9a412dffbe998c6a31be70382c51cc7405e01cfc26388bd68835"
+  },
+  "nodeLicense": {
+    "path": "/usr/local/LICENSE",
+    "bytes": 157609,
+    "sha256": "5888dbb9a1d2b18f2c3e6c5f6af1b39de658372b402a0577b002777f14c62ace"
+  },
+  "npm": [
+    {
+      "name": "@anthropic-ai/claude-agent-sdk",
+      "version": "0.3.274",
+      "declaredLicense": "SEE LICENSE IN README.md",
+      "directory": "/opt/agentmeld/node_modules/@anthropic-ai/claude-agent-sdk",
+      "manifest": {
+        "path": "/opt/agentmeld/node_modules/@anthropic-ai/claude-agent-sdk/package.json",
+        "bytes": 2380,
+        "sha256": "93070f663fa27fb2e4be37db463b9e410c3fcc02fea85ec2d2ed13e5cfd3f56b"
+      },
+      "notices": [
+        {
+          "path": "/opt/agentmeld/node_modules/@anthropic-ai/claude-agent-sdk/LICENSE.md",
+          "bytes": 147,
+          "sha256": "8ce94b9478bb9868f9641f818e06cd722fbe55d4c22e2d2ed11971b20146173a"
+        }
+      ]
+    },
+    {
+      "name": "@anthropic-ai/claude-agent-sdk-linux-arm64",
+      "version": "0.3.274",
+      "declaredLicense": "SEE LICENSE IN LICENSE.md",
+      "directory": "/opt/agentmeld/node_modules/@anthropic-ai/claude-agent-sdk-linux-arm64",
+      "manifest": {
+        "path": "/opt/agentmeld/node_modules/@anthropic-ai/claude-agent-sdk-linux-arm64/package.json",
+        "bytes": 288,
+        "sha256": "745eeb6f340a3abe74f65f91b60736d970cd629805094c0d9579a00766670253"
+      },
+      "notices": [
+        {
+          "path": "/opt/agentmeld/node_modules/@anthropic-ai/claude-agent-sdk-linux-arm64/LICENSE.md",
+          "bytes": 147,
+          "sha256": "8ce94b9478bb9868f9641f818e06cd722fbe55d4c22e2d2ed11971b20146173a"
+        }
+      ]
+    },
+    {
+      "name": "@anthropic-ai/sdk",
+      "version": "0.126.0",
+      "declaredLicense": "MIT",
+      "directory": "/opt/agentmeld/node_modules/@anthropic-ai/sdk",
+      "manifest": {
+        "path": "/opt/agentmeld/node_modules/@anthropic-ai/sdk/package.json",
+        "bytes": 5748,
+        "sha256": "024a305f34a510b6b2e41051c68ed113d4bc50b8c20c6ae6cbf0583b6c45ab20"
+      },
+      "notices": [
+        {
+          "path": "/opt/agentmeld/node_modules/@anthropic-ai/sdk/LICENSE",
+          "bytes": 1056,
+          "sha256": "8bf96984ff8bcfae7e48cae76a529e8a25317ba9e02abf7fd3cc64fdf95657a6"
+        }
+      ]
+    },
+    {
+      "name": "@babel/runtime",
+      "version": "7.29.7",
+      "declaredLicense": "MIT",
+      "directory": "/opt/agentmeld/node_modules/@babel/runtime",
+      "manifest": {
+        "path": "/opt/agentmeld/node_modules/@babel/runtime/package.json",
+        "bytes": 41106,
+        "sha256": "8c4bf20c55e3f3a93df034b12746bf72185cf2acb0ef52847a3465d6e67c61e7"
+      },
+      "notices": [
+        {
+          "path": "/opt/agentmeld/node_modules/@babel/runtime/LICENSE",
+          "bytes": 1106,
+          "sha256": "117da2af0d4ce0fe1c8e19b5cff9dcd806adf973d328d27b11d4448c4ff24f76"
+        }
+      ]
+    },
+    {
+      "name": "@hono/node-server",
+      "version": "2.1.1",
+      "declaredLicense": "MIT",
+      "directory": "/opt/agentmeld/node_modules/@hono/node-server",
+      "manifest": {
+        "path": "/opt/agentmeld/node_modules/@hono/node-server/package.json",
+        "bytes": 3121,
+        "sha256": "66f3aa3ddef3a6b54c5b99ec22e76cc85b1f5bcabe9bb7849675edd0f7221553"
+      },
+      "notices": [
+        {
+          "path": "/opt/agentmeld/node_modules/@hono/node-server/LICENSE",
+          "bytes": 1101,
+          "sha256": "6895190430d809c4c57a7582ecc2f99acbc2ea39a5dfad20262a41d5b3e91733"
+        }
+      ]
+    },
+    {
+      "name": "@modelcontextprotocol/sdk",
+      "version": "1.30.0",
+      "declaredLicense": "MIT",
+      "directory": "/opt/agentmeld/node_modules/@modelcontextprotocol/sdk",
+      "manifest": {
+        "path": "/opt/agentmeld/node_modules/@modelcontextprotocol/sdk/package.json",
+        "bytes": 6511,
+        "sha256": "0690cbe02511a95d1ff199acf20b5a12ac4dfde1bbe30c82a0de73afa92dffc9"
+      },
+      "notices": [
+        {
+          "path": "/opt/agentmeld/node_modules/@modelcontextprotocol/sdk/LICENSE",
+          "bytes": 1071,
+          "sha256": "5e13dbbc1d120fc2a03cecde7c91424ae2d7de11b63d58ded2f4431e261ee50d"
+        }
+      ]
+    },
+    {
+      "name": "@openai/codex",
+      "version": "0.154.0",
+      "declaredLicense": "Apache-2.0",
+      "directory": "/opt/agentmeld/node_modules/@openai/codex",
+      "manifest": {
+        "path": "/opt/agentmeld/node_modules/@openai/codex/package.json",
+        "bytes": 1082,
+        "sha256": "18c49eba7183828e84f3f9f387a915da8c918be452f9746b0a6685c82486cd97"
+      },
+      "notices": []
+    },
+    {
+      "name": "@openai/codex",
+      "version": "0.154.0-linux-arm64",
+      "declaredLicense": "Apache-2.0",
+      "directory": "/opt/agentmeld/node_modules/@openai/codex-linux-arm64",
+      "manifest": {
+        "path": "/opt/agentmeld/node_modules/@openai/codex-linux-arm64/package.json",
+        "bytes": 515,
+        "sha256": "509c7d8b7d89ab62a0de06083a4b98dde8a14b511c7e113313c2dc1cb6978597"
+      },
+      "notices": []
+    },
+    {
+      "name": "@stablelib/base64",
+      "version": "1.0.1",
+      "declaredLicense": "MIT",
+      "directory": "/opt/agentmeld/node_modules/@stablelib/base64",
+      "manifest": {
+        "path": "/opt/agentmeld/node_modules/@stablelib/base64/package.json",
+        "bytes": 702,
+        "sha256": "7821116cc9ab0fb2542c1407ac5e34ff78bcc70b2d1295b753a9ea16134b3df7"
+      },
+      "notices": [
+        {
+          "path": "/opt/agentmeld/node_modules/@stablelib/base64/LICENSE",
+          "bytes": 1110,
+          "sha256": "1605b77bebe018db1fc27bd22fbcdeed1335c617937a124299a8b042b42b0fb6"
+        }
+      ]
+    },
+    {
+      "name": "accepts",
+      "version": "2.0.0",
+      "declaredLicense": "MIT",
+      "directory": "/opt/agentmeld/node_modules/accepts",
+      "manifest": {
+        "path": "/opt/agentmeld/node_modules/accepts/package.json",
+        "bytes": 1157,
+        "sha256": "c579f3f992d488ac2f4ae751df8fd4169f034f4b6f6716f9a3ddfaf130993d63"
+      },
+      "notices": [
+        {
+          "path": "/opt/agentmeld/node_modules/accepts/LICENSE",
+          "bytes": 1167,
+          "sha256": "71f83c4c0621102a56d9853812777b85751bce7e9726f686f5b056c1f8a4b0e6"
+        }
+      ]
+    },
+    {
+      "name": "ajv",
+      "version": "8.20.0",
+      "declaredLicense": "MIT",
+      "directory": "/opt/agentmeld/node_modules/ajv",
+      "manifest": {
+        "path": "/opt/agentmeld/node_modules/ajv/package.json",
+        "bytes": 4405,
+        "sha256": "1f9033ee5a6515e7d76938b7072941862d1ed228a6879cc7fe10cdeb75107989"
+      },
+      "notices": [
+        {
+          "path": "/opt/agentmeld/node_modules/ajv/LICENSE",
+          "bytes": 1090,
+          "sha256": "a05350a88e318e4f5f2c2a1ff1e2e88daa4dd38e6e78b71cccae422bdc762cc3"
+        }
+      ]
+    },
+    {
+      "name": "ajv-formats",
+      "version": "3.0.1",
+      "declaredLicense": "MIT",
+      "directory": "/opt/agentmeld/node_modules/ajv-formats",
+      "manifest": {
+        "path": "/opt/agentmeld/node_modules/ajv-formats/package.json",
+        "bytes": 1897,
+        "sha256": "402fb4bcfa457f0226813f3976ac42839dd619907c075c108efba8600d7edb69"
+      },
+      "notices": [
+        {
+          "path": "/opt/agentmeld/node_modules/ajv-formats/LICENSE",
+          "bytes": 1074,
+          "sha256": "9df3bb69929a3b650ed73b3bfa1756725aaff0ac296461605753547004eafeaf"
+        }
+      ]
+    },
+    {
+      "name": "body-parser",
+      "version": "2.3.0",
+      "declaredLicense": "MIT",
+      "directory": "/opt/agentmeld/node_modules/body-parser",
+      "manifest": {
+        "path": "/opt/agentmeld/node_modules/body-parser/package.json",
+        "bytes": 1767,
+        "sha256": "ae841913f51a2b463ba86e011564784654dad953352dc972baf59f87da4b2d36"
+      },
+      "notices": [
+        {
+          "path": "/opt/agentmeld/node_modules/body-parser/LICENSE",
+          "bytes": 1172,
+          "sha256": "23d466b1b134b415b66fa50c6526b4cf3e7b9258554da88d3abb371721e7ce68"
+        }
+      ]
+    },
+    {
+      "name": "content-type",
+      "version": "2.1.0",
+      "declaredLicense": "MIT",
+      "directory": "/opt/agentmeld/node_modules/body-parser/node_modules/content-type",
+      "manifest": {
+        "path": "/opt/agentmeld/node_modules/body-parser/node_modules/content-type/package.json",
+        "bytes": 1126,
+        "sha256": "33102772db7c8375395bdcc11e7004c597b4cdbe457d8dd0ae2e56f5a2d28637"
+      },
+      "notices": [
+        {
+          "path": "/opt/agentmeld/node_modules/body-parser/node_modules/content-type/LICENSE",
+          "bytes": 1089,
+          "sha256": "257aed98914108e91a337912727b6a802eef218248507f74b76faffaff517a38"
+        }
+      ]
+    },
+    {
+      "name": "bytes",
+      "version": "3.1.2",
+      "declaredLicense": "MIT",
+      "directory": "/opt/agentmeld/node_modules/bytes",
+      "manifest": {
+        "path": "/opt/agentmeld/node_modules/bytes/package.json",
+        "bytes": 959,
+        "sha256": "99b21c09ce812dc76a06cd87c4753247cb9615c6a8501c5a5a9d9caa22ea2d12"
+      },
+      "notices": [
+        {
+          "path": "/opt/agentmeld/node_modules/bytes/LICENSE",
+          "bytes": 1153,
+          "sha256": "e3b44af066615de2ea48d18d852d0762f18c0b2efcea714fa48a6f729d405b85"
+        }
+      ]
+    },
+    {
+      "name": "call-bind-apply-helpers",
+      "version": "1.0.2",
+      "declaredLicense": "MIT",
+      "directory": "/opt/agentmeld/node_modules/call-bind-apply-helpers",
+      "manifest": {
+        "path": "/opt/agentmeld/node_modules/call-bind-apply-helpers/package.json",
+        "bytes": 2480,
+        "sha256": "59639b628c6846f674857c6a613fd47e2e4d2a24036cdf0f7a62ac634f4c8a5f"
+      },
+      "notices": [
+        {
+          "path": "/opt/agentmeld/node_modules/call-bind-apply-helpers/LICENSE",
+          "bytes": 1071,
+          "sha256": "5e325595b4ea8cfec3802f545b1def5d7b73e4a5b8e9ba63e32a320f67732292"
+        }
+      ]
+    },
+    {
+      "name": "call-bound",
+      "version": "1.0.4",
+      "declaredLicense": "MIT",
+      "directory": "/opt/agentmeld/node_modules/call-bound",
+      "manifest": {
+        "path": "/opt/agentmeld/node_modules/call-bound/package.json",
+        "bytes": 2507,
+        "sha256": "dcc8abb3c4ad3774234272149020cb36d7b1a3d377a419454d1e7adb368dd9c3"
+      },
+      "notices": [
+        {
+          "path": "/opt/agentmeld/node_modules/call-bound/LICENSE",
+          "bytes": 1071,
+          "sha256": "5e325595b4ea8cfec3802f545b1def5d7b73e4a5b8e9ba63e32a320f67732292"
+        }
+      ]
+    },
+    {
+      "name": "content-disposition",
+      "version": "1.1.0",
+      "declaredLicense": "MIT",
+      "directory": "/opt/agentmeld/node_modules/content-disposition",
+      "manifest": {
+        "path": "/opt/agentmeld/node_modules/content-disposition/package.json",
+        "bytes": 1039,
+        "sha256": "20ca1508f7b48509f2e5079ef94a84d56bc5d147d31f0310bf515a8c52ecf5f7"
+      },
+      "notices": [
+        {
+          "path": "/opt/agentmeld/node_modules/content-disposition/LICENSE",
+          "bytes": 1094,
+          "sha256": "bd47ce7b88c7759630d1e2b9fcfa170a0f1fde522be09e13fb1581a79d090400"
+        }
+      ]
+    },
+    {
+      "name": "content-type",
+      "version": "1.0.5",
+      "declaredLicense": "MIT",
+      "directory": "/opt/agentmeld/node_modules/content-type",
+      "manifest": {
+        "path": "/opt/agentmeld/node_modules/content-type/package.json",
+        "bytes": 1075,
+        "sha256": "bd78a5427ffca1966621301edc6cac2146c8c1e137f122161ba90dca7ec89f77"
+      },
+      "notices": [
+        {
+          "path": "/opt/agentmeld/node_modules/content-type/LICENSE",
+          "bytes": 1089,
+          "sha256": "257aed98914108e91a337912727b6a802eef218248507f74b76faffaff517a38"
+        }
+      ]
+    },
+    {
+      "name": "cookie",
+      "version": "0.7.2",
+      "declaredLicense": "MIT",
+      "directory": "/opt/agentmeld/node_modules/cookie",
+      "manifest": {
+        "path": "/opt/agentmeld/node_modules/cookie/package.json",
+        "bytes": 1092,
+        "sha256": "7fa781bd142e7f38b66bff64b4e3a8be9e53e340e7ddaf27caebd00322602208"
+      },
+      "notices": [
+        {
+          "path": "/opt/agentmeld/node_modules/cookie/LICENSE",
+          "bytes": 1175,
+          "sha256": "c02110eedc16c7114f1a9bdc026c65626ce1d9c7e27fd51a8e0feee8a48a6858"
+        }
+      ]
+    },
+    {
+      "name": "cookie-signature",
+      "version": "1.2.2",
+      "declaredLicense": "MIT",
+      "directory": "/opt/agentmeld/node_modules/cookie-signature",
+      "manifest": {
+        "path": "/opt/agentmeld/node_modules/cookie-signature/package.json",
+        "bytes": 548,
+        "sha256": "c07dac3271d2ab772ac105f714c3f44bea5180a9a40bf95c2db8d6cb29bb28be"
+      },
+      "notices": [
+        {
+          "path": "/opt/agentmeld/node_modules/cookie-signature/LICENSE",
+          "bytes": 1124,
+          "sha256": "0dd4e47333485760cf8c265db5a5e24ae8d7401064c6f2e19793ee81a5bef42f"
+        }
+      ]
+    },
+    {
+      "name": "cors",
+      "version": "2.8.6",
+      "declaredLicense": "MIT",
+      "directory": "/opt/agentmeld/node_modules/cors",
+      "manifest": {
+        "path": "/opt/agentmeld/node_modules/cors/package.json",
+        "bytes": 926,
+        "sha256": "b314218cdfc9e9442efd35c74c4176902c0bbd74700ba30d6055e70a76455174"
+      },
+      "notices": [
+        {
+          "path": "/opt/agentmeld/node_modules/cors/LICENSE",
+          "bytes": 1095,
+          "sha256": "1aa9a12863eefb583779b2ca0e5d73c610b6e6d07529ae0472721769a6ea0a32"
+        }
+      ]
+    },
+    {
+      "name": "cross-spawn",
+      "version": "7.0.6",
+      "declaredLicense": "MIT",
+      "directory": "/opt/agentmeld/node_modules/cross-spawn",
+      "manifest": {
+        "path": "/opt/agentmeld/node_modules/cross-spawn/package.json",
+        "bytes": 1655,
+        "sha256": "2e106cd9b4ae4e34ead35218371a0d4e172da72515a4f8f97d69a2e1fe3dee82"
+      },
+      "notices": [
+        {
+          "path": "/opt/agentmeld/node_modules/cross-spawn/LICENSE",
+          "bytes": 1105,
+          "sha256": "aaa78451b6fecd1b9c4594c796c133c0e90cad100372ff8bc6de615e9ef9adf1"
+        }
+      ]
+    },
+    {
+      "name": "debug",
+      "version": "4.4.3",
+      "declaredLicense": "MIT",
+      "directory": "/opt/agentmeld/node_modules/debug",
+      "manifest": {
+        "path": "/opt/agentmeld/node_modules/debug/package.json",
+        "bytes": 1479,
+        "sha256": "ea8e33d63fe5f3a4c36609b6c3df8e2ef1f8b8ba2fc3a2e1e53cb27291f384af"
+      },
+      "notices": [
+        {
+          "path": "/opt/agentmeld/node_modules/debug/LICENSE",
+          "bytes": 1139,
+          "sha256": "3a61c6c96caf5c1d9b623fb9b04c822b783dfcb78aa7e49c76a3f643e6ed7f95"
+        }
+      ]
+    },
+    {
+      "name": "depd",
+      "version": "2.0.0",
+      "declaredLicense": "MIT",
+      "directory": "/opt/agentmeld/node_modules/depd",
+      "manifest": {
+        "path": "/opt/agentmeld/node_modules/depd/package.json",
+        "bytes": 1335,
+        "sha256": "5a3659bcc2e47b25ebf9f23f38eb9452a58920bfe4b59410bfa6fe84639a3b99"
+      },
+      "notices": [
+        {
+          "path": "/opt/agentmeld/node_modules/depd/LICENSE",
+          "bytes": 1094,
+          "sha256": "bd134b41da59e452fb5a1d366b660886f741c87c2bf9428e93764c419fbc40f5"
+        }
+      ]
+    },
+    {
+      "name": "dunder-proto",
+      "version": "1.0.1",
+      "declaredLicense": "MIT",
+      "directory": "/opt/agentmeld/node_modules/dunder-proto",
+      "manifest": {
+        "path": "/opt/agentmeld/node_modules/dunder-proto/package.json",
+        "bytes": 2108,
+        "sha256": "24df71008e4225c858f389dd2728b76cf66b752256d42a38ed7930aacae7fe2b"
+      },
+      "notices": [
+        {
+          "path": "/opt/agentmeld/node_modules/dunder-proto/LICENSE",
+          "bytes": 1073,
+          "sha256": "2b770a704c15de238c3f622b01b0044ddd60b49ee30608ea6991ebf19db7a7a1"
+        }
+      ]
+    },
+    {
+      "name": "ee-first",
+      "version": "1.1.1",
+      "declaredLicense": "MIT",
+      "directory": "/opt/agentmeld/node_modules/ee-first",
+      "manifest": {
+        "path": "/opt/agentmeld/node_modules/ee-first/package.json",
+        "bytes": 859,
+        "sha256": "a4eece6ff6b38bf7ac107323f381cc60500097a9cbdd473f5d5b45e68822cb89"
+      },
+      "notices": [
+        {
+          "path": "/opt/agentmeld/node_modules/ee-first/LICENSE",
+          "bytes": 1099,
+          "sha256": "965ef284f7f4c176842ec2e87fa13e79feed777d56d7a21a5a3b38f1bb6dc288"
+        }
+      ]
+    },
+    {
+      "name": "encodeurl",
+      "version": "2.0.0",
+      "declaredLicense": "MIT",
+      "directory": "/opt/agentmeld/node_modules/encodeurl",
+      "manifest": {
+        "path": "/opt/agentmeld/node_modules/encodeurl/package.json",
+        "bytes": 1092,
+        "sha256": "5df10798f4b086da95c24180d7519fa4f68e2057a48e2ff6b76b91d6ffed1e9b"
+      },
+      "notices": [
+        {
+          "path": "/opt/agentmeld/node_modules/encodeurl/LICENSE",
+          "bytes": 1089,
+          "sha256": "7585ea7bba616ccbbe43cb54ecb67956688c3c5641bb84f3099a652a73193afe"
+        }
+      ]
+    },
+    {
+      "name": "es-define-property",
+      "version": "1.0.1",
+      "declaredLicense": "MIT",
+      "directory": "/opt/agentmeld/node_modules/es-define-property",
+      "manifest": {
+        "path": "/opt/agentmeld/node_modules/es-define-property/package.json",
+        "bytes": 2129,
+        "sha256": "3a2cb30dae30a96705dcd9aa2d5fb190cf8200f27badccfa5a81a4374e5708b4"
+      },
+      "notices": [
+        {
+          "path": "/opt/agentmeld/node_modules/es-define-property/LICENSE",
+          "bytes": 1071,
+          "sha256": "5e325595b4ea8cfec3802f545b1def5d7b73e4a5b8e9ba63e32a320f67732292"
+        }
+      ]
+    },
+    {
+      "name": "es-errors",
+      "version": "1.3.0",
+      "declaredLicense": "MIT",
+      "directory": "/opt/agentmeld/node_modules/es-errors",
+      "manifest": {
+        "path": "/opt/agentmeld/node_modules/es-errors/package.json",
+        "bytes": 2174,
+        "sha256": "1a0a0bcccc76b915cb64073317312840cf6363e9144b96f406d0059774dd5278"
+      },
+      "notices": [
+        {
+          "path": "/opt/agentmeld/node_modules/es-errors/LICENSE",
+          "bytes": 1071,
+          "sha256": "5e325595b4ea8cfec3802f545b1def5d7b73e4a5b8e9ba63e32a320f67732292"
+        }
+      ]
+    },
+    {
+      "name": "es-object-atoms",
+      "version": "1.1.2",
+      "declaredLicense": "MIT",
+      "directory": "/opt/agentmeld/node_modules/es-object-atoms",
+      "manifest": {
+        "path": "/opt/agentmeld/node_modules/es-object-atoms/package.json",
+        "bytes": 2249,
+        "sha256": "e4b7882975d10c68457945c883e1060d0b058af5b1216215c872263f42e12fc9"
+      },
+      "notices": [
+        {
+          "path": "/opt/agentmeld/node_modules/es-object-atoms/LICENSE",
+          "bytes": 1071,
+          "sha256": "5e325595b4ea8cfec3802f545b1def5d7b73e4a5b8e9ba63e32a320f67732292"
+        }
+      ]
+    },
+    {
+      "name": "escape-html",
+      "version": "1.0.3",
+      "declaredLicense": "MIT",
+      "directory": "/opt/agentmeld/node_modules/escape-html",
+      "manifest": {
+        "path": "/opt/agentmeld/node_modules/escape-html/package.json",
+        "bytes": 434,
+        "sha256": "bd320a3e9d23249f5f7d3ce72f2fa426e28a6b2704bd2b281d0c92806a1f5223"
+      },
+      "notices": [
+        {
+          "path": "/opt/agentmeld/node_modules/escape-html/LICENSE",
+          "bytes": 1157,
+          "sha256": "255aa557a1f55224ce522f311629c0bf20854740a67955cefd798fbd1d3d1ded"
+        }
+      ]
+    },
+    {
+      "name": "etag",
+      "version": "1.8.1",
+      "declaredLicense": "MIT",
+      "directory": "/opt/agentmeld/node_modules/etag",
+      "manifest": {
+        "path": "/opt/agentmeld/node_modules/etag/package.json",
+        "bytes": 1306,
+        "sha256": "836b9a5dd1c6af638f4602e83e2568277f9ab1f457db0b95d949c2a4ddb0462a"
+      },
+      "notices": [
+        {
+          "path": "/opt/agentmeld/node_modules/etag/LICENSE",
+          "bytes": 1094,
+          "sha256": "a7996721249a136fbcfc1c201bcb5f414f38a701d4a24f28abe65e16cfcce813"
+        }
+      ]
+    },
+    {
+      "name": "eventsource",
+      "version": "3.0.7",
+      "declaredLicense": "MIT",
+      "directory": "/opt/agentmeld/node_modules/eventsource",
+      "manifest": {
+        "path": "/opt/agentmeld/node_modules/eventsource/package.json",
+        "bytes": 3334,
+        "sha256": "99cec0bc0f4919b5de13302b0ce28cb0dd966b316cd2c961e0e7c73f884f7524"
+      },
+      "notices": [
+        {
+          "path": "/opt/agentmeld/node_modules/eventsource/LICENSE",
+          "bytes": 1087,
+          "sha256": "f683a72ffe6a9675b5507af22fe0f448d8c8de3da1e14f139d370a7e6a54a23e"
+        }
+      ]
+    },
+    {
+      "name": "eventsource-parser",
+      "version": "3.1.1",
+      "declaredLicense": "MIT",
+      "directory": "/opt/agentmeld/node_modules/eventsource-parser",
+      "manifest": {
+        "path": "/opt/agentmeld/node_modules/eventsource-parser/package.json",
+        "bytes": 2734,
+        "sha256": "27a8440c43f6bb12ec3d93338d93efcc4130e8be1ec7f33f5b31c05c2147430b"
+      },
+      "notices": [
+        {
+          "path": "/opt/agentmeld/node_modules/eventsource-parser/LICENSE",
+          "bytes": 1098,
+          "sha256": "835eb611a23301b27115ca1be9f754c876e643ceb7fe63049c6b50609a1cafeb"
+        }
+      ]
+    },
+    {
+      "name": "express",
+      "version": "5.2.1",
+      "declaredLicense": "MIT",
+      "directory": "/opt/agentmeld/node_modules/express",
+      "manifest": {
+        "path": "/opt/agentmeld/node_modules/express/package.json",
+        "bytes": 2731,
+        "sha256": "2980b885bad92f757a2d44674e905cf875867d5685111d8ab8f285635b11367d"
+      },
+      "notices": [
+        {
+          "path": "/opt/agentmeld/node_modules/express/LICENSE",
+          "bytes": 1249,
+          "sha256": "95a5762890e5c1c9808921cef095661fc482c5e1f0bba31446ac85595df6237c"
+        }
+      ]
+    },
+    {
+      "name": "express-rate-limit",
+      "version": "8.7.0",
+      "declaredLicense": "MIT",
+      "directory": "/opt/agentmeld/node_modules/express-rate-limit",
+      "manifest": {
+        "path": "/opt/agentmeld/node_modules/express-rate-limit/package.json",
+        "bytes": 3296,
+        "sha256": "f4a1920625aac5d15991cfc3f00ebe35392791d1150aa0d489dc89cd78b158ec"
+      },
+      "notices": [
+        {
+          "path": "/opt/agentmeld/node_modules/express-rate-limit/license",
+          "bytes": 1077,
+          "sha256": "a752c164b45840ef677e68c738aefabfd665ee9f112ada4538761301a97118b0"
+        }
+      ]
+    },
+    {
+      "name": "fast-deep-equal",
+      "version": "3.1.3",
+      "declaredLicense": "MIT",
+      "directory": "/opt/agentmeld/node_modules/fast-deep-equal",
+      "manifest": {
+        "path": "/opt/agentmeld/node_modules/fast-deep-equal/package.json",
+        "bytes": 1496,
+        "sha256": "a5c63940db0260739be9e2ac67f3aac268df4db5770420ee4e34e493152f97d2"
+      },
+      "notices": [
+        {
+          "path": "/opt/agentmeld/node_modules/fast-deep-equal/LICENSE",
+          "bytes": 1074,
+          "sha256": "7bf9b2de73a6b356761c948d0e9eeb4be6c1270bd04c79cd489c1e400ffdfc1a"
+        }
+      ]
+    },
+    {
+      "name": "fast-sha256",
+      "version": "1.3.0",
+      "declaredLicense": "Unlicense",
+      "directory": "/opt/agentmeld/node_modules/fast-sha256",
+      "manifest": {
+        "path": "/opt/agentmeld/node_modules/fast-sha256/package.json",
+        "bytes": 1047,
+        "sha256": "d312f1993364bfb4f217f820ff7f9e0a6b1d87930bfc2605138ab660e8d29806"
+      },
+      "notices": [
+        {
+          "path": "/opt/agentmeld/node_modules/fast-sha256/LICENSE",
+          "bytes": 1210,
+          "sha256": "88d9b4eb60579c191ec391ca04c16130572d7eedc4a86daa58bf28c6e14c9bcd"
+        }
+      ]
+    },
+    {
+      "name": "fast-uri",
+      "version": "3.1.8",
+      "declaredLicense": "BSD-3-Clause",
+      "directory": "/opt/agentmeld/node_modules/fast-uri",
+      "manifest": {
+        "path": "/opt/agentmeld/node_modules/fast-uri/package.json",
+        "bytes": 1983,
+        "sha256": "30cad05aad3d3596513706451dbfc7e0422f9c1d00f2903ecc34580327d54bc7"
+      },
+      "notices": [
+        {
+          "path": "/opt/agentmeld/node_modules/fast-uri/LICENSE",
+          "bytes": 1813,
+          "sha256": "b010b0dfdfdb23d7396e03b82cd4621fc9bb8f95d6b0aea70b9c24e12074c786"
+        }
+      ]
+    },
+    {
+      "name": "finalhandler",
+      "version": "2.1.1",
+      "declaredLicense": "MIT",
+      "directory": "/opt/agentmeld/node_modules/finalhandler",
+      "manifest": {
+        "path": "/opt/agentmeld/node_modules/finalhandler/package.json",
+        "bytes": 1287,
+        "sha256": "42f5503e57f067caf49dda0353d766f8eb4616429d3c43234ba673ee8acd1196"
+      },
+      "notices": [
+        {
+          "path": "/opt/agentmeld/node_modules/finalhandler/LICENSE",
+          "bytes": 1119,
+          "sha256": "47dcccf62bf40469d23849b0b1dc8df9fc91bce219b880c638d4dc4596e6b5cf"
+        }
+      ]
+    },
+    {
+      "name": "forwarded",
+      "version": "0.2.0",
+      "declaredLicense": "MIT",
+      "directory": "/opt/agentmeld/node_modules/forwarded",
+      "manifest": {
+        "path": "/opt/agentmeld/node_modules/forwarded/package.json",
+        "bytes": 1150,
+        "sha256": "550a78f64b6a76bc353d6a10152af5750613d0d910f8478943176c1a6196158a"
+      },
+      "notices": [
+        {
+          "path": "/opt/agentmeld/node_modules/forwarded/LICENSE",
+          "bytes": 1094,
+          "sha256": "bd47ce7b88c7759630d1e2b9fcfa170a0f1fde522be09e13fb1581a79d090400"
+        }
+      ]
+    },
+    {
+      "name": "fresh",
+      "version": "2.0.0",
+      "declaredLicense": "MIT",
+      "directory": "/opt/agentmeld/node_modules/fresh",
+      "manifest": {
+        "path": "/opt/agentmeld/node_modules/fresh/package.json",
+        "bytes": 1218,
+        "sha256": "3895d6c15a9e65c1cca20c675db7637423ec2d087bb221ef79e09ed2e7d34ec0"
+      },
+      "notices": [
+        {
+          "path": "/opt/agentmeld/node_modules/fresh/LICENSE",
+          "bytes": 1174,
+          "sha256": "a0ec0dab16b3666f24950f86d257930ac2ad475557b4bfe245620e0817d8a45d"
+        }
+      ]
+    },
+    {
+      "name": "function-bind",
+      "version": "1.1.2",
+      "declaredLicense": "MIT",
+      "directory": "/opt/agentmeld/node_modules/function-bind",
+      "manifest": {
+        "path": "/opt/agentmeld/node_modules/function-bind/package.json",
+        "bytes": 2262,
+        "sha256": "edb1c4faf4148e6e3d74ed8dbac1a1dc359a647ff4207aad4851396dc7a3559a"
+      },
+      "notices": [
+        {
+          "path": "/opt/agentmeld/node_modules/function-bind/LICENSE",
+          "bytes": 1052,
+          "sha256": "773e131a7684726005a7e4688a80b4620033bc08499bc1404dd1a1eb3bca725e"
+        }
+      ]
+    },
+    {
+      "name": "get-intrinsic",
+      "version": "1.3.0",
+      "declaredLicense": "MIT",
+      "directory": "/opt/agentmeld/node_modules/get-intrinsic",
+      "manifest": {
+        "path": "/opt/agentmeld/node_modules/get-intrinsic/package.json",
+        "bytes": 2576,
+        "sha256": "45b14763baacc59b0fd7b39e3ad983d5d2aaf7f5ed682f2fce9edb469826c999"
+      },
+      "notices": [
+        {
+          "path": "/opt/agentmeld/node_modules/get-intrinsic/LICENSE",
+          "bytes": 1071,
+          "sha256": "39c5ec504cf6bd5cd782a7c695828e09189df79f5d94840e4f08feb97b9fd416"
+        }
+      ]
+    },
+    {
+      "name": "get-proto",
+      "version": "1.0.1",
+      "declaredLicense": "MIT",
+      "directory": "/opt/agentmeld/node_modules/get-proto",
+      "manifest": {
+        "path": "/opt/agentmeld/node_modules/get-proto/package.json",
+        "bytes": 2176,
+        "sha256": "73839e012ac7134a632c9d9fc6bdb700ac9ab5553cce39eb789ba2b65663e734"
+      },
+      "notices": [
+        {
+          "path": "/opt/agentmeld/node_modules/get-proto/LICENSE",
+          "bytes": 1071,
+          "sha256": "be46ce1e3b0479af9ce82d22b465a6d7d2ff084fca0aaf3d54172da2b5eb5781"
+        }
+      ]
+    },
+    {
+      "name": "gopd",
+      "version": "1.2.0",
+      "declaredLicense": "MIT",
+      "directory": "/opt/agentmeld/node_modules/gopd",
+      "manifest": {
+        "path": "/opt/agentmeld/node_modules/gopd/package.json",
+        "bytes": 2070,
+        "sha256": "33ace32dc861f6da9d1fd9d0a44c66e8c6ff3b13358d070683c1c2978ff5f19f"
+      },
+      "notices": [
+        {
+          "path": "/opt/agentmeld/node_modules/gopd/LICENSE",
+          "bytes": 1071,
+          "sha256": "d90bf0a089da4cf43d644ed240a0b3825dcdb705e64e38371d56995a4cc9e4c5"
+        }
+      ]
+    },
+    {
+      "name": "has-symbols",
+      "version": "1.1.0",
+      "declaredLicense": "MIT",
+      "directory": "/opt/agentmeld/node_modules/has-symbols",
+      "manifest": {
+        "path": "/opt/agentmeld/node_modules/has-symbols/package.json",
+        "bytes": 2974,
+        "sha256": "5190268c0e3308d7446d1f7c036238f329f786938453e6017cb90980b3612e7a"
+      },
+      "notices": [
+        {
+          "path": "/opt/agentmeld/node_modules/has-symbols/LICENSE",
+          "bytes": 1071,
+          "sha256": "206c1adcf206dc0031b11232f5b054ec5f1662407ab1ca415247921cab2068ab"
+        }
+      ]
+    },
+    {
+      "name": "hasown",
+      "version": "2.0.4",
+      "declaredLicense": "MIT",
+      "directory": "/opt/agentmeld/node_modules/hasown",
+      "manifest": {
+        "path": "/opt/agentmeld/node_modules/hasown/package.json",
+        "bytes": 2258,
+        "sha256": "40b750c55a8bacf2c5ac316f5299dd44d48acc101c189a00cd59d39376b5eb89"
+      },
+      "notices": [
+        {
+          "path": "/opt/agentmeld/node_modules/hasown/LICENSE",
+          "bytes": 1083,
+          "sha256": "bf9b0d665be2a689851eea667ca9f42066ea1d903b38349c51e6a44b2577680a"
+        }
+      ]
+    },
+    {
+      "name": "hono",
+      "version": "4.13.8",
+      "declaredLicense": "MIT",
+      "directory": "/opt/agentmeld/node_modules/hono",
+      "manifest": {
+        "path": "/opt/agentmeld/node_modules/hono/package.json",
+        "bytes": 23613,
+        "sha256": "cafef790692456673dfe5e8644161830cfff3331cb34414c2baf576bb4135052"
+      },
+      "notices": [
+        {
+          "path": "/opt/agentmeld/node_modules/hono/LICENSE",
+          "bytes": 1101,
+          "sha256": "a6ab98e5c77b9070c443eaff2ff81034a6f8cc05a7524d5098eb0f24defa0115"
+        }
+      ]
+    },
+    {
+      "name": "http-errors",
+      "version": "2.0.1",
+      "declaredLicense": "MIT",
+      "directory": "/opt/agentmeld/node_modules/http-errors",
+      "manifest": {
+        "path": "/opt/agentmeld/node_modules/http-errors/package.json",
+        "bytes": 1410,
+        "sha256": "d540721372bf8bf77b5fad31f6567a916e24d0aeeb78c81ba92b69feea9f1eef"
+      },
+      "notices": [
+        {
+          "path": "/opt/agentmeld/node_modules/http-errors/LICENSE",
+          "bytes": 1168,
+          "sha256": "dcb94ff9b1e037a847bc20589dc81a1066d041fd4c16deb18b0fa968c66cf395"
+        }
+      ]
+    },
+    {
+      "name": "iconv-lite",
+      "version": "0.7.3",
+      "declaredLicense": "MIT",
+      "directory": "/opt/agentmeld/node_modules/iconv-lite",
+      "manifest": {
+        "path": "/opt/agentmeld/node_modules/iconv-lite/package.json",
+        "bytes": 2260,
+        "sha256": "f24ad03476d51470a5b069e65b03ef6383d615897ffe2239edf22584ea0e3d03"
+      },
+      "notices": [
+        {
+          "path": "/opt/agentmeld/node_modules/iconv-lite/LICENSE",
+          "bytes": 1064,
+          "sha256": "ac779f7314c74f232ef847ea86e714abe25cf6eeb5cc97b69451b74e2af6492d"
+        }
+      ]
+    },
+    {
+      "name": "inherits",
+      "version": "2.0.4",
+      "declaredLicense": "ISC",
+      "directory": "/opt/agentmeld/node_modules/inherits",
+      "manifest": {
+        "path": "/opt/agentmeld/node_modules/inherits/package.json",
+        "bytes": 581,
+        "sha256": "be645800bc94fd8de29c8ae91690549b316cc437100108aeea7b2f347693cc80"
+      },
+      "notices": [
+        {
+          "path": "/opt/agentmeld/node_modules/inherits/LICENSE",
+          "bytes": 749,
+          "sha256": "5ffe28e7ade7d8f10d85d5337a73fd793dac5c462fb9a28fbf8c5046c7fbca3b"
+        }
+      ]
+    },
+    {
+      "name": "ip-address",
+      "version": "10.7.2",
+      "declaredLicense": "MIT",
+      "directory": "/opt/agentmeld/node_modules/ip-address",
+      "manifest": {
+        "path": "/opt/agentmeld/node_modules/ip-address/package.json",
+        "bytes": 2304,
+        "sha256": "05ab5d8380317293b7a6eca2b454fb3e08efdb09a89a4f4970132e6adee1973a"
+      },
+      "notices": [
+        {
+          "path": "/opt/agentmeld/node_modules/ip-address/LICENSE",
+          "bytes": 1061,
+          "sha256": "f8d791359a50cbcac82c29cb7b0b1b889b28be76fdd35b8ee33f0f7c8704702a"
+        }
+      ]
+    },
+    {
+      "name": "ipaddr.js",
+      "version": "1.9.1",
+      "declaredLicense": "MIT",
+      "directory": "/opt/agentmeld/node_modules/ipaddr.js",
+      "manifest": {
+        "path": "/opt/agentmeld/node_modules/ipaddr.js/package.json",
+        "bytes": 719,
+        "sha256": "fc1071893728a0e78fa40ce0dbe04c5a1021179fdcb5b229f274e3556d6a87cd"
+      },
+      "notices": [
+        {
+          "path": "/opt/agentmeld/node_modules/ipaddr.js/LICENSE",
+          "bytes": 1087,
+          "sha256": "62568a2d1337b77171ecca9db10579163446de1ba6151678e81f06cdc199971b"
+        }
+      ]
+    },
+    {
+      "name": "is-promise",
+      "version": "4.0.0",
+      "declaredLicense": "MIT",
+      "directory": "/opt/agentmeld/node_modules/is-promise",
+      "manifest": {
+        "path": "/opt/agentmeld/node_modules/is-promise/package.json",
+        "bytes": 576,
+        "sha256": "ae7a1bff928cb99f0b828f8a8236f623828f5f48ce930268ac5726554e083b50"
+      },
+      "notices": [
+        {
+          "path": "/opt/agentmeld/node_modules/is-promise/LICENSE",
+          "bytes": 1058,
+          "sha256": "44191656d296391e0ec97e32f5385f0d02b6f2992694082d22ea04ba0f66f9e4"
+        }
+      ]
+    },
+    {
+      "name": "isexe",
+      "version": "2.0.0",
+      "declaredLicense": "ISC",
+      "directory": "/opt/agentmeld/node_modules/isexe",
+      "manifest": {
+        "path": "/opt/agentmeld/node_modules/isexe/package.json",
+        "bytes": 786,
+        "sha256": "395c2af9abeeaafe7391974c1eacfb2a2bdeef187f21c3f5582c49e0368e59bf"
+      },
+      "notices": [
+        {
+          "path": "/opt/agentmeld/node_modules/isexe/LICENSE",
+          "bytes": 765,
+          "sha256": "4ec3d4c66cd87f5c8d8ad911b10f99bf27cb00cdfcff82621956e379186b016b"
+        }
+      ]
+    },
+    {
+      "name": "jose",
+      "version": "6.2.12",
+      "declaredLicense": "MIT",
+      "directory": "/opt/agentmeld/node_modules/jose",
+      "manifest": {
+        "path": "/opt/agentmeld/node_modules/jose/package.json",
+        "bytes": 3201,
+        "sha256": "faa28d9e4362c02c81ce4c7a3b62443495343830c53de2efcbd8c1088e4ba931"
+      },
+      "notices": [
+        {
+          "path": "/opt/agentmeld/node_modules/jose/LICENSE.md",
+          "bytes": 1079,
+          "sha256": "8078b0829d6c3e9ecde2f003e1966e4cad3efc6e7a640efbab0313cc166b1af1"
+        }
+      ]
+    },
+    {
+      "name": "json-schema-to-ts",
+      "version": "3.1.1",
+      "declaredLicense": "MIT",
+      "directory": "/opt/agentmeld/node_modules/json-schema-to-ts",
+      "manifest": {
+        "path": "/opt/agentmeld/node_modules/json-schema-to-ts/package.json",
+        "bytes": 3168,
+        "sha256": "9439fa620a0f7a930950239ec4445d902c7d29590cddf0985a83bea531b2e81e"
+      },
+      "notices": [
+        {
+          "path": "/opt/agentmeld/node_modules/json-schema-to-ts/LICENSE",
+          "bytes": 1071,
+          "sha256": "18a2bfd070b08bd1cc538c90f59989a9523e070e72fe9a9068593c3e82f44fa7"
+        }
+      ]
+    },
+    {
+      "name": "json-schema-traverse",
+      "version": "1.0.0",
+      "declaredLicense": "MIT",
+      "directory": "/opt/agentmeld/node_modules/json-schema-traverse",
+      "manifest": {
+        "path": "/opt/agentmeld/node_modules/json-schema-traverse/package.json",
+        "bytes": 1004,
+        "sha256": "156fb24af02845c190701360d06dfda35ef04282e34a734289ea9535ad9819ae"
+      },
+      "notices": [
+        {
+          "path": "/opt/agentmeld/node_modules/json-schema-traverse/LICENSE",
+          "bytes": 1074,
+          "sha256": "7bf9b2de73a6b356761c948d0e9eeb4be6c1270bd04c79cd489c1e400ffdfc1a"
+        }
+      ]
+    },
+    {
+      "name": "json-schema-typed",
+      "version": "8.0.2",
+      "declaredLicense": "BSD-2-Clause",
+      "directory": "/opt/agentmeld/node_modules/json-schema-typed",
+      "manifest": {
+        "path": "/opt/agentmeld/node_modules/json-schema-typed/package.json",
+        "bytes": 1124,
+        "sha256": "8d04cdd834382b5b4e7d3e00fbc1da5654c430d04934c3031fe8f2d79a1625d9"
+      },
+      "notices": [
+        {
+          "path": "/opt/agentmeld/node_modules/json-schema-typed/LICENSE.md",
+          "bytes": 2859,
+          "sha256": "bbe87b573c12bda5baf18742117330efa177e0886b3b0a278dacf8f236e1e129"
+        }
+      ]
+    },
+    {
+      "name": "math-intrinsics",
+      "version": "1.1.0",
+      "declaredLicense": "MIT",
+      "directory": "/opt/agentmeld/node_modules/math-intrinsics",
+      "manifest": {
+        "path": "/opt/agentmeld/node_modules/math-intrinsics/package.json",
+        "bytes": 2670,
+        "sha256": "39d74aa5a354153130706286dd60a2d8409ce0c8f66546eff2edcac0afff17e1"
+      },
+      "notices": [
+        {
+          "path": "/opt/agentmeld/node_modules/math-intrinsics/LICENSE",
+          "bytes": 1073,
+          "sha256": "2b770a704c15de238c3f622b01b0044ddd60b49ee30608ea6991ebf19db7a7a1"
+        }
+      ]
+    },
+    {
+      "name": "media-typer",
+      "version": "1.1.1",
+      "declaredLicense": "MIT",
+      "directory": "/opt/agentmeld/node_modules/media-typer",
+      "manifest": {
+        "path": "/opt/agentmeld/node_modules/media-typer/package.json",
+        "bytes": 1036,
+        "sha256": "532b2af00ae4de1bb2853f233a1ee6d3c19703d18d2c4e173cdc59f7a01e1bba"
+      },
+      "notices": [
+        {
+          "path": "/opt/agentmeld/node_modules/media-typer/LICENSE",
+          "bytes": 1094,
+          "sha256": "bd47ce7b88c7759630d1e2b9fcfa170a0f1fde522be09e13fb1581a79d090400"
+        }
+      ]
+    },
+    {
+      "name": "merge-descriptors",
+      "version": "2.0.0",
+      "declaredLicense": "MIT",
+      "directory": "/opt/agentmeld/node_modules/merge-descriptors",
+      "manifest": {
+        "path": "/opt/agentmeld/node_modules/merge-descriptors/package.json",
+        "bytes": 961,
+        "sha256": "36d6d2cd304c06d5b690625af7ecc07995d5e220eba014ee3818af8c51421fed"
+      },
+      "notices": [
+        {
+          "path": "/opt/agentmeld/node_modules/merge-descriptors/license",
+          "bytes": 1231,
+          "sha256": "70b126abc64d7ea06e1243349073935caa16fa47a41a571773ccf0b350b1d574"
+        }
+      ]
+    },
+    {
+      "name": "mime-db",
+      "version": "1.54.0",
+      "declaredLicense": "MIT",
+      "directory": "/opt/agentmeld/node_modules/mime-db",
+      "manifest": {
+        "path": "/opt/agentmeld/node_modules/mime-db/package.json",
+        "bytes": 1530,
+        "sha256": "33bdbb99915697ac01df12490b9d479a55529123842e67975e6d76d0010aa142"
+      },
+      "notices": [
+        {
+          "path": "/opt/agentmeld/node_modules/mime-db/LICENSE",
+          "bytes": 1172,
+          "sha256": "cc1dfd4dafa27271e8212cd3b274eeb3f262e40a6fdab36ddc3f9696f706f58b"
+        }
+      ]
+    },
+    {
+      "name": "mime-types",
+      "version": "3.0.2",
+      "declaredLicense": "MIT",
+      "directory": "/opt/agentmeld/node_modules/mime-types",
+      "manifest": {
+        "path": "/opt/agentmeld/node_modules/mime-types/package.json",
+        "bytes": 1266,
+        "sha256": "644fc05ded7d8a20c069a07c7c61373593d4859c91b1386f544cbf247e39820c"
+      },
+      "notices": [
+        {
+          "path": "/opt/agentmeld/node_modules/mime-types/LICENSE",
+          "bytes": 1167,
+          "sha256": "71f83c4c0621102a56d9853812777b85751bce7e9726f686f5b056c1f8a4b0e6"
+        }
+      ]
+    },
+    {
+      "name": "ms",
+      "version": "2.1.3",
+      "declaredLicense": "MIT",
+      "directory": "/opt/agentmeld/node_modules/ms",
+      "manifest": {
+        "path": "/opt/agentmeld/node_modules/ms/package.json",
+        "bytes": 732,
+        "sha256": "1a6b4d9739790c0b94ab96c8cc0507e281c164c311ff4fbf5e57fb8d26290b40"
+      },
+      "notices": [
+        {
+          "path": "/opt/agentmeld/node_modules/ms/license.md",
+          "bytes": 1079,
+          "sha256": "1662fae9b5314d11cf51284e2dcd1f006a354f7343f08712a730fcff9a359801"
+        }
+      ]
+    },
+    {
+      "name": "negotiator",
+      "version": "1.1.0",
+      "declaredLicense": "MIT",
+      "directory": "/opt/agentmeld/node_modules/negotiator",
+      "manifest": {
+        "path": "/opt/agentmeld/node_modules/negotiator/package.json",
+        "bytes": 1232,
+        "sha256": "2bc164db19aca1e7af967b7211f7d728940f48ff22d56aa75be587f3bb13ee56"
+      },
+      "notices": [
+        {
+          "path": "/opt/agentmeld/node_modules/negotiator/LICENSE",
+          "bytes": 1177,
+          "sha256": "553d4d20029a24e315b428a1a54a9e109eaa340f2e958a4f50a92362c2c4070b"
+        }
+      ]
+    },
+    {
+      "name": "content-type",
+      "version": "2.1.0",
+      "declaredLicense": "MIT",
+      "directory": "/opt/agentmeld/node_modules/negotiator/node_modules/content-type",
+      "manifest": {
+        "path": "/opt/agentmeld/node_modules/negotiator/node_modules/content-type/package.json",
+        "bytes": 1126,
+        "sha256": "33102772db7c8375395bdcc11e7004c597b4cdbe457d8dd0ae2e56f5a2d28637"
+      },
+      "notices": [
+        {
+          "path": "/opt/agentmeld/node_modules/negotiator/node_modules/content-type/LICENSE",
+          "bytes": 1089,
+          "sha256": "257aed98914108e91a337912727b6a802eef218248507f74b76faffaff517a38"
+        }
+      ]
+    },
+    {
+      "name": "object-assign",
+      "version": "4.1.1",
+      "declaredLicense": "MIT",
+      "directory": "/opt/agentmeld/node_modules/object-assign",
+      "manifest": {
+        "path": "/opt/agentmeld/node_modules/object-assign/package.json",
+        "bytes": 764,
+        "sha256": "5990bbffa235fc675debd925d50f6c3f48a2b4526d8c9f7555cadec9029d0d7f"
+      },
+      "notices": [
+        {
+          "path": "/opt/agentmeld/node_modules/object-assign/license",
+          "bytes": 1119,
+          "sha256": "6fb9754611c20f6649f68805e8c990e83261f29316e29de9e6cedae607b8634c"
+        }
+      ]
+    },
+    {
+      "name": "object-inspect",
+      "version": "1.13.4",
+      "declaredLicense": "MIT",
+      "directory": "/opt/agentmeld/node_modules/object-inspect",
+      "manifest": {
+        "path": "/opt/agentmeld/node_modules/object-inspect/package.json",
+        "bytes": 2841,
+        "sha256": "21c5c63f653705f44a60f5fe93752b231caf6ff07b01805740bd89b71b2d6d8a"
+      },
+      "notices": [
+        {
+          "path": "/opt/agentmeld/node_modules/object-inspect/LICENSE",
+          "bytes": 1071,
+          "sha256": "bd40cc437e28a3ad7bef2ad34e6b72e757b182e67bda1acadbab4ef0476f8232"
+        }
+      ]
+    },
+    {
+      "name": "on-finished",
+      "version": "2.4.1",
+      "declaredLicense": "MIT",
+      "directory": "/opt/agentmeld/node_modules/on-finished",
+      "manifest": {
+        "path": "/opt/agentmeld/node_modules/on-finished/package.json",
+        "bytes": 1057,
+        "sha256": "c812eca4b0dee2317cb446124cb27ae8e5b993c8fdd0144886b629ef6ef53fc1"
+      },
+      "notices": [
+        {
+          "path": "/opt/agentmeld/node_modules/on-finished/LICENSE",
+          "bytes": 1167,
+          "sha256": "8089bcc08845ec143e5761f4a101a65b8c792a0dedbfeeb90a15560c0b77f768"
+        }
+      ]
+    },
+    {
+      "name": "once",
+      "version": "1.4.0",
+      "declaredLicense": "ISC",
+      "directory": "/opt/agentmeld/node_modules/once",
+      "manifest": {
+        "path": "/opt/agentmeld/node_modules/once/package.json",
+        "bytes": 574,
+        "sha256": "33840d74c14c94bfb75c76374765b635531b1eacb88d7f1f2f380c94d0ea1328"
+      },
+      "notices": [
+        {
+          "path": "/opt/agentmeld/node_modules/once/LICENSE",
+          "bytes": 765,
+          "sha256": "4ec3d4c66cd87f5c8d8ad911b10f99bf27cb00cdfcff82621956e379186b016b"
+        }
+      ]
+    },
+    {
+      "name": "parseurl",
+      "version": "1.3.3",
+      "declaredLicense": "MIT",
+      "directory": "/opt/agentmeld/node_modules/parseurl",
+      "manifest": {
+        "path": "/opt/agentmeld/node_modules/parseurl/package.json",
+        "bytes": 1180,
+        "sha256": "98c7b953c844cac7c0be2d5abc6559c6fd3a6075fd159b04c0f1bf46145bfed2"
+      },
+      "notices": [
+        {
+          "path": "/opt/agentmeld/node_modules/parseurl/LICENSE",
+          "bytes": 1173,
+          "sha256": "11d017c3b9f1ee3f44caf7203035f0461d5b57e0db8ce1bc03a9af34fa7d3f6b"
+        }
+      ]
+    },
+    {
+      "name": "path-key",
+      "version": "3.1.1",
+      "declaredLicense": "MIT",
+      "directory": "/opt/agentmeld/node_modules/path-key",
+      "manifest": {
+        "path": "/opt/agentmeld/node_modules/path-key/package.json",
+        "bytes": 650,
+        "sha256": "25594dab72681c910d9cc919263a4daf27d77a75e0d2c26a4d958d6d6b798f86"
+      },
+      "notices": [
+        {
+          "path": "/opt/agentmeld/node_modules/path-key/license",
+          "bytes": 1109,
+          "sha256": "48da2f39e100d4085767e94966b43f4fa95ff6a0698fba57ed460914e35f94a0"
+        }
+      ]
+    },
+    {
+      "name": "path-to-regexp",
+      "version": "8.4.2",
+      "declaredLicense": "MIT",
+      "directory": "/opt/agentmeld/node_modules/path-to-regexp",
+      "manifest": {
+        "path": "/opt/agentmeld/node_modules/path-to-regexp/package.json",
+        "bytes": 1399,
+        "sha256": "3c37dce1e0587231f7c9f63e137dd0ed4d6f25552c89b5b5939c6a3d36113634"
+      },
+      "notices": [
+        {
+          "path": "/opt/agentmeld/node_modules/path-to-regexp/LICENSE",
+          "bytes": 1103,
+          "sha256": "4eeb3271453a891df609e5a9f4ee79a68307f730c13417a3bfeffa604ac8cf25"
+        }
+      ]
+    },
+    {
+      "name": "pkce-challenge",
+      "version": "5.0.1",
+      "declaredLicense": "MIT",
+      "directory": "/opt/agentmeld/node_modules/pkce-challenge",
+      "manifest": {
+        "path": "/opt/agentmeld/node_modules/pkce-challenge/package.json",
+        "bytes": 1648,
+        "sha256": "74fd5b54078ebad49e15421f928d285f63926caae3220356d95a9afc6fa0e417"
+      },
+      "notices": [
+        {
+          "path": "/opt/agentmeld/node_modules/pkce-challenge/LICENSE",
+          "bytes": 1057,
+          "sha256": "feb87a2e0c305de3464cc44077da5393c52d8ca6362d37427157d04ec6f4510d"
+        }
+      ]
+    },
+    {
+      "name": "playwright",
+      "version": "1.63.0",
+      "declaredLicense": "Apache-2.0",
+      "directory": "/opt/agentmeld/node_modules/playwright",
+      "manifest": {
+        "path": "/opt/agentmeld/node_modules/playwright/package.json",
+        "bytes": 1359,
+        "sha256": "8bc2ddebe8d9b051b9ecb87d62c6c63877e59d08617f32c3215681ca8bb70998"
+      },
+      "notices": [
+        {
+          "path": "/opt/agentmeld/node_modules/playwright/LICENSE",
+          "bytes": 11601,
+          "sha256": "45873d00a0dd243596deb4aa23b2493b3d1f0671921bf2538ea431d7380220eb"
+        },
+        {
+          "path": "/opt/agentmeld/node_modules/playwright/NOTICE",
+          "bytes": 254,
+          "sha256": "6d602191187b35b9b01d2cffa01c8469c2c8d9de8a96f1bf868e0f264f51c81d"
+        }
+      ]
+    },
+    {
+      "name": "playwright-core",
+      "version": "1.63.0",
+      "declaredLicense": "Apache-2.0",
+      "directory": "/opt/agentmeld/node_modules/playwright-core",
+      "manifest": {
+        "path": "/opt/agentmeld/node_modules/playwright-core/package.json",
+        "bytes": 876,
+        "sha256": "f061c58427e47e843e26d201f0a57076c734e57c734ecbbd87d4a23b7a20db9b"
+      },
+      "notices": [
+        {
+          "path": "/opt/agentmeld/node_modules/playwright-core/LICENSE",
+          "bytes": 11601,
+          "sha256": "45873d00a0dd243596deb4aa23b2493b3d1f0671921bf2538ea431d7380220eb"
+        },
+        {
+          "path": "/opt/agentmeld/node_modules/playwright-core/NOTICE",
+          "bytes": 254,
+          "sha256": "6d602191187b35b9b01d2cffa01c8469c2c8d9de8a96f1bf868e0f264f51c81d"
+        }
+      ]
+    },
+    {
+      "name": "proxy-addr",
+      "version": "2.0.8",
+      "declaredLicense": "MIT",
+      "directory": "/opt/agentmeld/node_modules/proxy-addr",
+      "manifest": {
+        "path": "/opt/agentmeld/node_modules/proxy-addr/package.json",
+        "bytes": 1281,
+        "sha256": "b2e305ca817ae4e8b088e07f38c5df1d7ad77aa3473809e4c37a9a1c83600225"
+      },
+      "notices": [
+        {
+          "path": "/opt/agentmeld/node_modules/proxy-addr/LICENSE",
+          "bytes": 1094,
+          "sha256": "a7996721249a136fbcfc1c201bcb5f414f38a701d4a24f28abe65e16cfcce813"
+        }
+      ]
+    },
+    {
+      "name": "qs",
+      "version": "6.16.0",
+      "declaredLicense": "BSD-3-Clause",
+      "directory": "/opt/agentmeld/node_modules/qs",
+      "manifest": {
+        "path": "/opt/agentmeld/node_modules/qs/package.json",
+        "bytes": 3192,
+        "sha256": "69d58ca5abcff9be3f6becc70940caa76d8ec1b72ef7d2d735305c16cb877dca"
+      },
+      "notices": [
+        {
+          "path": "/opt/agentmeld/node_modules/qs/LICENSE.md",
+          "bytes": 1600,
+          "sha256": "e7dc37bf662d7f786efcb46c545615e70c1daf458a38385521c63cf6607cdfe1"
+        }
+      ]
+    },
+    {
+      "name": "range-parser",
+      "version": "1.3.0",
+      "declaredLicense": "MIT",
+      "directory": "/opt/agentmeld/node_modules/range-parser",
+      "manifest": {
+        "path": "/opt/agentmeld/node_modules/range-parser/package.json",
+        "bytes": 1297,
+        "sha256": "3461c9c15204b32f459c97920bb678e42341e9e9675e4b748907ce4de740f26d"
+      },
+      "notices": [
+        {
+          "path": "/opt/agentmeld/node_modules/range-parser/LICENSE",
+          "bytes": 1178,
+          "sha256": "f655e6291356ec0de7a8f0e69f294961a2cea86678ec94588be1e6a492e278ab"
+        }
+      ]
+    },
+    {
+      "name": "raw-body",
+      "version": "3.0.2",
+      "declaredLicense": "MIT",
+      "directory": "/opt/agentmeld/node_modules/raw-body",
+      "manifest": {
+        "path": "/opt/agentmeld/node_modules/raw-body/package.json",
+        "bytes": 1275,
+        "sha256": "3072f77ab429d8b89e78c85e0cdefb6e3ef554a9fb19443d006a892a74361e78"
+      },
+      "notices": [
+        {
+          "path": "/opt/agentmeld/node_modules/raw-body/LICENSE",
+          "bytes": 1181,
+          "sha256": "37876d7de8bdf5e5b9b58a697ebc34044624e493e6f49eff5c938e5226dcac6b"
+        }
+      ]
+    },
+    {
+      "name": "require-from-string",
+      "version": "2.0.2",
+      "declaredLicense": "MIT",
+      "directory": "/opt/agentmeld/node_modules/require-from-string",
+      "manifest": {
+        "path": "/opt/agentmeld/node_modules/require-from-string/package.json",
+        "bytes": 511,
+        "sha256": "c0002f7d4c7d7e2a885cf0f97226344902417c3a0980f2beca41962d2bc1f6d8"
+      },
+      "notices": [
+        {
+          "path": "/opt/agentmeld/node_modules/require-from-string/license",
+          "bytes": 1128,
+          "sha256": "6ee0feb1f6ef996ff5a68600f8cf98909cf412d39ef3cdceaefd87d636fa1b7f"
+        }
+      ]
+    },
+    {
+      "name": "router",
+      "version": "2.2.0",
+      "declaredLicense": "MIT",
+      "directory": "/opt/agentmeld/node_modules/router",
+      "manifest": {
+        "path": "/opt/agentmeld/node_modules/router/package.json",
+        "bytes": 1142,
+        "sha256": "b77062595f89476fab6acbcde5fa8dfac3be7d7b9b0b0b69d48c84ebc13c9a06"
+      },
+      "notices": [
+        {
+          "path": "/opt/agentmeld/node_modules/router/LICENSE",
+          "bytes": 1128,
+          "sha256": "d0bca4e517157b7a6120c085f5fe43a35b90c095e3bbeb9e67f220c608506a16"
+        }
+      ]
+    },
+    {
+      "name": "safer-buffer",
+      "version": "2.1.2",
+      "declaredLicense": "MIT",
+      "directory": "/opt/agentmeld/node_modules/safer-buffer",
+      "manifest": {
+        "path": "/opt/agentmeld/node_modules/safer-buffer/package.json",
+        "bytes": 822,
+        "sha256": "4247a3a63c45a6a7ced1557fe4dd9d2a163af4915d594b95e5867b69a53edb52"
+      },
+      "notices": [
+        {
+          "path": "/opt/agentmeld/node_modules/safer-buffer/LICENSE",
+          "bytes": 1094,
+          "sha256": "4bc935e71be198c67ddf3c2b5fddb195f6edc182bfc155a96a6db61b44b494b9"
+        }
+      ]
+    },
+    {
+      "name": "send",
+      "version": "1.2.1",
+      "declaredLicense": "MIT",
+      "directory": "/opt/agentmeld/node_modules/send",
+      "manifest": {
+        "path": "/opt/agentmeld/node_modules/send/package.json",
+        "bytes": 1669,
+        "sha256": "303cfb195f13651e5174c23310e6a71e319b4bf85f9afe9e16b16567cbab02f8"
+      },
+      "notices": [
+        {
+          "path": "/opt/agentmeld/node_modules/send/LICENSE",
+          "bytes": 1128,
+          "sha256": "25a328069fe771f8ed5b6f983ed4b0e6c84b3312ac0f69b28c3d52dc277962c9"
+        }
+      ]
+    },
+    {
+      "name": "serve-static",
+      "version": "2.2.1",
+      "declaredLicense": "MIT",
+      "directory": "/opt/agentmeld/node_modules/serve-static",
+      "manifest": {
+        "path": "/opt/agentmeld/node_modules/serve-static/package.json",
+        "bytes": 1193,
+        "sha256": "4f2884fa761dee155f31cb960d792c2900dbaa6aecbe6ebcc3bcfd7e754706b8"
+      },
+      "notices": [
+        {
+          "path": "/opt/agentmeld/node_modules/serve-static/LICENSE",
+          "bytes": 1189,
+          "sha256": "63b9a188d7d43e64b0558b7115255045b9fe20a5fc3ff483421cb899e7f52bcb"
+        }
+      ]
+    },
+    {
+      "name": "setprototypeof",
+      "version": "1.2.0",
+      "declaredLicense": "ISC",
+      "directory": "/opt/agentmeld/node_modules/setprototypeof",
+      "manifest": {
+        "path": "/opt/agentmeld/node_modules/setprototypeof/package.json",
+        "bytes": 1264,
+        "sha256": "5b39ddf23d2c12a751cb4af2ce12dd5c87314350be7526fff69b4a3ff2a2d538"
+      },
+      "notices": [
+        {
+          "path": "/opt/agentmeld/node_modules/setprototypeof/LICENSE",
+          "bytes": 727,
+          "sha256": "76d6d1ea0c268da37dd3c961b4fcfb23dee8417fff9e8786d4d44c585b781b69"
+        }
+      ]
+    },
+    {
+      "name": "shebang-command",
+      "version": "2.0.0",
+      "declaredLicense": "MIT",
+      "directory": "/opt/agentmeld/node_modules/shebang-command",
+      "manifest": {
+        "path": "/opt/agentmeld/node_modules/shebang-command/package.json",
+        "bytes": 558,
+        "sha256": "44de390ae5ed6c5f9758b8b9c90b93fa53977d5361731600429f1de08f4b3f30"
+      },
+      "notices": [
+        {
+          "path": "/opt/agentmeld/node_modules/shebang-command/license",
+          "bytes": 1116,
+          "sha256": "69dee148a2cc470554dfa7142e830662062394d0fe67cddd379aba90dc60d6b3"
+        }
+      ]
+    },
+    {
+      "name": "shebang-regex",
+      "version": "3.0.0",
+      "declaredLicense": "MIT",
+      "directory": "/opt/agentmeld/node_modules/shebang-regex",
+      "manifest": {
+        "path": "/opt/agentmeld/node_modules/shebang-regex/package.json",
+        "bytes": 582,
+        "sha256": "b8018c6b8cc9900dfd1ac18a54956ba34c453fdc2da5e5fe555ee8f04133a1c5"
+      },
+      "notices": [
+        {
+          "path": "/opt/agentmeld/node_modules/shebang-regex/license",
+          "bytes": 1109,
+          "sha256": "48da2f39e100d4085767e94966b43f4fa95ff6a0698fba57ed460914e35f94a0"
+        }
+      ]
+    },
+    {
+      "name": "side-channel",
+      "version": "1.1.1",
+      "declaredLicense": "MIT",
+      "directory": "/opt/agentmeld/node_modules/side-channel",
+      "manifest": {
+        "path": "/opt/agentmeld/node_modules/side-channel/package.json",
+        "bytes": 2362,
+        "sha256": "14da3b013c3762da85cfd8b173290285394dfa41870bc4a1e8243aaa38316f2a"
+      },
+      "notices": [
+        {
+          "path": "/opt/agentmeld/node_modules/side-channel/LICENSE",
+          "bytes": 1071,
+          "sha256": "cfc3f455254c0af0655cc3ff46a41ed644b67599f6043346169d285bf2b3cf3b"
+        }
+      ]
+    },
+    {
+      "name": "side-channel-list",
+      "version": "1.0.1",
+      "declaredLicense": "MIT",
+      "directory": "/opt/agentmeld/node_modules/side-channel-list",
+      "manifest": {
+        "path": "/opt/agentmeld/node_modules/side-channel-list/package.json",
+        "bytes": 2258,
+        "sha256": "90f0c08c6c17f4a3fa3dd61873223957b89da4201f01dc0c8b95b0b9e6a2a59a"
+      },
+      "notices": [
+        {
+          "path": "/opt/agentmeld/node_modules/side-channel-list/LICENSE",
+          "bytes": 1071,
+          "sha256": "5e325595b4ea8cfec3802f545b1def5d7b73e4a5b8e9ba63e32a320f67732292"
+        }
+      ]
+    },
+    {
+      "name": "side-channel-map",
+      "version": "1.0.1",
+      "declaredLicense": "MIT",
+      "directory": "/opt/agentmeld/node_modules/side-channel-map",
+      "manifest": {
+        "path": "/opt/agentmeld/node_modules/side-channel-map/package.json",
+        "bytes": 2336,
+        "sha256": "914a8bd732b82523d95bb697eec3e6d95badc5eb13b196fb0772e59354a3ab25"
+      },
+      "notices": [
+        {
+          "path": "/opt/agentmeld/node_modules/side-channel-map/LICENSE",
+          "bytes": 1071,
+          "sha256": "5e325595b4ea8cfec3802f545b1def5d7b73e4a5b8e9ba63e32a320f67732292"
+        }
+      ]
+    },
+    {
+      "name": "side-channel-weakmap",
+      "version": "1.0.2",
+      "declaredLicense": "MIT",
+      "directory": "/opt/agentmeld/node_modules/side-channel-weakmap",
+      "manifest": {
+        "path": "/opt/agentmeld/node_modules/side-channel-weakmap/package.json",
+        "bytes": 2447,
+        "sha256": "8c11f0a1c6cfa549588d991a5cb1b04d62953277ed29f47463d415d5946388a8"
+      },
+      "notices": [
+        {
+          "path": "/opt/agentmeld/node_modules/side-channel-weakmap/LICENSE",
+          "bytes": 1071,
+          "sha256": "cfc3f455254c0af0655cc3ff46a41ed644b67599f6043346169d285bf2b3cf3b"
+        }
+      ]
+    },
+    {
+      "name": "standardwebhooks",
+      "version": "1.1.1",
+      "declaredLicense": "MIT",
+      "directory": "/opt/agentmeld/node_modules/standardwebhooks",
+      "manifest": {
+        "path": "/opt/agentmeld/node_modules/standardwebhooks/package.json",
+        "bytes": 1033,
+        "sha256": "686397f0f0202e0b693cfd3f6241d7a8da3df326f9642867a484fbbd295690b6"
+      },
+      "notices": []
+    },
+    {
+      "name": "statuses",
+      "version": "2.0.2",
+      "declaredLicense": "MIT",
+      "directory": "/opt/agentmeld/node_modules/statuses",
+      "manifest": {
+        "path": "/opt/agentmeld/node_modules/statuses/package.json",
+        "bytes": 1440,
+        "sha256": "dc2508da5568ba768d94b73126cd20a5df934bc0c651ad681022236484ca156c"
+      },
+      "notices": [
+        {
+          "path": "/opt/agentmeld/node_modules/statuses/LICENSE",
+          "bytes": 1172,
+          "sha256": "512cfa4d5e7a7569c7ae4dd95241cb6ae2aaf648ef9ebd080c01bd24868d26e9"
+        }
+      ]
+    },
+    {
+      "name": "toidentifier",
+      "version": "1.0.1",
+      "declaredLicense": "MIT",
+      "directory": "/opt/agentmeld/node_modules/toidentifier",
+      "manifest": {
+        "path": "/opt/agentmeld/node_modules/toidentifier/package.json",
+        "bytes": 1142,
+        "sha256": "f34c59f784d43da6e633390d85d14ca60539b4676159444f313c62fcfc3b68dc"
+      },
+      "notices": [
+        {
+          "path": "/opt/agentmeld/node_modules/toidentifier/LICENSE",
+          "bytes": 1108,
+          "sha256": "a832d679750e49ab433626ab196350b89964b60eb0d3edd3341887c7d5f4c128"
+        }
+      ]
+    },
+    {
+      "name": "ts-algebra",
+      "version": "2.0.0",
+      "declaredLicense": "MIT",
+      "directory": "/opt/agentmeld/node_modules/ts-algebra",
+      "manifest": {
+        "path": "/opt/agentmeld/node_modules/ts-algebra/package.json",
+        "bytes": 1957,
+        "sha256": "6c6f692e1a3ad9943c77b5fa4eb04b0f63cb708353c67dcc5d86b35b2f7e5c30"
+      },
+      "notices": [
+        {
+          "path": "/opt/agentmeld/node_modules/ts-algebra/LICENSE",
+          "bytes": 1071,
+          "sha256": "18a2bfd070b08bd1cc538c90f59989a9523e070e72fe9a9068593c3e82f44fa7"
+        }
+      ]
+    },
+    {
+      "name": "type-is",
+      "version": "2.1.0",
+      "declaredLicense": "MIT",
+      "directory": "/opt/agentmeld/node_modules/type-is",
+      "manifest": {
+        "path": "/opt/agentmeld/node_modules/type-is/package.json",
+        "bytes": 1333,
+        "sha256": "87b5f716ec743cdf6d610487698c8558a608b6e0adac522e1a4315b94b081694"
+      },
+      "notices": [
+        {
+          "path": "/opt/agentmeld/node_modules/type-is/LICENSE",
+          "bytes": 1172,
+          "sha256": "23d466b1b134b415b66fa50c6526b4cf3e7b9258554da88d3abb371721e7ce68"
+        }
+      ]
+    },
+    {
+      "name": "content-type",
+      "version": "2.1.0",
+      "declaredLicense": "MIT",
+      "directory": "/opt/agentmeld/node_modules/type-is/node_modules/content-type",
+      "manifest": {
+        "path": "/opt/agentmeld/node_modules/type-is/node_modules/content-type/package.json",
+        "bytes": 1126,
+        "sha256": "33102772db7c8375395bdcc11e7004c597b4cdbe457d8dd0ae2e56f5a2d28637"
+      },
+      "notices": [
+        {
+          "path": "/opt/agentmeld/node_modules/type-is/node_modules/content-type/LICENSE",
+          "bytes": 1089,
+          "sha256": "257aed98914108e91a337912727b6a802eef218248507f74b76faffaff517a38"
+        }
+      ]
+    },
+    {
+      "name": "unpipe",
+      "version": "1.0.0",
+      "declaredLicense": "MIT",
+      "directory": "/opt/agentmeld/node_modules/unpipe",
+      "manifest": {
+        "path": "/opt/agentmeld/node_modules/unpipe/package.json",
+        "bytes": 770,
+        "sha256": "28b717f978d2a4fc72cd08236931443b63fe6586102df3d1967e2b21ea8c5e11"
+      },
+      "notices": [
+        {
+          "path": "/opt/agentmeld/node_modules/unpipe/LICENSE",
+          "bytes": 1114,
+          "sha256": "1a526fbe8d8577f5a4b1c2821842b55b7c0e18862531c62ae4ce69c9b19b74b6"
+        }
+      ]
+    },
+    {
+      "name": "vary",
+      "version": "1.1.2",
+      "declaredLicense": "MIT",
+      "directory": "/opt/agentmeld/node_modules/vary",
+      "manifest": {
+        "path": "/opt/agentmeld/node_modules/vary/package.json",
+        "bytes": 1215,
+        "sha256": "73edaee964d527117a9f69d6360fbe6cec534abd9127794be01a6af58a139daa"
+      },
+      "notices": [
+        {
+          "path": "/opt/agentmeld/node_modules/vary/LICENSE",
+          "bytes": 1094,
+          "sha256": "bd47ce7b88c7759630d1e2b9fcfa170a0f1fde522be09e13fb1581a79d090400"
+        }
+      ]
+    },
+    {
+      "name": "which",
+      "version": "2.0.2",
+      "declaredLicense": "ISC",
+      "directory": "/opt/agentmeld/node_modules/which",
+      "manifest": {
+        "path": "/opt/agentmeld/node_modules/which/package.json",
+        "bytes": 1043,
+        "sha256": "43010039ed5e89f7186960be682b3cb5cda5ab6cdfb06cbfd4f081cf0e7b4260"
+      },
+      "notices": [
+        {
+          "path": "/opt/agentmeld/node_modules/which/LICENSE",
+          "bytes": 765,
+          "sha256": "4ec3d4c66cd87f5c8d8ad911b10f99bf27cb00cdfcff82621956e379186b016b"
+        }
+      ]
+    },
+    {
+      "name": "wrappy",
+      "version": "1.0.2",
+      "declaredLicense": "ISC",
+      "directory": "/opt/agentmeld/node_modules/wrappy",
+      "manifest": {
+        "path": "/opt/agentmeld/node_modules/wrappy/package.json",
+        "bytes": 606,
+        "sha256": "712ac9c4c3cef8bc79f42cf6075ff18551f4cb768f35158214fd643853ad7abc"
+      },
+      "notices": [
+        {
+          "path": "/opt/agentmeld/node_modules/wrappy/LICENSE",
+          "bytes": 765,
+          "sha256": "4ec3d4c66cd87f5c8d8ad911b10f99bf27cb00cdfcff82621956e379186b016b"
+        }
+      ]
+    },
+    {
+      "name": "zod",
+      "version": "4.6.5",
+      "declaredLicense": "MIT",
+      "directory": "/opt/agentmeld/node_modules/zod",
+      "manifest": {
+        "path": "/opt/agentmeld/node_modules/zod/package.json",
+        "bytes": 4142,
+        "sha256": "a046ed85fa09571dba539fee9ef236152d12dabd1f229b014ec3bd2ebaad9000"
+      },
+      "notices": [
+        {
+          "path": "/opt/agentmeld/node_modules/zod/LICENSE",
+          "bytes": 1072,
+          "sha256": "3f1189b28e3866e0d979968d466b78f813f76827cfdca1fbb124cc0a5c8841f8"
+        }
+      ]
+    },
+    {
+      "name": "zod-to-json-schema",
+      "version": "3.25.2",
+      "declaredLicense": "ISC",
+      "directory": "/opt/agentmeld/node_modules/zod-to-json-schema",
+      "manifest": {
+        "path": "/opt/agentmeld/node_modules/zod-to-json-schema/package.json",
+        "bytes": 2968,
+        "sha256": "1f78f7c62913083878cd5bb0e9d10b8f5893d5799bbe1295068046707c24de3c"
+      },
+      "notices": [
+        {
+          "path": "/opt/agentmeld/node_modules/zod-to-json-schema/LICENSE",
+          "bytes": 745,
+          "sha256": "80d3168ad2f70f6f5bb2ab22b23414707abf6f0a392034891481ae36a1a429d4"
+        }
+      ]
+    }
+  ],
+  "debian": [
+    {
+      "name": "adduser",
+      "version": "3.134",
+      "architecture": "all",
+      "copyright": {
+        "path": "/usr/share/doc/adduser/copyright",
+        "bytes": 12432,
+        "sha256": "b143053a4862ab354831487b5f8bd31dc9ffdc589d15de9d9c764332a0209796"
+      }
+    },
+    {
+      "name": "apt",
+      "version": "2.6.1",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/apt/copyright",
+        "bytes": 7668,
+        "sha256": "b4701305243d8d746f4acaafe15d94f946251b05691bd6917fef41dd15e9ee12"
+      }
+    },
+    {
+      "name": "at-spi2-common",
+      "version": "2.46.0-5",
+      "architecture": "all",
+      "copyright": {
+        "path": "/usr/share/doc/at-spi2-common/copyright",
+        "bytes": 12099,
+        "sha256": "ea8d12c1f33112087063f680432565a22d04dd36bec364652e9d1e831a360935"
+      }
+    },
+    {
+      "name": "base-files",
+      "version": "12.4+deb12u15",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/base-files/copyright",
+        "bytes": 1208,
+        "sha256": "fd7e4aae7e7b05f217bcf2d02322825c360e66c52c4c2f1b28d784d6297a1c23"
+      }
+    },
+    {
+      "name": "base-passwd",
+      "version": "3.6.1",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/base-passwd/copyright",
+        "bytes": 798,
+        "sha256": "0f1cde79bd80a75f9029ae9a8c252b642223027ef36f6989c63a8230aae576a7"
+      }
+    },
+    {
+      "name": "bash",
+      "version": "5.2.15-2+b13",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/bash/copyright",
+        "bytes": 9764,
+        "sha256": "06319d84c3e5ed096036f6a9310a030c7e84e50dff2b8a6792285c83ec0ada73"
+      }
+    },
+    {
+      "name": "bsdutils",
+      "version": "1:2.38.1-5+deb12u3",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/bsdutils/copyright",
+        "bytes": 23237,
+        "sha256": "30539a2df6a89d844f43c727505a3193a60515f8ec6cdede8cc515ed22941d1c"
+      }
+    },
+    {
+      "name": "coreutils",
+      "version": "9.1-1",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/coreutils/copyright",
+        "bytes": 5552,
+        "sha256": "24e86c5ca53d6bfd8e0c47988160daa62d10a74997fe11f651e1d9533c78bff6"
+      }
+    },
+    {
+      "name": "dash",
+      "version": "0.5.12-2",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/dash/copyright",
+        "bytes": 3878,
+        "sha256": "d98c53f281321baad38164aa9ae6e368a9253be6ec51bd26a759b5e72b326f4a"
+      }
+    },
+    {
+      "name": "debconf",
+      "version": "1.5.82",
+      "architecture": "all",
+      "copyright": {
+        "path": "/usr/share/doc/debconf/copyright",
+        "bytes": 2764,
+        "sha256": "57163c71bd8a5289660892827dd0dfaa7fef47f89deedc9dc6711ced7d0a28d7"
+      }
+    },
+    {
+      "name": "debian-archive-keyring",
+      "version": "2023.3+deb12u2",
+      "architecture": "all",
+      "copyright": {
+        "path": "/usr/share/doc/debian-archive-keyring/copyright",
+        "bytes": 1243,
+        "sha256": "b32aecaae84643700a33bc9ee83fa9b36938d35aa7b61b5042092eca77ddb732"
+      }
+    },
+    {
+      "name": "debianutils",
+      "version": "5.7-0.5~deb12u1",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/debianutils/copyright",
+        "bytes": 9055,
+        "sha256": "fd2d797e208bcfb713510e47a89867191180943e1167d44c2acd8ff1b88e5c10"
+      }
+    },
+    {
+      "name": "diffutils",
+      "version": "1:3.8-4",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/diffutils/copyright",
+        "bytes": 16112,
+        "sha256": "8654d7cc7cdae1f31bb67a3ce5bf35d512c0bdfffd071df757edc54153cc7930"
+      }
+    },
+    {
+      "name": "dpkg",
+      "version": "1.21.23",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/dpkg/copyright",
+        "bytes": 7943,
+        "sha256": "7442bdadcd44e818fddd786057db07639cc68225c389c7c240d3bb3984b05173"
+      }
+    },
+    {
+      "name": "e2fsprogs",
+      "version": "1.47.0-2+b2",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/e2fsprogs/copyright",
+        "bytes": 15209,
+        "sha256": "1ca415a294c0e56958c4f795b3f1f69ea3479bca53d7811f5cdd020a258949db"
+      }
+    },
+    {
+      "name": "findutils",
+      "version": "4.9.0-4",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/findutils/copyright",
+        "bytes": 24782,
+        "sha256": "8fbcc77ed31f480a85654e9b6d1d25cbb95b62e9dc5159ae1565bca684c3e1dc"
+      }
+    },
+    {
+      "name": "fontconfig",
+      "version": "2.14.1-4",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/fontconfig/copyright",
+        "bytes": 1301,
+        "sha256": "b215a61cdd3e62b5b17cc28b1852c78acb3dd38be0fb30706f7efc050dba91db"
+      }
+    },
+    {
+      "name": "fontconfig-config",
+      "version": "2.14.1-4",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/fontconfig-config/copyright",
+        "bytes": 1301,
+        "sha256": "b215a61cdd3e62b5b17cc28b1852c78acb3dd38be0fb30706f7efc050dba91db"
+      }
+    },
+    {
+      "name": "fonts-freefont-ttf",
+      "version": "20120503-10",
+      "architecture": "all",
+      "copyright": {
+        "path": "/usr/share/doc/fonts-freefont-ttf/copyright",
+        "bytes": 4626,
+        "sha256": "dc12a0bc9870cca7aae5a787c246e3b53b6eb5bdfb96ed7898b72062bd11edfd"
+      }
+    },
+    {
+      "name": "fonts-ipafont-gothic",
+      "version": "00303-23",
+      "architecture": "all",
+      "copyright": {
+        "path": "/usr/share/doc/fonts-ipafont-gothic/copyright",
+        "bytes": 22011,
+        "sha256": "2d31c8d4db39084b966849c9aaddf94949dc99b3ed53626c112c66342b054d6a"
+      }
+    },
+    {
+      "name": "fonts-liberation",
+      "version": "1:1.07.4-11",
+      "architecture": "all",
+      "copyright": {
+        "path": "/usr/share/doc/fonts-liberation/copyright",
+        "bytes": 4473,
+        "sha256": "bcb5f95766d5dc969748869eef4559dd991fd31f7e0d30c29e140276cc3c24ee"
+      }
+    },
+    {
+      "name": "fonts-noto-color-emoji",
+      "version": "2.042-0+deb12u1",
+      "architecture": "all",
+      "copyright": {
+        "path": "/usr/share/doc/fonts-noto-color-emoji/copyright",
+        "bytes": 5087,
+        "sha256": "3720722d2046accb40e1696f096b57c658b0b47d74031b3d114cf7545b840b3c"
+      }
+    },
+    {
+      "name": "fonts-tlwg-loma-otf",
+      "version": "1:0.7.3-1",
+      "architecture": "all",
+      "copyright": {
+        "path": "/usr/share/doc/fonts-tlwg-loma-otf/copyright",
+        "bytes": 7844,
+        "sha256": "46d029d17ed9adb2a95761bbb750e5c66a7d455dfaa09a8be6cd2b5f3d8d5006"
+      }
+    },
+    {
+      "name": "fonts-unifont",
+      "version": "1:15.0.01-2",
+      "architecture": "all",
+      "copyright": {
+        "path": "/usr/share/doc/fonts-unifont/copyright",
+        "bytes": 2733,
+        "sha256": "0986c8df2fc58c2103248700e14dca643db03aa64bb2b84638d4c99780f37f77"
+      }
+    },
+    {
+      "name": "fonts-wqy-zenhei",
+      "version": "0.9.45-8",
+      "architecture": "all",
+      "copyright": {
+        "path": "/usr/share/doc/fonts-wqy-zenhei/copyright",
+        "bytes": 2618,
+        "sha256": "d183af7db6d782fe7009eeafef0cef67099ef50ef18dd81513de8004b0361cb7"
+      }
+    },
+    {
+      "name": "gcc-12-base:arm64",
+      "version": "12.2.0-14+deb12u1",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/gcc-12-base/copyright",
+        "bytes": 68194,
+        "sha256": "da8191658b3452ce9caf31638ba61dab31a38c619fa39df119812e050f592fd3"
+      }
+    },
+    {
+      "name": "gpgv",
+      "version": "2.2.40-1.1+deb12u2",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/gpgv/copyright",
+        "bytes": 10555,
+        "sha256": "84dab06b5c1baf3a7a45c3cdc5f98fb121234e98fdd6266c3f773d54fcdc4f54"
+      }
+    },
+    {
+      "name": "grep",
+      "version": "3.8-5",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/grep/copyright",
+        "bytes": 1807,
+        "sha256": "42d9b4d610396b1e8d1303dcb9487af3f5a2d2709623cf03a04cf76acdf6c5e3"
+      }
+    },
+    {
+      "name": "gzip",
+      "version": "1.12-1",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/gzip/copyright",
+        "bytes": 2895,
+        "sha256": "1ca5dd5098fe2e1c0f0d05196f5b3da8b414a807702e6ca8b536eb5fd3059130"
+      }
+    },
+    {
+      "name": "hostname",
+      "version": "3.23+nmu1",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/hostname/copyright",
+        "bytes": 1273,
+        "sha256": "94189fc5a9a7b7224d96e1a0cfdfe9be0df2018b04bf21d591627ab96b30cad1"
+      }
+    },
+    {
+      "name": "init-system-helpers",
+      "version": "1.65.2+deb12u1",
+      "architecture": "all",
+      "copyright": {
+        "path": "/usr/share/doc/init-system-helpers/copyright",
+        "bytes": 3133,
+        "sha256": "7534601cc4fa513804d16490359f5831e7b6a1212da3bbf948bebdd4c8799783"
+      }
+    },
+    {
+      "name": "libacl1:arm64",
+      "version": "2.3.1-3",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libacl1/copyright",
+        "bytes": 2048,
+        "sha256": "9a2dfb4a5abc7e84be2cc41f1089be665519c9409549296f6c19de57ab1d37c2"
+      }
+    },
+    {
+      "name": "libapt-pkg6.0:arm64",
+      "version": "2.6.1",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libapt-pkg6.0/copyright",
+        "bytes": 7668,
+        "sha256": "b4701305243d8d746f4acaafe15d94f946251b05691bd6917fef41dd15e9ee12"
+      }
+    },
+    {
+      "name": "libasound2:arm64",
+      "version": "1.2.8-1+b1",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libasound2/copyright",
+        "bytes": 1583,
+        "sha256": "1e389062b3d44557d569d488e6075b162efd946e4bced56d20cbf62f9f53d7f6"
+      }
+    },
+    {
+      "name": "libasound2-data",
+      "version": "1.2.8-1",
+      "architecture": "all",
+      "copyright": {
+        "path": "/usr/share/doc/libasound2-data/copyright",
+        "bytes": 1583,
+        "sha256": "1e389062b3d44557d569d488e6075b162efd946e4bced56d20cbf62f9f53d7f6"
+      }
+    },
+    {
+      "name": "libatk-bridge2.0-0:arm64",
+      "version": "2.46.0-5",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libatk-bridge2.0-0/copyright",
+        "bytes": 12099,
+        "sha256": "ea8d12c1f33112087063f680432565a22d04dd36bec364652e9d1e831a360935"
+      }
+    },
+    {
+      "name": "libatk1.0-0:arm64",
+      "version": "2.46.0-5",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libatk1.0-0/copyright",
+        "bytes": 12099,
+        "sha256": "ea8d12c1f33112087063f680432565a22d04dd36bec364652e9d1e831a360935"
+      }
+    },
+    {
+      "name": "libatspi2.0-0:arm64",
+      "version": "2.46.0-5",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libatspi2.0-0/copyright",
+        "bytes": 12099,
+        "sha256": "ea8d12c1f33112087063f680432565a22d04dd36bec364652e9d1e831a360935"
+      }
+    },
+    {
+      "name": "libattr1:arm64",
+      "version": "1:2.5.1-4",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libattr1/copyright",
+        "bytes": 1947,
+        "sha256": "0cbec745d85ea775450b2d54fac55277197f429e52d611f72852ed420450620e"
+      }
+    },
+    {
+      "name": "libaudit-common",
+      "version": "1:3.0.9-1",
+      "architecture": "all",
+      "copyright": {
+        "path": "/usr/share/doc/libaudit-common/copyright",
+        "bytes": 1596,
+        "sha256": "6c7011e93f643b112c4cc3622131e28a30477afad6c4f5efe466b13aa7f603cc"
+      }
+    },
+    {
+      "name": "libaudit1:arm64",
+      "version": "1:3.0.9-1",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libaudit1/copyright",
+        "bytes": 1596,
+        "sha256": "6c7011e93f643b112c4cc3622131e28a30477afad6c4f5efe466b13aa7f603cc"
+      }
+    },
+    {
+      "name": "libavahi-client3:arm64",
+      "version": "0.8-10+deb12u1",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libavahi-client3/copyright",
+        "bytes": 5487,
+        "sha256": "66849d0ab7cbf0d770e40e00276ed8d264ed8974c0e064fb12814c0f80430c5d"
+      }
+    },
+    {
+      "name": "libavahi-common-data:arm64",
+      "version": "0.8-10+deb12u1",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libavahi-common-data/copyright",
+        "bytes": 5487,
+        "sha256": "66849d0ab7cbf0d770e40e00276ed8d264ed8974c0e064fb12814c0f80430c5d"
+      }
+    },
+    {
+      "name": "libavahi-common3:arm64",
+      "version": "0.8-10+deb12u1",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libavahi-common3/copyright",
+        "bytes": 5487,
+        "sha256": "66849d0ab7cbf0d770e40e00276ed8d264ed8974c0e064fb12814c0f80430c5d"
+      }
+    },
+    {
+      "name": "libblkid1:arm64",
+      "version": "2.38.1-5+deb12u3",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libblkid1/copyright",
+        "bytes": 23237,
+        "sha256": "30539a2df6a89d844f43c727505a3193a60515f8ec6cdede8cc515ed22941d1c"
+      }
+    },
+    {
+      "name": "libbrotli1:arm64",
+      "version": "1.0.9-2+b6",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libbrotli1/copyright",
+        "bytes": 1354,
+        "sha256": "24a64e5bb83d0960d1835696a1e23c0896ad6055b0ca47c66ab0eb9a766324b1"
+      }
+    },
+    {
+      "name": "libbsd0:arm64",
+      "version": "0.11.7-2",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libbsd0/copyright",
+        "bytes": 23960,
+        "sha256": "00fd7be5d907a6bcc409a80f2d565f508673db4761d54623691f89ae3aa20fc7"
+      }
+    },
+    {
+      "name": "libbz2-1.0:arm64",
+      "version": "1.0.8-5+b1",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libbz2-1.0/copyright",
+        "bytes": 2228,
+        "sha256": "832ed535ff3c3d025a8d2348eb1b697b89addcf2eaadbc17650262040b9145e2"
+      }
+    },
+    {
+      "name": "libc-bin",
+      "version": "2.36-9+deb12u14",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libc-bin/copyright",
+        "bytes": 25467,
+        "sha256": "40c7e1f2118531f038ca22999bd976901254e1bc5cd1b0f0211bdd064c599987"
+      }
+    },
+    {
+      "name": "libc6:arm64",
+      "version": "2.36-9+deb12u14",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libc6/copyright",
+        "bytes": 25467,
+        "sha256": "40c7e1f2118531f038ca22999bd976901254e1bc5cd1b0f0211bdd064c599987"
+      }
+    },
+    {
+      "name": "libcairo2:arm64",
+      "version": "1.16.0-7",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libcairo2/copyright",
+        "bytes": 28461,
+        "sha256": "408fb9e704e875cd42d432e7c9b3b378f568e3c89db2b5c5ef3d11c025319574"
+      }
+    },
+    {
+      "name": "libcap-ng0:arm64",
+      "version": "0.8.3-1+b3",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libcap-ng0/copyright",
+        "bytes": 2035,
+        "sha256": "49b5db19990a3e3cc1a9ed716aed231f6f3c1c217e58f62ae4dc2818c6d3e9cc"
+      }
+    },
+    {
+      "name": "libcap2:arm64",
+      "version": "1:2.66-4+deb12u3+b1",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libcap2/copyright",
+        "bytes": 4631,
+        "sha256": "e60a5642e12e340060e4e519a65b2eb0330be2917854841c644e36268f607d54"
+      }
+    },
+    {
+      "name": "libcom-err2:arm64",
+      "version": "1.47.0-2+b2",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libcom-err2/copyright",
+        "bytes": 15209,
+        "sha256": "1ca415a294c0e56958c4f795b3f1f69ea3479bca53d7811f5cdd020a258949db"
+      }
+    },
+    {
+      "name": "libcrypt1:arm64",
+      "version": "1:4.4.33-2",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libcrypt1/copyright",
+        "bytes": 6010,
+        "sha256": "5a5e7ca0e9f3f9679977e3a3e9ede45ad92885a3297ea78e766979f9866c5a16"
+      }
+    },
+    {
+      "name": "libcups2:arm64",
+      "version": "2.4.2-3+deb12u9",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libcups2/copyright",
+        "bytes": 6513,
+        "sha256": "adf89b2f8c8abb8cd0770184a4536266e5b816e59cf78a3d2bdaf8916067de6e"
+      }
+    },
+    {
+      "name": "libdatrie1:arm64",
+      "version": "0.2.13-2+b1",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libdatrie1/copyright",
+        "bytes": 2123,
+        "sha256": "1169f159b101610f58bdc54949c153de129ef8363294f532f45912de9f94b69c"
+      }
+    },
+    {
+      "name": "libdb5.3:arm64",
+      "version": "5.3.28+dfsg2-1",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libdb5.3/copyright",
+        "bytes": 17177,
+        "sha256": "8b53da37d73289d9df7317b3a2dbe16491f1fa9fec8b77b86d69704b40ce2c26"
+      }
+    },
+    {
+      "name": "libdbus-1-3:arm64",
+      "version": "1.14.10-1~deb12u1",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libdbus-1-3/copyright",
+        "bytes": 22102,
+        "sha256": "4cfc9f33368f3b95429992704c96fa598818ec796046426a9979ce4d9b8b1900"
+      }
+    },
+    {
+      "name": "libdebconfclient0:arm64",
+      "version": "0.270",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libdebconfclient0/copyright",
+        "bytes": 5856,
+        "sha256": "cf63099896d1c0f6529c41b8d95738e6fea342ffba609187d339c4f38ce36ecc"
+      }
+    },
+    {
+      "name": "libdrm-amdgpu1:arm64",
+      "version": "2.4.114-1+b1",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libdrm-amdgpu1/copyright",
+        "bytes": 15612,
+        "sha256": "512c9a57fd8b449aa157351da9df07bf8e19f767e496a72205a4020268ddb2e0"
+      }
+    },
+    {
+      "name": "libdrm-common",
+      "version": "2.4.114-1",
+      "architecture": "all",
+      "copyright": {
+        "path": "/usr/share/doc/libdrm-common/copyright",
+        "bytes": 15612,
+        "sha256": "512c9a57fd8b449aa157351da9df07bf8e19f767e496a72205a4020268ddb2e0"
+      }
+    },
+    {
+      "name": "libdrm-nouveau2:arm64",
+      "version": "2.4.114-1+b1",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libdrm-nouveau2/copyright",
+        "bytes": 15612,
+        "sha256": "512c9a57fd8b449aa157351da9df07bf8e19f767e496a72205a4020268ddb2e0"
+      }
+    },
+    {
+      "name": "libdrm-radeon1:arm64",
+      "version": "2.4.114-1+b1",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libdrm-radeon1/copyright",
+        "bytes": 15612,
+        "sha256": "512c9a57fd8b449aa157351da9df07bf8e19f767e496a72205a4020268ddb2e0"
+      }
+    },
+    {
+      "name": "libdrm2:arm64",
+      "version": "2.4.114-1+b1",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libdrm2/copyright",
+        "bytes": 15612,
+        "sha256": "512c9a57fd8b449aa157351da9df07bf8e19f767e496a72205a4020268ddb2e0"
+      }
+    },
+    {
+      "name": "libedit2:arm64",
+      "version": "3.1-20221030-2",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libedit2/copyright",
+        "bytes": 1840,
+        "sha256": "2b53671050f6319be6fcdcafa434e8ccb8af629359b4afc83185867204f3927d"
+      }
+    },
+    {
+      "name": "libelf1:arm64",
+      "version": "0.188-2.1",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libelf1/copyright",
+        "bytes": 8709,
+        "sha256": "d754a0edec1a510561aa643040456266536e3ec26bdb22e69a11c3f7b5de2339"
+      }
+    },
+    {
+      "name": "libexpat1:arm64",
+      "version": "2.5.0-1+deb12u3",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libexpat1/copyright",
+        "bytes": 1756,
+        "sha256": "60919fe1a156395ff14511bb6ff79756c50ade2fff59ac60c9bae1d8a7fe6292"
+      }
+    },
+    {
+      "name": "libext2fs2:arm64",
+      "version": "1.47.0-2+b2",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libext2fs2/copyright",
+        "bytes": 15209,
+        "sha256": "1ca415a294c0e56958c4f795b3f1f69ea3479bca53d7811f5cdd020a258949db"
+      }
+    },
+    {
+      "name": "libffi8:arm64",
+      "version": "3.4.4-1",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libffi8/copyright",
+        "bytes": 10165,
+        "sha256": "f83d2ecba1ea4d99957e81c50bebbd076a128194288a3ec22cc8ccdb77c43087"
+      }
+    },
+    {
+      "name": "libfontconfig1:arm64",
+      "version": "2.14.1-4",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libfontconfig1/copyright",
+        "bytes": 1301,
+        "sha256": "b215a61cdd3e62b5b17cc28b1852c78acb3dd38be0fb30706f7efc050dba91db"
+      }
+    },
+    {
+      "name": "libfontenc1:arm64",
+      "version": "1:1.1.4-1",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libfontenc1/copyright",
+        "bytes": 1158,
+        "sha256": "a7cb43c56c51407bc6539032a47c5351cd03962ed6a30b4f52dec6ed7db54383"
+      }
+    },
+    {
+      "name": "libfreetype6:arm64",
+      "version": "2.12.1+dfsg-5+deb12u4",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libfreetype6/copyright",
+        "bytes": 25069,
+        "sha256": "70a7a0a06e6440777417f6875476cb712b03943010abed1c32297798c8cc8ed8"
+      }
+    },
+    {
+      "name": "libfribidi0:arm64",
+      "version": "1.0.8-2.1",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libfribidi0/copyright",
+        "bytes": 1450,
+        "sha256": "39000badbcd15a4a144cfa2d2f0d906d4d9183f42350e8193ac775baded86b7c"
+      }
+    },
+    {
+      "name": "libgbm1:arm64",
+      "version": "22.3.6-1+deb12u2",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libgbm1/copyright",
+        "bytes": 14241,
+        "sha256": "30c36421275bf40e318d5d3e8662db6e332f97f047fa963bdb44e28ef9112232"
+      }
+    },
+    {
+      "name": "libgcc-s1:arm64",
+      "version": "12.2.0-14+deb12u1",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libgcc-s1/copyright",
+        "bytes": 68194,
+        "sha256": "da8191658b3452ce9caf31638ba61dab31a38c619fa39df119812e050f592fd3"
+      }
+    },
+    {
+      "name": "libgcrypt20:arm64",
+      "version": "1.10.1-3+deb12u1",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libgcrypt20/copyright",
+        "bytes": 24896,
+        "sha256": "95db2f9da663f2bfe2aabe9c72fce9d6c9ae767b912f397d7823f50bd55a1a7d"
+      }
+    },
+    {
+      "name": "libgl1:arm64",
+      "version": "1.6.0-1",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libgl1/copyright",
+        "bytes": 4283,
+        "sha256": "cf246da9d8979f9be80e5b9c3ce0010c09786f11a55637ff3d09f1a36d269b25"
+      }
+    },
+    {
+      "name": "libgl1-mesa-dri:arm64",
+      "version": "22.3.6-1+deb12u2",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libgl1-mesa-dri/copyright",
+        "bytes": 14241,
+        "sha256": "30c36421275bf40e318d5d3e8662db6e332f97f047fa963bdb44e28ef9112232"
+      }
+    },
+    {
+      "name": "libglapi-mesa:arm64",
+      "version": "22.3.6-1+deb12u2",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libglapi-mesa/copyright",
+        "bytes": 14241,
+        "sha256": "30c36421275bf40e318d5d3e8662db6e332f97f047fa963bdb44e28ef9112232"
+      }
+    },
+    {
+      "name": "libglib2.0-0:arm64",
+      "version": "2.74.6-2+deb12u9",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libglib2.0-0/copyright",
+        "bytes": 51488,
+        "sha256": "03cbcd6142c92bb14c997af557b8c73b1534710c34fe7f69788f8e8fc5fd941d"
+      }
+    },
+    {
+      "name": "libglvnd0:arm64",
+      "version": "1.6.0-1",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libglvnd0/copyright",
+        "bytes": 4283,
+        "sha256": "cf246da9d8979f9be80e5b9c3ce0010c09786f11a55637ff3d09f1a36d269b25"
+      }
+    },
+    {
+      "name": "libglx-mesa0:arm64",
+      "version": "22.3.6-1+deb12u2",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libglx-mesa0/copyright",
+        "bytes": 14241,
+        "sha256": "30c36421275bf40e318d5d3e8662db6e332f97f047fa963bdb44e28ef9112232"
+      }
+    },
+    {
+      "name": "libglx0:arm64",
+      "version": "1.6.0-1",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libglx0/copyright",
+        "bytes": 4283,
+        "sha256": "cf246da9d8979f9be80e5b9c3ce0010c09786f11a55637ff3d09f1a36d269b25"
+      }
+    },
+    {
+      "name": "libgmp10:arm64",
+      "version": "2:6.2.1+dfsg1-1.1",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libgmp10/copyright",
+        "bytes": 4153,
+        "sha256": "7d366aef5ba325150246de1d7820c4c9926cd27ca61a69948492b26cd3b61601"
+      }
+    },
+    {
+      "name": "libgnutls30:arm64",
+      "version": "3.7.9-2+deb12u7",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libgnutls30/copyright",
+        "bytes": 51588,
+        "sha256": "bb7e5c24b3e27bbba5671dd710d159a0066833bda4caa1d55d8027ffed539337"
+      }
+    },
+    {
+      "name": "libgpg-error0:arm64",
+      "version": "1.46-1",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libgpg-error0/copyright",
+        "bytes": 4903,
+        "sha256": "8760fd36efa1d7186f8769d4e76a3e678045b94d54465bf6f2db5eb871c7c27f"
+      }
+    },
+    {
+      "name": "libgraphite2-3:arm64",
+      "version": "1.3.14-1+deb12u1",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libgraphite2-3/copyright",
+        "bytes": 9348,
+        "sha256": "a33017ba0308c41bdbde4751bff349ab7b26af45fadbb1e3e7ac67c372985572"
+      }
+    },
+    {
+      "name": "libgssapi-krb5-2:arm64",
+      "version": "1.20.1-2+deb12u5",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libgssapi-krb5-2/copyright",
+        "bytes": 63047,
+        "sha256": "936728f4181718f42951b881c1e8f1386bf6b2723c4fbc533c374d6f42c71816"
+      }
+    },
+    {
+      "name": "libharfbuzz0b:arm64",
+      "version": "6.0.0+dfsg-3",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libharfbuzz0b/copyright",
+        "bytes": 31787,
+        "sha256": "31cfabe2acdcc9cc9dcda6b93185cffc50424d817ae20dd8efd8bcdac5396148"
+      }
+    },
+    {
+      "name": "libhogweed6:arm64",
+      "version": "3.8.1-2",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libhogweed6/copyright",
+        "bytes": 24923,
+        "sha256": "ca2ca597320220c00ef6dc0fe5d0d82025548d6d4ba80e85615eb691f9021f93"
+      }
+    },
+    {
+      "name": "libice6:arm64",
+      "version": "2:1.0.10-1",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libice6/copyright",
+        "bytes": 1256,
+        "sha256": "fc16500a74acc2d0a7bb2fa1005956a52551abdce2afe0642a9a8dc2b6af53c6"
+      }
+    },
+    {
+      "name": "libicu72:arm64",
+      "version": "72.1-3+deb12u1",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libicu72/copyright",
+        "bytes": 2214,
+        "sha256": "5bbff5f646ce750ac0a347e7f91793279b7422a1119820b5f75d98879c201c68"
+      }
+    },
+    {
+      "name": "libidn2-0:arm64",
+      "version": "2.3.3-1+b1",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libidn2-0/copyright",
+        "bytes": 5348,
+        "sha256": "41702469f28e8ff406345e3d1dd0c741f11bdfca319264f67036efd6aaa79e4b"
+      }
+    },
+    {
+      "name": "libk5crypto3:arm64",
+      "version": "1.20.1-2+deb12u5",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libk5crypto3/copyright",
+        "bytes": 63047,
+        "sha256": "936728f4181718f42951b881c1e8f1386bf6b2723c4fbc533c374d6f42c71816"
+      }
+    },
+    {
+      "name": "libkeyutils1:arm64",
+      "version": "1.6.3-2",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libkeyutils1/copyright",
+        "bytes": 2104,
+        "sha256": "c62fe37d22203046611112bc10a9e03a39a7f73bec1b061e7c615326166d9ff5"
+      }
+    },
+    {
+      "name": "libkrb5-3:arm64",
+      "version": "1.20.1-2+deb12u5",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libkrb5-3/copyright",
+        "bytes": 63047,
+        "sha256": "936728f4181718f42951b881c1e8f1386bf6b2723c4fbc533c374d6f42c71816"
+      }
+    },
+    {
+      "name": "libkrb5support0:arm64",
+      "version": "1.20.1-2+deb12u5",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libkrb5support0/copyright",
+        "bytes": 63047,
+        "sha256": "936728f4181718f42951b881c1e8f1386bf6b2723c4fbc533c374d6f42c71816"
+      }
+    },
+    {
+      "name": "libllvm15:arm64",
+      "version": "1:15.0.6-4+b1",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libllvm15/copyright",
+        "bytes": 6897,
+        "sha256": "dc2a171c75ca72818f7f4312602f27cb0e4bf6d010a86e7073a3797cb228ddff"
+      }
+    },
+    {
+      "name": "liblz4-1:arm64",
+      "version": "1.9.4-1",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/liblz4-1/copyright",
+        "bytes": 3275,
+        "sha256": "d3be0f43fe14da244f97c451bbae789c0acf868612598a69f5f22a289abeca40"
+      }
+    },
+    {
+      "name": "liblzma5:arm64",
+      "version": "5.4.1-1+deb12u1",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/liblzma5/copyright",
+        "bytes": 15465,
+        "sha256": "a2dc8fac0f496e1c58aff67018cf0c6b88336316afa5642f9335b71642e28aa8"
+      }
+    },
+    {
+      "name": "libmd0:arm64",
+      "version": "1.0.4-2",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libmd0/copyright",
+        "bytes": 8018,
+        "sha256": "4365ef6255ad553fce69dd4bc0e093472c5d0e41b8ea493a545cc926ce171aa6"
+      }
+    },
+    {
+      "name": "libmount1:arm64",
+      "version": "2.38.1-5+deb12u3",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libmount1/copyright",
+        "bytes": 23237,
+        "sha256": "30539a2df6a89d844f43c727505a3193a60515f8ec6cdede8cc515ed22941d1c"
+      }
+    },
+    {
+      "name": "libnettle8:arm64",
+      "version": "3.8.1-2",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libnettle8/copyright",
+        "bytes": 24923,
+        "sha256": "ca2ca597320220c00ef6dc0fe5d0d82025548d6d4ba80e85615eb691f9021f93"
+      }
+    },
+    {
+      "name": "libnspr4:arm64",
+      "version": "2:4.35-1",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libnspr4/copyright",
+        "bytes": 331,
+        "sha256": "3c4fcc131809b2b6993513bfe4cf6f1ede391ec84f1d5ceca78fb75537b22452"
+      }
+    },
+    {
+      "name": "libnss3:arm64",
+      "version": "2:3.87.1-1+deb12u4",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libnss3/copyright",
+        "bytes": 4058,
+        "sha256": "3f450f9453233852b3a469a36a897cc68fb87be3e8b3a5ba64f63a7904528408"
+      }
+    },
+    {
+      "name": "libp11-kit0:arm64",
+      "version": "0.24.1-2",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libp11-kit0/copyright",
+        "bytes": 8646,
+        "sha256": "ed139379f7c874f0ee75f3ddcc2e01091dd828d84ee1a0bdff6a1c5673ee6e58"
+      }
+    },
+    {
+      "name": "libpam-modules:arm64",
+      "version": "1.5.2-6+deb12u2",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libpam-modules/copyright",
+        "bytes": 9477,
+        "sha256": "9596b9028339d66c285422237728d6170e1e29d0b0d9adf0e9f1bda82e2391ce"
+      }
+    },
+    {
+      "name": "libpam-modules-bin",
+      "version": "1.5.2-6+deb12u2",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libpam-modules-bin/copyright",
+        "bytes": 9477,
+        "sha256": "9596b9028339d66c285422237728d6170e1e29d0b0d9adf0e9f1bda82e2391ce"
+      }
+    },
+    {
+      "name": "libpam-runtime",
+      "version": "1.5.2-6+deb12u2",
+      "architecture": "all",
+      "copyright": {
+        "path": "/usr/share/doc/libpam-runtime/copyright",
+        "bytes": 9477,
+        "sha256": "9596b9028339d66c285422237728d6170e1e29d0b0d9adf0e9f1bda82e2391ce"
+      }
+    },
+    {
+      "name": "libpam0g:arm64",
+      "version": "1.5.2-6+deb12u2",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libpam0g/copyright",
+        "bytes": 9477,
+        "sha256": "9596b9028339d66c285422237728d6170e1e29d0b0d9adf0e9f1bda82e2391ce"
+      }
+    },
+    {
+      "name": "libpango-1.0-0:arm64",
+      "version": "1.50.12+ds-1",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libpango-1.0-0/copyright",
+        "bytes": 20917,
+        "sha256": "3a29d0e487eae553ec47f260be1570a0d96e4f28c21f29ef58a14cd3d53147ff"
+      }
+    },
+    {
+      "name": "libpcre2-8-0:arm64",
+      "version": "10.42-1",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libpcre2-8-0/copyright",
+        "bytes": 6626,
+        "sha256": "030511beb4d9d620ad09914c369c36ec0528dcf301d1923cc643c948ee7c6a38"
+      }
+    },
+    {
+      "name": "libpixman-1-0:arm64",
+      "version": "0.42.2-1",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libpixman-1-0/copyright",
+        "bytes": 2247,
+        "sha256": "1b3fb5690861e15ca4fd6640fd4def4b2576617942eec04b6fcb7d8bc6c4c9da"
+      }
+    },
+    {
+      "name": "libpng16-16:arm64",
+      "version": "1.6.39-2+deb12u5",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libpng16-16/copyright",
+        "bytes": 12976,
+        "sha256": "68bd3997355bc44ccb97ff5e2bb146360e762c7d9c721945a4fabf77d1349e4a"
+      }
+    },
+    {
+      "name": "libseccomp2:arm64",
+      "version": "2.5.4-1+deb12u1",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libseccomp2/copyright",
+        "bytes": 1429,
+        "sha256": "6da0653a365b80ab31478dbfe9e7c358e80d58b6d2b52b4e16b4dbb42d7d9f5c"
+      }
+    },
+    {
+      "name": "libselinux1:arm64",
+      "version": "3.4-1+b6",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libselinux1/copyright",
+        "bytes": 3131,
+        "sha256": "641806738b0c6a3d03168c2649e6b94205198bb66cd557e6bae3a20b71c9bb0b"
+      }
+    },
+    {
+      "name": "libsemanage-common",
+      "version": "3.4-1",
+      "architecture": "all",
+      "copyright": {
+        "path": "/usr/share/doc/libsemanage-common/copyright",
+        "bytes": 1830,
+        "sha256": "e00e6a86c598f9e24ced0180a70a5f2f2e45e133d93adf2b17ce8a06ce4b1b51"
+      }
+    },
+    {
+      "name": "libsemanage2:arm64",
+      "version": "3.4-1+b5",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libsemanage2/copyright",
+        "bytes": 1830,
+        "sha256": "e00e6a86c598f9e24ced0180a70a5f2f2e45e133d93adf2b17ce8a06ce4b1b51"
+      }
+    },
+    {
+      "name": "libsensors-config",
+      "version": "1:3.6.0-7.1",
+      "architecture": "all",
+      "copyright": {
+        "path": "/usr/share/doc/libsensors-config/copyright",
+        "bytes": 2861,
+        "sha256": "36df1f6d732ef306eba85489352b2afe329f7b54c6850c3e2094f7c5df1bc46b"
+      }
+    },
+    {
+      "name": "libsensors5:arm64",
+      "version": "1:3.6.0-7.1",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libsensors5/copyright",
+        "bytes": 2861,
+        "sha256": "36df1f6d732ef306eba85489352b2afe329f7b54c6850c3e2094f7c5df1bc46b"
+      }
+    },
+    {
+      "name": "libsepol2:arm64",
+      "version": "3.4-2.1",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libsepol2/copyright",
+        "bytes": 3750,
+        "sha256": "78d2a34606a0302057ec499a3b3c07bcbc43ca334064ce4c80891a0f69c8f6c6"
+      }
+    },
+    {
+      "name": "libsm6:arm64",
+      "version": "2:1.2.3-1",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libsm6/copyright",
+        "bytes": 1224,
+        "sha256": "333d829128c80619625f7e43a0ff0e79f36812b2b7ba12696eec9b4b42ce729b"
+      }
+    },
+    {
+      "name": "libsmartcols1:arm64",
+      "version": "2.38.1-5+deb12u3",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libsmartcols1/copyright",
+        "bytes": 23237,
+        "sha256": "30539a2df6a89d844f43c727505a3193a60515f8ec6cdede8cc515ed22941d1c"
+      }
+    },
+    {
+      "name": "libsqlite3-0:arm64",
+      "version": "3.40.1-2+deb12u2",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libsqlite3-0/copyright",
+        "bytes": 1833,
+        "sha256": "78e9df8f8153c91c762ec970b82d224ac4d30f05aa7773e7e17e268141e53873"
+      }
+    },
+    {
+      "name": "libss2:arm64",
+      "version": "1.47.0-2+b2",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libss2/copyright",
+        "bytes": 15209,
+        "sha256": "1ca415a294c0e56958c4f795b3f1f69ea3479bca53d7811f5cdd020a258949db"
+      }
+    },
+    {
+      "name": "libssl3:arm64",
+      "version": "3.0.20-1~deb12u2",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libssl3/copyright",
+        "bytes": 2543,
+        "sha256": "6a7da622fe0637a334d2a8fc470852d2ffb77d9a2b2f930f854e32a41ad6ef35"
+      }
+    },
+    {
+      "name": "libstdc++6:arm64",
+      "version": "12.2.0-14+deb12u1",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libstdc++6/copyright",
+        "bytes": 68194,
+        "sha256": "da8191658b3452ce9caf31638ba61dab31a38c619fa39df119812e050f592fd3"
+      }
+    },
+    {
+      "name": "libsystemd0:arm64",
+      "version": "252.39-1~deb12u2",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libsystemd0/copyright",
+        "bytes": 12776,
+        "sha256": "a7d06854714a1ca99f6dbd1a1641dde5bcf28635be149f6554449618f8f427f3"
+      }
+    },
+    {
+      "name": "libtasn1-6:arm64",
+      "version": "4.19.0-2+deb12u1",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libtasn1-6/copyright",
+        "bytes": 3451,
+        "sha256": "572ad60ad184d8f52c6dc66d83a61a68f137db560b3452ce00588c9ecf128a65"
+      }
+    },
+    {
+      "name": "libthai-data",
+      "version": "0.1.29-1",
+      "architecture": "all",
+      "copyright": {
+        "path": "/usr/share/doc/libthai-data/copyright",
+        "bytes": 2452,
+        "sha256": "016c3098ec29a08639005f6b9cd7519764e7627392eac3d87f2ea7488ce290e5"
+      }
+    },
+    {
+      "name": "libthai0:arm64",
+      "version": "0.1.29-1",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libthai0/copyright",
+        "bytes": 2452,
+        "sha256": "016c3098ec29a08639005f6b9cd7519764e7627392eac3d87f2ea7488ce290e5"
+      }
+    },
+    {
+      "name": "libtinfo6:arm64",
+      "version": "6.4-4",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libtinfo6/copyright",
+        "bytes": 4670,
+        "sha256": "f0974fb41778e23c94111ff90da0546de8971f8270c58877283d372e6bd7f17e"
+      }
+    },
+    {
+      "name": "libudev1:arm64",
+      "version": "252.39-1~deb12u2",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libudev1/copyright",
+        "bytes": 12776,
+        "sha256": "a7d06854714a1ca99f6dbd1a1641dde5bcf28635be149f6554449618f8f427f3"
+      }
+    },
+    {
+      "name": "libunistring2:arm64",
+      "version": "1.0-2",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libunistring2/copyright",
+        "bytes": 6068,
+        "sha256": "0035f89e5317f3cec389383e8727788521b0fde3e75cea881fa0e92e1d48cb57"
+      }
+    },
+    {
+      "name": "libunwind8:arm64",
+      "version": "1.6.2-3",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libunwind8/copyright",
+        "bytes": 3613,
+        "sha256": "977d981f5677652884b09cccef6b62f992aa9c74b7a748bfe9863a703f5aed58"
+      }
+    },
+    {
+      "name": "libuuid1:arm64",
+      "version": "2.38.1-5+deb12u3",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libuuid1/copyright",
+        "bytes": 23237,
+        "sha256": "30539a2df6a89d844f43c727505a3193a60515f8ec6cdede8cc515ed22941d1c"
+      }
+    },
+    {
+      "name": "libwayland-server0:arm64",
+      "version": "1.21.0-1",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libwayland-server0/copyright",
+        "bytes": 1934,
+        "sha256": "736bf54141fa9808939ffff2691b817888ea53197484c2099e8d03b954b83e3b"
+      }
+    },
+    {
+      "name": "libx11-6:arm64",
+      "version": "2:1.8.4-2+deb12u2",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libx11-6/copyright",
+        "bytes": 47102,
+        "sha256": "0b380a7fd5b2228f26e9585e56f14812efd3350f3df307507d2bc055dfd8de3e"
+      }
+    },
+    {
+      "name": "libx11-data",
+      "version": "2:1.8.4-2+deb12u2",
+      "architecture": "all",
+      "copyright": {
+        "path": "/usr/share/doc/libx11-data/copyright",
+        "bytes": 47102,
+        "sha256": "0b380a7fd5b2228f26e9585e56f14812efd3350f3df307507d2bc055dfd8de3e"
+      }
+    },
+    {
+      "name": "libx11-xcb1:arm64",
+      "version": "2:1.8.4-2+deb12u2",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libx11-xcb1/copyright",
+        "bytes": 47102,
+        "sha256": "0b380a7fd5b2228f26e9585e56f14812efd3350f3df307507d2bc055dfd8de3e"
+      }
+    },
+    {
+      "name": "libxau6:arm64",
+      "version": "1:1.0.9-1",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libxau6/copyright",
+        "bytes": 1224,
+        "sha256": "118dd263a7b91c8f21c489f949bf13281dff9e766deea92b829dac4dce66601a"
+      }
+    },
+    {
+      "name": "libxaw7:arm64",
+      "version": "2:1.0.14-1",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libxaw7/copyright",
+        "bytes": 8843,
+        "sha256": "b04f7dd56d0e88bf2dd5aafd138bb4b3631401898480c46c94ee7fbf865ffde5"
+      }
+    },
+    {
+      "name": "libxcb-dri2-0:arm64",
+      "version": "1.15-1",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libxcb-dri2-0/copyright",
+        "bytes": 1781,
+        "sha256": "4f7cb9db6bf6542f5417e3d674c780d3a5fd12291a54d63054fb576ee0cfae80"
+      }
+    },
+    {
+      "name": "libxcb-dri3-0:arm64",
+      "version": "1.15-1",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libxcb-dri3-0/copyright",
+        "bytes": 1781,
+        "sha256": "4f7cb9db6bf6542f5417e3d674c780d3a5fd12291a54d63054fb576ee0cfae80"
+      }
+    },
+    {
+      "name": "libxcb-glx0:arm64",
+      "version": "1.15-1",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libxcb-glx0/copyright",
+        "bytes": 1781,
+        "sha256": "4f7cb9db6bf6542f5417e3d674c780d3a5fd12291a54d63054fb576ee0cfae80"
+      }
+    },
+    {
+      "name": "libxcb-present0:arm64",
+      "version": "1.15-1",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libxcb-present0/copyright",
+        "bytes": 1781,
+        "sha256": "4f7cb9db6bf6542f5417e3d674c780d3a5fd12291a54d63054fb576ee0cfae80"
+      }
+    },
+    {
+      "name": "libxcb-randr0:arm64",
+      "version": "1.15-1",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libxcb-randr0/copyright",
+        "bytes": 1781,
+        "sha256": "4f7cb9db6bf6542f5417e3d674c780d3a5fd12291a54d63054fb576ee0cfae80"
+      }
+    },
+    {
+      "name": "libxcb-render0:arm64",
+      "version": "1.15-1",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libxcb-render0/copyright",
+        "bytes": 1781,
+        "sha256": "4f7cb9db6bf6542f5417e3d674c780d3a5fd12291a54d63054fb576ee0cfae80"
+      }
+    },
+    {
+      "name": "libxcb-shm0:arm64",
+      "version": "1.15-1",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libxcb-shm0/copyright",
+        "bytes": 1781,
+        "sha256": "4f7cb9db6bf6542f5417e3d674c780d3a5fd12291a54d63054fb576ee0cfae80"
+      }
+    },
+    {
+      "name": "libxcb-sync1:arm64",
+      "version": "1.15-1",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libxcb-sync1/copyright",
+        "bytes": 1781,
+        "sha256": "4f7cb9db6bf6542f5417e3d674c780d3a5fd12291a54d63054fb576ee0cfae80"
+      }
+    },
+    {
+      "name": "libxcb-xfixes0:arm64",
+      "version": "1.15-1",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libxcb-xfixes0/copyright",
+        "bytes": 1781,
+        "sha256": "4f7cb9db6bf6542f5417e3d674c780d3a5fd12291a54d63054fb576ee0cfae80"
+      }
+    },
+    {
+      "name": "libxcb1:arm64",
+      "version": "1.15-1",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libxcb1/copyright",
+        "bytes": 1781,
+        "sha256": "4f7cb9db6bf6542f5417e3d674c780d3a5fd12291a54d63054fb576ee0cfae80"
+      }
+    },
+    {
+      "name": "libxcomposite1:arm64",
+      "version": "1:0.4.5-1",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libxcomposite1/copyright",
+        "bytes": 2324,
+        "sha256": "e37c7a7e4026343c3e5c13990a6d9a8879194ae3ab26bfe420b34f6f206bf35f"
+      }
+    },
+    {
+      "name": "libxdamage1:arm64",
+      "version": "1:1.1.6-1",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libxdamage1/copyright",
+        "bytes": 1221,
+        "sha256": "09182bc7805ff77a41251e450cebd0d33c48a74ba8ec4b734855a22c86f50417"
+      }
+    },
+    {
+      "name": "libxdmcp6:arm64",
+      "version": "1:1.1.2-3",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libxdmcp6/copyright",
+        "bytes": 1265,
+        "sha256": "1bcbb50f8603fe8b86d330bfa460b772ea04fbd3c70e4499f0768b5340b9fd6e"
+      }
+    },
+    {
+      "name": "libxext6:arm64",
+      "version": "2:1.3.4-1+b1",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libxext6/copyright",
+        "bytes": 10421,
+        "sha256": "bc57e445ca1d9fe082c8d54189dd411ff26caa8552c9c63d44ea06a982f32124"
+      }
+    },
+    {
+      "name": "libxfixes3:arm64",
+      "version": "1:6.0.0-2",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libxfixes3/copyright",
+        "bytes": 2320,
+        "sha256": "051ffe073ab38244c504bb379903b4ecda6081fb3d97d0d3dce44bc11712eef2"
+      }
+    },
+    {
+      "name": "libxfont2:arm64",
+      "version": "1:2.0.6-1+deb12u1",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libxfont2/copyright",
+        "bytes": 13512,
+        "sha256": "c0ec1767e5a927bdf17f8ca2af231263f973c06e5f30efa1b4867e93614dd061"
+      }
+    },
+    {
+      "name": "libxi6:arm64",
+      "version": "2:1.8-1+b1",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libxi6/copyright",
+        "bytes": 4435,
+        "sha256": "c812f9c54513ae593aab9580b54a4b18219648df7068d49ca1daa47f522ba3fa"
+      }
+    },
+    {
+      "name": "libxkbcommon0:arm64",
+      "version": "1.5.0-1",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libxkbcommon0/copyright",
+        "bytes": 3566,
+        "sha256": "5eeaeb1b6e029a0274e1573765bb0bae2926ef96a3679203faa4fd00fdaeaa88"
+      }
+    },
+    {
+      "name": "libxkbfile1:arm64",
+      "version": "1:1.1.0-1",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libxkbfile1/copyright",
+        "bytes": 3404,
+        "sha256": "41044d815bd99a5d1267fdabc79b5041fa83c7134639bb81e84f367cefe68316"
+      }
+    },
+    {
+      "name": "libxml2:arm64",
+      "version": "2.9.14+dfsg-1.3~deb12u6",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libxml2/copyright",
+        "bytes": 3067,
+        "sha256": "ee746b96cfa5be73c3ea3e4cfb1285e9b315d4c9267f99b2ee9c5d911d9fe3f4"
+      }
+    },
+    {
+      "name": "libxmu6:arm64",
+      "version": "2:1.1.3-3",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libxmu6/copyright",
+        "bytes": 3636,
+        "sha256": "15a3a4d6627af76c0649067260debca0eb66248b96e5fda4f564aac38593e06f"
+      }
+    },
+    {
+      "name": "libxpm4:arm64",
+      "version": "1:3.5.12-1.1+deb12u1",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libxpm4/copyright",
+        "bytes": 3879,
+        "sha256": "60ff44bf6ae8fdc03aa67f4ebbc6e4bba30ac96938e55bc84b1777387a58992c"
+      }
+    },
+    {
+      "name": "libxrandr2:arm64",
+      "version": "2:1.5.2-2+b1",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libxrandr2/copyright",
+        "bytes": 3733,
+        "sha256": "6d8e6239cfe9dd25bbeef06dcf0610d802ebbdc8968db87cf5adf00ff98927d4"
+      }
+    },
+    {
+      "name": "libxrender1:arm64",
+      "version": "1:0.9.10-1.1",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libxrender1/copyright",
+        "bytes": 2252,
+        "sha256": "ed2a78123a5076b4f11da38cb1ffb85b5cb9fdc26b5746c517b1d7e7a9029704"
+      }
+    },
+    {
+      "name": "libxshmfence1:arm64",
+      "version": "1.3-1",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libxshmfence1/copyright",
+        "bytes": 1215,
+        "sha256": "6a76b32c9174c0cb9e3d94c323a14d33d6a42bd2a61579b189cbc5addeb94abe"
+      }
+    },
+    {
+      "name": "libxt6:arm64",
+      "version": "1:1.2.1-1.1",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libxt6/copyright",
+        "bytes": 6829,
+        "sha256": "294382fd73d07b7b086c4829366bad834fc25cdf094400ec6ca4ff3b9ab73665"
+      }
+    },
+    {
+      "name": "libxxf86vm1:arm64",
+      "version": "1:1.1.4-1+b2",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libxxf86vm1/copyright",
+        "bytes": 1370,
+        "sha256": "8a18884e1be08a37bf1b8fc9a14eba800e65a98d6ea19bb5d8b0ccf35f9bbcc4"
+      }
+    },
+    {
+      "name": "libxxhash0:arm64",
+      "version": "0.8.1-1",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libxxhash0/copyright",
+        "bytes": 2579,
+        "sha256": "a123c93b07e781919ae996276ac02bb1c8b19dfde88176cd1240ab277c14a4ce"
+      }
+    },
+    {
+      "name": "libz3-4:arm64",
+      "version": "4.8.12-3.1",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libz3-4/copyright",
+        "bytes": 2283,
+        "sha256": "807f874c81a0dbce7d4e32b1a4e1ef1e094b9a3fe8579f34e60fda4f2077289c"
+      }
+    },
+    {
+      "name": "libzstd1:arm64",
+      "version": "1.5.4+dfsg2-5",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/libzstd1/copyright",
+        "bytes": 5389,
+        "sha256": "35e85e8e9bbb71492c5f5dddf39ed65b68775a02ad8d710c25d097b497f06c49"
+      }
+    },
+    {
+      "name": "login",
+      "version": "1:4.13+dfsg1-1+deb12u2",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/login/copyright",
+        "bytes": 7044,
+        "sha256": "a4c3e5b19700dd3cc5961663d204bd7150f65f913314682aede5931548c436d5"
+      }
+    },
+    {
+      "name": "logsave",
+      "version": "1.47.0-2+b2",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/logsave/copyright",
+        "bytes": 15209,
+        "sha256": "1ca415a294c0e56958c4f795b3f1f69ea3479bca53d7811f5cdd020a258949db"
+      }
+    },
+    {
+      "name": "mawk",
+      "version": "1.3.4.20200120-3.1",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/mawk/copyright",
+        "bytes": 22591,
+        "sha256": "167d04422f2fdf76ab565878c23be8ba0c2ebb2c57a5dac0a5a59ccd27e747a5"
+      }
+    },
+    {
+      "name": "mount",
+      "version": "2.38.1-5+deb12u3",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/mount/copyright",
+        "bytes": 23237,
+        "sha256": "30539a2df6a89d844f43c727505a3193a60515f8ec6cdede8cc515ed22941d1c"
+      }
+    },
+    {
+      "name": "ncurses-base",
+      "version": "6.4-4",
+      "architecture": "all",
+      "copyright": {
+        "path": "/usr/share/doc/ncurses-base/copyright",
+        "bytes": 4670,
+        "sha256": "f0974fb41778e23c94111ff90da0546de8971f8270c58877283d372e6bd7f17e"
+      }
+    },
+    {
+      "name": "ncurses-bin",
+      "version": "6.4-4",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/ncurses-bin/copyright",
+        "bytes": 4670,
+        "sha256": "f0974fb41778e23c94111ff90da0546de8971f8270c58877283d372e6bd7f17e"
+      }
+    },
+    {
+      "name": "passwd",
+      "version": "1:4.13+dfsg1-1+deb12u2",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/passwd/copyright",
+        "bytes": 7044,
+        "sha256": "a4c3e5b19700dd3cc5961663d204bd7150f65f913314682aede5931548c436d5"
+      }
+    },
+    {
+      "name": "perl-base",
+      "version": "5.36.0-7+deb12u3",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/perl-base/copyright",
+        "bytes": 109772,
+        "sha256": "b52f3ca17b45473cb0da6ec46748949101fcf0dda1fd5d8b306e6c97fd41af4d"
+      }
+    },
+    {
+      "name": "sed",
+      "version": "4.9-1+deb12u1",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/sed/copyright",
+        "bytes": 8618,
+        "sha256": "719320e425e8e6da53a55e0fcfa2f2ed9b1332cea16abd65321bd651b2a88568"
+      }
+    },
+    {
+      "name": "sysvinit-utils",
+      "version": "3.06-4",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/sysvinit-utils/copyright",
+        "bytes": 4689,
+        "sha256": "ad7cb339e58a88918a883d553ca236795191f027e158788a8b33f747ff502fb2"
+      }
+    },
+    {
+      "name": "tar",
+      "version": "1.34+dfsg-1.2+deb12u1",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/tar/copyright",
+        "bytes": 3798,
+        "sha256": "bea61e0c172868e07845cf50423f97f093a9a46de167dbbe333a38be610c8e00"
+      }
+    },
+    {
+      "name": "tzdata",
+      "version": "2026b-0+deb12u1",
+      "architecture": "all",
+      "copyright": {
+        "path": "/usr/share/doc/tzdata/copyright",
+        "bytes": 375,
+        "sha256": "cb61132bc0fc7b26ef5a82ee18b2fb644a1362f4f286ed980ff22e408471f59a"
+      }
+    },
+    {
+      "name": "usr-is-merged",
+      "version": "37~deb12u1",
+      "architecture": "all",
+      "copyright": {
+        "path": "/usr/share/doc/usr-is-merged/copyright",
+        "bytes": 987,
+        "sha256": "9836bfe2ef94505bbf29701e8c90799ab1a5fd966d26d60d019a822cdbf3d61a"
+      }
+    },
+    {
+      "name": "util-linux",
+      "version": "2.38.1-5+deb12u3",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/util-linux/copyright",
+        "bytes": 23237,
+        "sha256": "30539a2df6a89d844f43c727505a3193a60515f8ec6cdede8cc515ed22941d1c"
+      }
+    },
+    {
+      "name": "util-linux-extra",
+      "version": "2.38.1-5+deb12u3",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/util-linux-extra/copyright",
+        "bytes": 23237,
+        "sha256": "30539a2df6a89d844f43c727505a3193a60515f8ec6cdede8cc515ed22941d1c"
+      }
+    },
+    {
+      "name": "x11-common",
+      "version": "1:7.7+23",
+      "architecture": "all",
+      "copyright": {
+        "path": "/usr/share/doc/x11-common/copyright",
+        "bytes": 5004,
+        "sha256": "2badb73e6e70d0bd2e0b85d39ce18d3c66cfebc3e301720374fa20e6539c947d"
+      }
+    },
+    {
+      "name": "x11-xkb-utils",
+      "version": "7.7+7",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/x11-xkb-utils/copyright",
+        "bytes": 12121,
+        "sha256": "bf23f1dfd52e0f7526b83496effacba1e3f29a38adaf119091efad060f8836b1"
+      }
+    },
+    {
+      "name": "xfonts-encodings",
+      "version": "1:1.0.4-2.2",
+      "architecture": "all",
+      "copyright": {
+        "path": "/usr/share/doc/xfonts-encodings/copyright",
+        "bytes": 641,
+        "sha256": "7eb990b2914b0e2c2c9493c2511bff3d0b20ced9fb7416d6e74bf79876484811"
+      }
+    },
+    {
+      "name": "xfonts-scalable",
+      "version": "1:1.0.3-1.3",
+      "architecture": "all",
+      "copyright": {
+        "path": "/usr/share/doc/xfonts-scalable/copyright",
+        "bytes": 691,
+        "sha256": "eca307f5e148200991e7cdacf6b11910e014073ed09c81cf853aa09d09ee2a60"
+      }
+    },
+    {
+      "name": "xfonts-utils",
+      "version": "1:7.7+6",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/xfonts-utils/copyright",
+        "bytes": 13386,
+        "sha256": "4d404116525a133581918c1ad7d32456b49b599f501f1f4ff12d8202e6694a59"
+      }
+    },
+    {
+      "name": "xkb-data",
+      "version": "2.35.1-1",
+      "architecture": "all",
+      "copyright": {
+        "path": "/usr/share/doc/xkb-data/copyright",
+        "bytes": 9933,
+        "sha256": "648621d1a2180678818eb393565849bbc8b332cc521c21e009d948ea5541b3c3"
+      }
+    },
+    {
+      "name": "xserver-common",
+      "version": "2:21.1.7-3+deb12u13",
+      "architecture": "all",
+      "copyright": {
+        "path": "/usr/share/doc/xserver-common/copyright",
+        "bytes": 94783,
+        "sha256": "4cc0447a22635c7b2f1a93fec4aa94f1970fadeb72a063de006b51cf4963a06f"
+      }
+    },
+    {
+      "name": "xvfb",
+      "version": "2:21.1.7-3+deb12u13",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/xvfb/copyright",
+        "bytes": 94783,
+        "sha256": "4cc0447a22635c7b2f1a93fec4aa94f1970fadeb72a063de006b51cf4963a06f"
+      }
+    },
+    {
+      "name": "zlib1g:arm64",
+      "version": "1:1.2.13.dfsg-1",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/zlib1g/copyright",
+        "bytes": 2927,
+        "sha256": "9e5b96d63773a5d177ba264254390f792be07e41748ebd94730981c6cac31cc6"
+      }
+    }
+  ],
+  "browserNotices": [
+    {
+      "path": "/opt/playwright/chromium-1243/chrome-linux-arm64/WidevineCdm/LICENSE",
+      "bytes": 473,
+      "sha256": "20de375707692099b3132084695377ce5fec0aec05813dedcce094b8eda44386"
+    },
+    {
+      "path": "/opt/playwright/chromium_headless_shell-1243/chrome-headless-shell-linux-arm64/LICENSE.headless_shell",
+      "bytes": 2257005,
+      "sha256": "b92247f7a44c14627ef5cbbe0aa6dcca4e4422b7c05e6f2c660054061a5e3da7"
+    },
+    {
+      "path": "/opt/playwright/ffmpeg-1011/COPYING.LGPLv2.1",
+      "bytes": 26526,
+      "sha256": "b634ab5640e258563c536e658cad87080553df6f34f62269a21d554844e58bfe"
+    }
+  ],
+  "browserManifest": {
+    "comment": "Do not edit this file, use utils/roll_browser.js",
+    "browsers": [
+      {
+        "name": "chromium",
+        "revision": "1243",
+        "installByDefault": true,
+        "browserVersion": "153.0.8010.12",
+        "title": "Chrome for Testing"
+      },
+      {
+        "name": "chromium-headless-shell",
+        "revision": "1243",
+        "installByDefault": true,
+        "browserVersion": "153.0.8010.12",
+        "title": "Chrome Headless Shell"
+      },
+      {
+        "name": "firefox",
+        "revision": "1543",
+        "installByDefault": true,
+        "browserVersion": "155.0",
+        "title": "Firefox"
+      },
+      {
+        "name": "webkit",
+        "revision": "2359",
+        "installByDefault": true,
+        "revisionOverrides": {
+          "mac14": "2251",
+          "mac14-arm64": "2251"
+        },
+        "browserVersion": "26.6",
+        "title": "WebKit"
+      },
+      {
+        "name": "ffmpeg",
+        "revision": "1011",
+        "installByDefault": true
+      },
+      {
+        "name": "winldd",
+        "revision": "1007",
+        "installByDefault": false
+      },
+      {
+        "name": "android",
+        "revision": "1001",
+        "installByDefault": false
+      }
+    ]
+  },
+  "applicationBinary": {
+    "path": "/usr/local/bin/agentmeld-m0",
+    "bytes": 1176696,
+    "sha256": "690dab5fdda5b8ddd1e8b48857de019155217201fbd67a3810fd1bdecd08ef27"
+  },
+  "limitation": "Package declarations and installed notice-file hashes are evidence, not a redistribution clearance or complete embedded-component SBOM.",
+  "image": {
+    "Id": "sha256:3b205a247945f54798b053bf02cf1ca51b3f0145d5652319c2b55f16c15e1276",
+    "Os": "linux",
+    "Architecture": "arm64",
+    "Created": "2026-09-18T03:08:51.262215761-05:00"
+  },
+  "localCheckoutInputs": {
+    "Cargo.lock": "9822983e89e0f77b10c898f254f8edde6f5eb5ddce96583b7ed5ac2879efd0cd",
+    "package-lock.json": "c48392babd4b9a412dffbe998c6a31be70382c51cc7405e01cfc26388bd68835",
+    "infra/m0/Dockerfile": "7c5b4bb89af36b561054255f962754563b73f1334859b3900c0904b7fddaa54a"
+  },
+  "rustLockResolution": [
+    {
+      "name": "agentmeld-m0",
+      "version": "0.1.0",
+      "license": null,
+      "source": null
+    },
+    {
+      "name": "block-buffer",
+      "version": "0.10.4",
+      "license": "MIT OR Apache-2.0",
+      "source": "registry+https://github.com/rust-lang/crates.io-index"
+    },
+    {
+      "name": "cfg-if",
+      "version": "1.0.5",
+      "license": "MIT OR Apache-2.0",
+      "source": "registry+https://github.com/rust-lang/crates.io-index"
+    },
+    {
+      "name": "cpufeatures",
+      "version": "0.2.17",
+      "license": "MIT OR Apache-2.0",
+      "source": "registry+https://github.com/rust-lang/crates.io-index"
+    },
+    {
+      "name": "crypto-common",
+      "version": "0.1.7",
+      "license": "MIT OR Apache-2.0",
+      "source": "registry+https://github.com/rust-lang/crates.io-index"
+    },
+    {
+      "name": "digest",
+      "version": "0.10.7",
+      "license": "MIT OR Apache-2.0",
+      "source": "registry+https://github.com/rust-lang/crates.io-index"
+    },
+    {
+      "name": "generic-array",
+      "version": "0.14.7",
+      "license": "MIT",
+      "source": "registry+https://github.com/rust-lang/crates.io-index"
+    },
+    {
+      "name": "itoa",
+      "version": "1.0.18",
+      "license": "MIT OR Apache-2.0",
+      "source": "registry+https://github.com/rust-lang/crates.io-index"
+    },
+    {
+      "name": "libc",
+      "version": "0.2.189",
+      "license": "MIT OR Apache-2.0",
+      "source": "registry+https://github.com/rust-lang/crates.io-index"
+    },
+    {
+      "name": "memchr",
+      "version": "2.8.3",
+      "license": "Unlicense OR MIT",
+      "source": "registry+https://github.com/rust-lang/crates.io-index"
+    },
+    {
+      "name": "proc-macro2",
+      "version": "1.0.107",
+      "license": "MIT OR Apache-2.0",
+      "source": "registry+https://github.com/rust-lang/crates.io-index"
+    },
+    {
+      "name": "quote",
+      "version": "1.0.47",
+      "license": "MIT OR Apache-2.0",
+      "source": "registry+https://github.com/rust-lang/crates.io-index"
+    },
+    {
+      "name": "serde",
+      "version": "1.0.229",
+      "license": "MIT OR Apache-2.0",
+      "source": "registry+https://github.com/rust-lang/crates.io-index"
+    },
+    {
+      "name": "serde_core",
+      "version": "1.0.229",
+      "license": "MIT OR Apache-2.0",
+      "source": "registry+https://github.com/rust-lang/crates.io-index"
+    },
+    {
+      "name": "serde_derive",
+      "version": "1.0.229",
+      "license": "MIT OR Apache-2.0",
+      "source": "registry+https://github.com/rust-lang/crates.io-index"
+    },
+    {
+      "name": "serde_json",
+      "version": "1.0.151",
+      "license": "MIT OR Apache-2.0",
+      "source": "registry+https://github.com/rust-lang/crates.io-index"
+    },
+    {
+      "name": "sha2",
+      "version": "0.10.9",
+      "license": "MIT OR Apache-2.0",
+      "source": "registry+https://github.com/rust-lang/crates.io-index"
+    },
+    {
+      "name": "syn",
+      "version": "3.0.6",
+      "license": "MIT OR Apache-2.0",
+      "source": "registry+https://github.com/rust-lang/crates.io-index"
+    },
+    {
+      "name": "typenum",
+      "version": "1.20.1",
+      "license": "MIT OR Apache-2.0",
+      "source": "registry+https://github.com/rust-lang/crates.io-index"
+    },
+    {
+      "name": "unicode-ident",
+      "version": "1.0.26",
+      "license": "(MIT OR Apache-2.0) AND Unicode-3.0",
+      "source": "registry+https://github.com/rust-lang/crates.io-index"
+    },
+    {
+      "name": "version_check",
+      "version": "0.9.5",
+      "license": "MIT/Apache-2.0",
+      "source": "registry+https://github.com/rust-lang/crates.io-index"
+    },
+    {
+      "name": "zmij",
+      "version": "1.0.23",
+      "license": "MIT",
+      "source": "registry+https://github.com/rust-lang/crates.io-index"
+    }
+  ],
+  "rustScope": "Local locked dependency resolution, including target-specific entries; not proof every crate is linked into the image."
+}
