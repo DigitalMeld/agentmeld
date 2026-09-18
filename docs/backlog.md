@@ -120,3 +120,7 @@ The [workspace browser batch](design/workspace-browser.md) replaces the artifact
 ## Artifact actions and previews
 
 The [24-improvement artifact actions batch](design/artifact-actions.md) adds selection, bounded ZIP exports, file indexes, latest-version filtering, structured/source/media previews and preview navigation. It preserves output versions and does not introduce file deletion or model calls.
+
+## Conversation discovery and richer activity
+
+The [24-improvement conversation navigation batch](design/conversation-navigation.md) expands local chat/result search, transcript Find, safe reply formatting, draft-preserving request reuse, activity filters and recorded run inspection/export. Native command-event history and persisted drafts remain separate work.

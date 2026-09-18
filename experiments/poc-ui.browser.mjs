@@ -91,9 +91,9 @@ try{
  await page.locator('.welcome').waitFor();assert.equal(await page.locator('.historyItem').count(),2);assert.equal(await page.locator('#prompt').inputValue(),'');
  await page.reload();await page.locator('.historyItem').first().waitFor({state:'attached'});assert.equal(await page.locator('.historyItem').count(),2);
  assert.equal(await page.locator('.activityEntry').count(),3);
- await page.locator('#activityFilter').selectOption('active');assert.equal(await page.locator('.activityEntry').count(),0);
- await page.locator('#activityFilter').selectOption('completed');assert.equal(await page.locator('.activityEntry').count(),3);
- await page.locator('#activityFilter').selectOption('all');
+ await page.locator('[data-activity-filter="active"]').click();assert.equal(await page.locator('.activityEntry').count(),0);
+ await page.locator('[data-activity-filter="completed"]').click();assert.equal(await page.locator('.activityEntry').count(),3);
+ await page.locator('[data-activity-filter="all"]').click();
  await page.locator('[data-detail]').first().click();
  await page.locator('#runDetails[open]').waitFor();
  assert.deepEqual(await page.locator('.milestones strong').allTextContents(),['Queued','Started','Completed']);

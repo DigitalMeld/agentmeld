@@ -44,3 +44,5 @@ For a meaningful change, record the reason, affected behavior, evidence/checks, 
 - [Complete saved workspace browser and universal file layouts](design/workspace-browser.md)
 
 - [Artifact actions and previews](design/artifact-actions.md): selection/export, latest versions and safe previews, with behavior and verification boundaries.
+
+- [Conversation discovery and activity navigation](design/conversation-navigation.md): 24 improvements to search, reply formatting, request reuse and run inspection.

@@ -1,3 +1,4 @@
+import { chatSearch, activityTasks, duration, elapsedLabel, runExport, renderMarkdown, literalMatches } from './conversation-tools.js';
 import { artifactKey, latestVersions, textFile, csvRows, manifest, zipFiles } from './artifact-tools.js';
 import { browseWorkspace, fileKind, breadcrumbs, readPreferences } from './file-browser.js';
 import { chatInfo, orderedChats, outputEntries, visibleOutputs, conversationExport } from './organization.js';
@@ -22,7 +23,7 @@ let restoreSelection=true,lastHistory='',showArchived=false;
 function saveSelection(){try{if(selected)sessionStorage.setItem('agentmeld-selection',selected);else sessionStorage.removeItem('agentmeld-selection');}catch{}}
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function formatted(text){return esc(text).replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>');}
-function markdown(text){const lines=text.split('\n');const out=[];for(let i=0;i<lines.length;i++){const line=lines[i];const h=/^(#{1,3}) (.+)$/.exec(line);if(h){out.push('<h'+h[1].length+'>'+formatted(h[2])+'</h'+h[1].length+'>');continue;}if(line.includes('|') && /^\s*\|?[ :|-]+\|[ :|-]*$/.test(lines[i+1]||'')){const cells=row=>row.trim().replace(/^\||\|$/g,'').split('|').map(c=>formatted(c.trim()));out.push('<div class="tableWrap"><table><thead><tr>'+cells(line).map(c=>'<th>'+c+'</th>').join('')+'</tr></thead><tbody>');i++;while((lines[i+1]||'').includes('|')){i++;out.push('<tr>'+cells(lines[i]).map(c=>'<td>'+c+'</td>').join('')+'</tr>');}out.push('</tbody></table></div>');continue;}if(line.trim())out.push('<p>'+formatted(line)+'</p>');}return out.join('');}
+const markdown=renderMarkdown;
 let previewFile=null,previewRequest=0,connected=false,refreshing=false,uploading=false,composing=false;
 let noticeTimer;
 function notice(text){(document.querySelector('dialog[open]')||document.body).append($('notice'));$('notice').textContent=text;$('notice').classList.remove('sr');clearTimeout(noticeTimer);noticeTimer=setTimeout(()=>{$('notice').classList.add('sr');},3500);}
@@ -51,8 +52,8 @@ function showChat(){view='chat';render();}
 const drafts=new Map();let submitting=false;
 const draftKey=()=>selected||'new';
 function rememberDraft(){const key=draftKey(),draft=drafts.get(key)||{};Object.assign(draft,{text:$('prompt').value,files,scroll:$('conversation').scrollTop});drafts.set(key,draft);}
-function selectConversation(id){document.querySelector('.history').classList.remove('open');rememberDraft();selected=id;showArchived=!!state.conversations.find(c=>c.id===id)?.archived;saveSelection();const d=drafts.get(draftKey());$('prompt').value=d?.text||'';files=d?.files||[];lastRender='';showChat();$('conversation').scrollTop=d?.scroll||0;error();}
-function newTask(){rememberDraft();drafts.delete('new');selected=null;showArchived=false;saveSelection();files=[];$('prompt').value='';lastRender='';document.querySelector('.history').classList.remove('open');error();showChat();$('prompt').focus();}
+function selectConversation(id){closeConversationFind();document.querySelector('.history').classList.remove('open');rememberDraft();selected=id;showArchived=!!state.conversations.find(c=>c.id===id)?.archived;saveSelection();const d=drafts.get(draftKey());$('prompt').value=d?.text||'';files=d?.files||[];lastRender='';showChat();$('conversation').scrollTop=d?.scroll||0;error();}
+function newTask(){closeConversationFind();rememberDraft();drafts.delete('new');selected=null;showArchived=false;saveSelection();files=[];$('prompt').value='';lastRender='';document.querySelector('.history').classList.remove('open');error();showChat();$('prompt').focus();}
 $('chatSearch').oninput=()=>render();$('fileSearch').oninput=()=>render();$('archiveChats').onclick=()=>{showArchived=!showArchived;render();};$('activitySearch').oninput=()=>renderActivity();
 $('attach').onclick=()=>$('upload').click();
 $('newChat').onclick=newTask;$('mobileNew').onclick=newTask;
@@ -67,7 +68,10 @@ $('libraryMenu').onclick=()=>$('fileSidebar').classList.toggle('open');
 $('libraryChat').onclick=()=>{fileChatOpen=!fileChatOpen;render();if(fileChatOpen)$('prompt').focus();};
 $('fileChatClose').onclick=()=>{fileChatOpen=false;render();$('libraryChat').focus();};
 $('fileChatNew').onclick=()=>{newTask();view='files';fileChatOpen=true;render();$('prompt').focus();};
-$('activityFilter').onchange=()=>renderActivity();
+let activityFilter='all',activityOldest=false;
+for(const b of document.querySelectorAll('[data-activity-filter]'))b.onclick=()=>{activityFilter=b.dataset.activityFilter;renderActivity();};
+$('activityCurrent').onchange=$('activityOutputs').onchange=()=>renderActivity();
+$('activityOrder').onclick=()=>{activityOldest=!activityOldest;renderActivity();};
 $('closeActivity').onclick=()=>{$('inspector').classList.remove('open');$('inspector').classList.add('closed');$('details').focus();};
 $('details').onclick=()=>{const panel=$('inspector');if(matchMedia('(min-width:1001px)').matches)panel.classList.toggle('closed');else{panel.classList.remove('closed');panel.classList.toggle('open');}};
 function fileButton(task,f){return '<button class="file" aria-label="Open '+esc(f.name)+'" data-tooltip data-task="'+task.id+'" data-file="'+esc(f.name)+'"><span class="fileIcon">'+icon('file')+'</span><span>'+esc(f.name)+'<small>'+formatBytes(f.size)+' · Open</small></span></button>';}
@@ -76,23 +80,24 @@ $('closeRun').onclick=()=>$('runDetails').close();
 function jumpToTask(task){selectConversation(task.conversationId);$('inspector').classList.remove('open');const turn=$('turn-'+task.id);turn?.focus({preventScroll:true});turn?.scrollIntoView({block:'start',behavior:'instant'});}
 $('runConversation').onclick=()=>{const task=state.tasks.find(t=>t.id===detailId);$('runDetails').close();if(task)jumpToTask(task);};
 function renderDetails(){
-  const task=state.tasks.find(t=>t.id===detailId);if(!task)return;
-  const content='<p class="runPrompt">'+esc(task.prompt)+'</p><p>'+esc(task.status)+' · '+esc(task.error||task.activity)+'</p><h3>Recorded milestones</h3>'+((task.events||[]).length?'<ol class="milestones">'+task.events.map(e=>'<li><strong>'+esc(e.label)+'</strong><time>'+esc(new Date(e.at).toLocaleString())+'</time></li>').join('')+'</ol>':'<p class="muted">Milestones were not recorded for this older turn.</p>')+'<p class="muted">These are run milestones, not a complete command history.</p>';
-  if(content!==lastDetail){$('runBody').innerHTML=content;lastDetail=content;}
+ const task=state.tasks.find(t=>t.id===detailId);if(!task)return;
+ const title=state.conversations.find(c=>c.id===task.conversationId)?.title||'Conversation';
+ const content='<p class="muted">'+esc(title)+' · '+esc(new Date(task.createdAt).toLocaleString())+' · Duration: '+elapsedLabel(duration(task))+'</p><p class="runPrompt">'+esc(task.prompt)+'</p><p>'+esc(task.status)+' · '+esc(task.error||task.activity)+'</p><h3>Recorded milestones</h3>'+((task.events||[]).length?'<ol class="milestones">'+task.events.map((e,i)=>'<li><strong>'+esc(e.label)+'</strong><time>'+esc(new Date(e.at).toLocaleString())+(i?' · '+elapsedLabel(Date.parse(e.at)-Date.parse(task.events[i-1].at))+' since previous':'')+'</time></li>').join('')+'</ol>':'<p class="muted">Milestones were not recorded for this older turn.</p>')+'<p class="muted">These are run milestones, not a complete command history.</p>'+(task.inputs.length?'<h3>Inputs</h3>'+task.inputs.map(f=>'<button class="inputFile" data-input="'+task.id+'" data-name="'+esc(f.name)+'">'+esc(f.name)+' · '+formatBytes(f.size||0)+'</button>').join(''):'')+(task.artifacts.length?'<h3>Outputs</h3>'+task.artifacts.map(f=>fileButton(task,f)).join(''):'')+(task.answer?'<details class="runAnswer"><summary>Reply</summary>'+markdown(task.answer)+'</details>':'');
+ if(content!==lastDetail){const expanded=$('runBody').querySelector('.runAnswer')?.open;$('runBody').innerHTML=content;if(expanded&&$('runBody').querySelector('.runAnswer'))$('runBody').querySelector('.runAnswer').open=true;lastDetail=content;}
+ const tasks=currentActivity(),index=tasks.findIndex(t=>t.id===detailId);$('previousRun').disabled=index<=0;$('nextRun').disabled=index<0||index>=tasks.length-1;$('runPosition').textContent=index<0?'':(index+1)+' / '+tasks.length;
 }
 let lastActivity='',lastLibrary='';
+function currentActivity(){return activityTasks(state,{filter:activityFilter,query:$('activitySearch').value,conversationId:$('activityCurrent').checked?selected:null,outputs:$('activityOutputs').checked,oldest:activityOldest});}
 function renderActivity(){
-  let day='';
-  const filter=$('activityFilter').value;
-  const matches=task=>filter==='all'||(filter==='active'?['queued','running','cancelling'].includes(task.status):filter==='attention'?['failed','interrupted','cancelled'].includes(task.status):task.status==='completed');
-  const content=[...state.tasks].reverse().filter(matches).filter(task=>task.prompt.toLocaleLowerCase().includes($('activitySearch').value.trim().toLocaleLowerCase())).map(task=>{
-    const date=new Date(task.createdAt), key=date.toLocaleDateString();
-    const heading=key!==day?'<h3>'+esc(date.toLocaleDateString([], {month:'short',day:'numeric',year:'numeric'}))+'</h3>':'';
-    day=key;
-    return heading+'<article class="activityEntry"><button class="activityLink" data-jump="'+task.id+'" aria-label="Open conversation: '+esc(task.prompt)+'"><strong>'+esc(task.prompt)+'</strong><span class="activityMeta">'+esc(task.status)+' · '+esc(date.toLocaleTimeString([], {hour:'numeric',minute:'2-digit'}))+'</span><span class="activitySummary">'+esc(task.error||task.activity)+'</span></button><button class="detailLink" data-detail="'+task.id+'">View details</button>'+task.artifacts.map(f=>fileButton(task,f)).join('')+'</article>';
-  }).join('')||'<p class="muted">'+(filter==='all'&&!$('activitySearch').value.trim()?'Your activity will appear here.':'No matching activity.')+'</p>';
-  // Polling must not replace a focused row or reset the panel when nothing changed.
-  if(content!==lastActivity){$('activity').innerHTML=content;lastActivity=content;}
+ let day='';const tasks=$('activityCurrent').checked&&!selected?[]:currentActivity();
+ $('activityCount').textContent=tasks.length+' runs';$('activityOrder').textContent=activityOldest?'Oldest first':'Newest first';$('activityOrder').setAttribute('aria-pressed',String(activityOldest));
+ for(const b of document.querySelectorAll('[data-activity-filter]'))b.setAttribute('aria-pressed',String(b.dataset.activityFilter===activityFilter));
+ const content=tasks.map(task=>{
+ const date=new Date(task.createdAt),key=date.toLocaleDateString(),heading=key!==day?'<h3>'+esc(date.toLocaleDateString([], {month:'short',day:'numeric',year:'numeric'}))+'</h3>':'';day=key;
+ const title=state.conversations.find(c=>c.id===task.conversationId)?.title||'Conversation';
+ return heading+'<article class="activityEntry"><button class="activityLink" data-jump="'+task.id+'" aria-label="Open conversation: '+esc(task.prompt)+'"><strong>'+esc(task.prompt)+'</strong><span class="activityMeta">'+esc(task.status)+' · '+esc(date.toLocaleTimeString([], {hour:'numeric',minute:'2-digit'}))+(duration(task)!==null?' · '+elapsedLabel(duration(task)):'')+'</span><span class="activityChat">'+esc(title)+'</span><span class="activitySummary">'+esc(task.error||task.activity)+'</span></button><button class="detailLink" data-detail="'+task.id+'">View details</button>'+task.artifacts.map(f=>fileButton(task,f)).join('')+'</article>';
+ }).join('')||'<p class="muted">No matching activity.</p>';
+ if(content!==lastActivity){$('activity').innerHTML=content;lastActivity=content;}
 }
 function render(){
   const inFiles=view==='files',chatVisible=!inFiles||fileChatOpen;
@@ -111,8 +116,9 @@ function render(){
   $('chatNav').classList.toggle('active',view==='chat');$('filesNav').classList.toggle('active',view==='files');
   $('conversation').hidden=!chatVisible;$('library').hidden=view!=='files';$('composeWrap').hidden=!chatVisible;
   const chatQuery=$('chatSearch').value.trim().toLocaleLowerCase();
-  const matchingChats=orderedChats(state,showArchived,chatQuery);
-  const historyContent=matchingChats.length?matchingChats.map(t=>'<button class="historyItem '+(t.id===selected?'selected':'')+'" data-select="'+t.id+'"><span class="chatTitle">'+esc(t.title)+'</span><small>'+(t.pinned?'Pinned · ':'')+chatInfo(state,t).count+' turns · '+esc(chatInfo(state,t).status)+'</small></button>').join(''):'<div class="emptyHistory">'+(chatQuery?'No matching chats.':showArchived?'No archived chats.':'Your chats will appear here.')+'</div>';
+  const matchingChats=orderedChats(state,showArchived,'').filter(c=>chatSearch(state,c,chatQuery)!==null);
+  $('chatResults').textContent=chatQuery?matchingChats.length+' matching chats':'';$('clearChatSearch').hidden=!chatQuery;
+  const historyContent=matchingChats.length?matchingChats.map(t=>'<button class="historyItem '+(t.id===selected?'selected':'')+'" data-select="'+t.id+'"><span class="chatTitle">'+esc(t.title)+'</span><small>'+(t.pinned?'Pinned · ':'')+chatInfo(state,t).count+' turns · '+esc(chatInfo(state,t).status)+'</small>'+(chatQuery?'<span class="chatExcerpt">'+esc(chatSearch(state,t,chatQuery))+'</span>':'')+'</button>').join(''):'<div class="emptyHistory">'+(chatQuery?'No matching chats.':showArchived?'No archived chats.':'Your chats will appear here.')+'</div>';
   if(historyContent!==lastHistory){$('history').innerHTML=historyContent;lastHistory=historyContent;}
   const current=state.conversations.find(c=>c.id===selected);
   $('chatToolbar').hidden=!current||!chatVisible;$('selectedTitle').textContent=current?.title||'';
@@ -122,8 +128,8 @@ function render(){
   $('restoreChat').hidden=!current?.archived;
   const turns=state.tasks.filter(t=>t.conversationId===selected);
   const task=turns.at(-1);
-  const content=turns.length?turns.map(task=>'<div class="time">'+esc(new Date(task.createdAt).toLocaleString([], {month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}))+'</div><div class="turn" id="turn-'+task.id+'" tabindex="-1"><div class="message user">'+esc(task.prompt)+(task.inputs.length?'<div class="messageLabel">'+task.inputs.map(f=>'<button class="inputFile" data-input="'+task.id+'" data-name="'+esc(f.name)+'" aria-label="Download original '+esc(f.name)+'">'+esc(f.name)+' ↓</button>').join(' ')+'</div>':'')+'</div>'+(task.answer?'<div class="message assistant">'+formatted(task.answer)+'</div><button class="copyReply" data-copy-answer="'+task.id+'">Copy reply</button>':'')+(['queued','running','cancelling'].includes(task.status)?'<div class="pending"><span class="pulse"></span>'+esc(task.activity)+'</div>':'<div class="pending">'+esc(task.error||task.activity)+'</div>')+task.artifacts.map(f=>fileButton(task,f)).join('')+'</div>').join(''):'<div class="welcome"><span class="avatar large"><img src="/brain.svg" alt="" aria-hidden="true"></span><h1>What would you like to get done?</h1><p>Bring a file and a question.<br>I’ll do the work and bring back the result.</p><button class="suggestion" id="sample">Find the story in my sales data<small>Try a sample CSV and get a real report ↗</small></button></div>';
-  if(content!==lastRender){const nearBottom=$('conversation').scrollHeight-$('conversation').scrollTop-$('conversation').clientHeight<100; $('conversation').innerHTML=content;lastRender=content;if(nearBottom)$('conversation').scrollTop=$('conversation').scrollHeight;}
+  const content=turns.length?turns.map(task=>'<div class="time">'+esc(new Date(task.createdAt).toLocaleString([], {month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}))+'</div><div class="turn" id="turn-'+task.id+'" tabindex="-1"><div class="message user">'+esc(task.prompt)+(task.inputs.length?'<div class="messageLabel">'+task.inputs.map(f=>'<button class="inputFile" data-input="'+task.id+'" data-name="'+esc(f.name)+'" aria-label="Download original '+esc(f.name)+'">'+esc(f.name)+' ↓</button>').join(' ')+'</div>':'')+'</div>'+(task.answer?'<div class="message assistant">'+markdown(task.answer)+'</div><button class="copyReply" data-copy-answer="'+task.id+'">Copy reply</button>':'')+(['queued','running','cancelling'].includes(task.status)?'<div class="pending"><span class="pulse"></span>'+esc(task.activity)+'</div>':'<div class="pending">'+esc(task.error||task.activity)+'</div>')+'<div class="requestActions"><button data-copy-request="'+task.id+'">Copy request</button><button data-reuse-request="'+task.id+'">Use request</button><button data-detail="'+task.id+'">Run details</button></div>'+task.artifacts.map(f=>fileButton(task,f)).join('')+'</div>').join(''):'<div class="welcome"><span class="avatar large"><img src="/brain.svg" alt="" aria-hidden="true"></span><h1>What would you like to get done?</h1><p>Bring a file and a question.<br>I’ll do the work and bring back the result.</p><button class="suggestion" id="sample">Find the story in my sales data<small>Try a sample CSV and get a real report ↗</small></button></div>';
+  if(content!==lastRender){const nearBottom=$('conversation').scrollHeight-$('conversation').scrollTop-$('conversation').clientHeight<100; $('conversation').innerHTML=content;lastRender=content;highlightConversation();if(nearBottom)$('conversation').scrollTop=$('conversation').scrollHeight;}
   renderActivity();if($('runDetails').open)renderDetails();
   $('taskFiles').innerHTML=task?.artifacts.length?task.artifacts.map(f=>fileButton(task,f)).join(''):'Finished files will appear here.';
   const fileQuery=$('fileSearch').value.trim().toLocaleLowerCase();
@@ -227,8 +233,9 @@ $('restoreChat').onclick=()=>changeChat({archived:false});$('startFresh').onclic
 $('shortcutHelp').onclick=()=>$('shortcuts').showModal();$('closeShortcuts').onclick=()=>$('shortcuts').close();
 document.addEventListener('keydown',e=>{
   if(e.defaultPrevented||e.isComposing||document.querySelector('dialog[open]'))return;
+  if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='f'&&selected&&(view==='chat'||fileChatOpen)){e.preventDefault();openConversationFind();}
   if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='k'){e.preventDefault();if(view==='files'){$('fileSidebar').classList.add('open');$('fileSearch').focus();}else{document.querySelector('.history').classList.add('open');$('chatSearch').focus();}}
-  if(e.key==='Escape'){if($('workspacePicker').open){$('workspacePicker').open=false;$('workspacePicker').querySelector('summary').focus();}else if($('fileOptions').open){closeFileOptions();}else if($('fileSidebar').classList.contains('open')){$('fileSidebar').classList.remove('open');$('libraryMenu').focus();}else if(view==='files'&&fileChatOpen){$('fileChatClose').click();}else if(document.querySelector('.history').classList.contains('open')){document.querySelector('.history').classList.remove('open');$('chatNav').focus();}else if($('inspector').classList.contains('open'))$('closeActivity').click();}
+  if(e.key==='Escape'){if(!$('conversationFind').hidden){closeConversationFind();$('findInChat').focus();}else if($('workspacePicker').open){$('workspacePicker').open=false;$('workspacePicker').querySelector('summary').focus();}else if($('fileOptions').open){closeFileOptions();}else if($('fileSidebar').classList.contains('open')){$('fileSidebar').classList.remove('open');$('libraryMenu').focus();}else if(view==='files'&&fileChatOpen){$('fileChatClose').click();}else if(document.querySelector('.history').classList.contains('open')){document.querySelector('.history').classList.remove('open');$('chatNav').focus();}else if($('inspector').classList.contains('open'))$('closeActivity').click();}
 });
 window.addEventListener('beforeunload',e=>{if($('prompt').value||files.length||[...drafts.entries()].some(([key,d])=>d.pending||(key!==draftKey()&&(d.text||d.files?.length)))){e.preventDefault();e.returnValue='';}});
 function updateLatest(){$('latestBar').hidden=(view!=='chat'&&!fileChatOpen)||!selected||$('conversation').scrollHeight-$('conversation').scrollTop-$('conversation').clientHeight<150;}
@@ -371,4 +378,26 @@ $('previousFile').onclick=()=>adjacentPreview(-1);$('nextFile').onclick=()=>adja
 $('expandPreview').onclick=()=>{const expanded=$('preview').classList.toggle('expanded');$('expandPreview').setAttribute('aria-pressed',String(expanded));$('expandPreview').textContent=expanded?'Restore size':'Expand';};
 $('preview').addEventListener('keydown',e=>{if(e.target.matches('input,textarea,select,audio,video')||e.altKey||e.ctrlKey||e.metaKey||e.shiftKey)return;if(['ArrowLeft','ArrowRight'].includes(e.key)){e.preventDefault();adjacentPreview(e.key==='ArrowLeft'?-1:1);}});
 
+let findMarks=[],findIndex=-1;
+function openConversationFind(){$('conversationFind').hidden=false;$('findText').focus();}
+function closeConversationFind(){$('conversationFind').hidden=true;$('findText').value='';highlightConversation();}
+function highlightConversation(){
+ const container=$('conversation');for(const mark of container.querySelectorAll('mark.searchMatch'))mark.replaceWith(document.createTextNode(mark.textContent));container.normalize();findMarks=[];
+ const q=$('findText').value.trim().toLocaleLowerCase();if(q){for(const message of container.querySelectorAll('.message')){const walker=document.createTreeWalker(message,NodeFilter.SHOW_TEXT);const nodes=[];while(walker.nextNode())if(!walker.currentNode.parentElement.closest('button'))nodes.push(walker.currentNode);for(const node of nodes){const text=node.textContent,matches=literalMatches(text,$('findText').value);let start=0,fragment=document.createDocumentFragment();if(!matches.length)continue;for(const {index,length} of matches){fragment.append(document.createTextNode(text.slice(start,index)));const mark=document.createElement('mark');mark.className='searchMatch';mark.textContent=text.slice(index,index+length);fragment.append(mark);findMarks.push(mark);start=index+length;}fragment.append(document.createTextNode(text.slice(start)));node.replaceWith(fragment);}}}
+ findIndex=Math.min(Math.max(findIndex,0),findMarks.length-1);updateFind(false);
+}
+function updateFind(scroll){findMarks.forEach((m,i)=>m.classList.toggle('currentMatch',i===findIndex));$('findCount').textContent=findMarks.length?(findIndex+1)+' / '+findMarks.length:($('findText').value?'No matches':'');$('findPrevious').disabled=$('findNext').disabled=!findMarks.length;if(scroll)findMarks[findIndex]?.scrollIntoView({block:'center',behavior:'instant'});}
+function moveFind(delta){if(findMarks.length){findIndex=(findIndex+delta+findMarks.length)%findMarks.length;updateFind(true);}}
+$('findInChat').onclick=openConversationFind;$('closeFind').onclick=()=>{closeConversationFind();$('findInChat').focus();};$('findText').oninput=()=>{findIndex=0;highlightConversation();updateFind(true);};$('findPrevious').onclick=()=>moveFind(-1);$('findNext').onclick=()=>moveFind(1);$('findText').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();moveFind(e.shiftKey?-1:1);}};
+$('clearChatSearch').onclick=()=>{$('chatSearch').value='';render();$('chatSearch').focus();};
+document.addEventListener('click',async e=>{
+ const copy=e.target.closest('[data-copy-request]');if(copy){const t=state.tasks.find(t=>t.id===copy.dataset.copyRequest);if(t)await copyText(t.prompt);}
+ const code=e.target.closest('.copyCode');if(code)await copyText(code.closest('.codeBlock').querySelector('code').textContent);
+ const reuse=e.target.closest('[data-reuse-request]');if(reuse){const t=state.tasks.find(t=>t.id===reuse.dataset.reuseRequest);if(!t)return;if($('prompt').disabled||submitting||uploading){notice('Open an available chat before using this request.');return;}const text=[$('prompt').value,t.prompt].filter(Boolean).join('\n\n');if(text.length>16000){notice('This request would exceed the message limit. Your draft is unchanged.');return;}$('prompt').value=text;rememberDraft();updateComposer();$('prompt').focus();}
+});
+const selectedRun=()=>state.tasks.find(t=>t.id===detailId);
+$('exportRun').onclick=()=>{const t=selectedRun();if(t)downloadBlob(new Blob([JSON.stringify(runExport(t,state.conversations.find(c=>c.id===t.conversationId)?.title||'Conversation'),null,2)],{type:'application/json'}),'run-'+t.id+'.json');};
+$('copyRun').onclick=()=>{const t=selectedRun();if(t)copyText(t.prompt+'\n'+t.status+' · '+(t.error||t.activity)+'\nDuration: '+elapsedLabel(duration(t)));};
+function moveRun(delta){const list=currentActivity(),index=list.findIndex(t=>t.id===detailId);if(index>=0&&list[index+delta]){detailId=list[index+delta].id;renderDetails();$('runBody').scrollTop=0;}}
+$('previousRun').onclick=()=>moveRun(-1);$('nextRun').onclick=()=>moveRun(1);
 render();await refresh();setInterval(refresh,1000);
