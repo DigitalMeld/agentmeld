@@ -6,6 +6,7 @@ Keep discoveries and consequential changes here as work proceeds. Update the own
 
 Alpha is **Codex-only using ChatGPT subscription authentication**, with macOS, local web and iOS clients, multiple Mac hosts and required away-from-home control. Claude Code, Ollama and messaging integrations are post-alpha.
 
+- [Conversation organization and output workflow](design/workflow-organization.md): implemented chat management, exports, file/version navigation and keyboard behavior.
 - [Working local POC](poc.md): chat, attached files, real subscription-backed work, results and Stop. This is the current priority.
 - [Muse documentation bundle review](research/muse-documentation-review.md): source assessment, functional coverage and concrete plan changes.
 - [Muse interactive prototype review](research/muse-prototype-review.md): simulated journeys, source conflicts and concrete acceptance additions.

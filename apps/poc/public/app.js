@@ -1,3 +1,4 @@
+import { chatInfo, orderedChats, outputEntries, visibleOutputs, conversationExport } from './organization.js';
 import { formatBytes, validateAttachments } from './composer.js';
 import { icon } from './icons.js';
 import './tooltips.js';
@@ -22,7 +23,7 @@ function updateComposer(){
   const count=$('prompt').value.length;
   $('characterCount').hidden=count<14000;$('characterCount').textContent=count.toLocaleString()+' / 16,000';
   const pending=drafts.get(draftKey())?.pending;
-  const unavailable=selected!==null&&state.conversations.find(c=>c.id===selected)?.continuation!=='ready';
+  const unavailable=selected!==null&&state.conversations.find(c=>c.id===selected)?.continuation!=='ready'||!!state.conversations.find(c=>c.id===selected)?.archived;
   $('send').disabled=!connected||submitting||uploading||unavailable||($('prompt').disabled&&!pending)||!$('prompt').value.trim();resizeComposer();
 }
 $('prompt').addEventListener('input',updateComposer);window.addEventListener('resize',resizeComposer);
@@ -31,16 +32,17 @@ $('prompt').addEventListener('compositionend',()=>{composing=false;updateCompose
 $('retryConnection').onclick=()=>refresh();$('retryBanner').onclick=()=>refresh();
 
 $('closePreview').onclick=()=>$('preview').close();
-$('downloadFile').onclick=()=>{if(!previewFile)return;const url=URL.createObjectURL(previewFile.blob);const a=document.createElement('a');a.href=url;a.download=previewFile.name;a.click();setTimeout(()=>URL.revokeObjectURL(url),5000);};
+function downloadBlob(blob,name){const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),5000);}
+$('downloadFile').onclick=()=>{if(previewFile)downloadBlob(previewFile.blob,previewFile.name);};
 async function api(path,options={}){const res=await fetch(path,{...options,headers:{Authorization:'Bearer '+token,'Content-Type':'application/json',...options.headers}});if(!res.ok){const e=await res.json();throw Object.assign(Error(e.error),{status:res.status});}return res;}
 function error(text=''){$('error').textContent=text;}
 function showChat(){view='chat';render();}
 const drafts=new Map();let submitting=false;
 const draftKey=()=>selected||'new';
 function rememberDraft(){const key=draftKey(),draft=drafts.get(key)||{};Object.assign(draft,{text:$('prompt').value,files,scroll:$('conversation').scrollTop});drafts.set(key,draft);}
-function selectConversation(id){document.querySelector('.history').classList.remove('open');rememberDraft();selected=id;saveSelection();const d=drafts.get(draftKey());$('prompt').value=d?.text||'';files=d?.files||[];lastRender='';showChat();$('conversation').scrollTop=d?.scroll||0;error();}
-function newTask(){rememberDraft();drafts.delete('new');selected=null;saveSelection();files=[];$('prompt').value='';lastRender='';document.querySelector('.history').classList.remove('open');error();showChat();$('prompt').focus();}
-$('chatSearch').oninput=()=>render();$('fileSearch').oninput=()=>render();
+function selectConversation(id){document.querySelector('.history').classList.remove('open');rememberDraft();selected=id;$('chatScope').value=state.conversations.find(c=>c.id===id)?.archived?'archived':'active';saveSelection();const d=drafts.get(draftKey());$('prompt').value=d?.text||'';files=d?.files||[];lastRender='';showChat();$('conversation').scrollTop=d?.scroll||0;error();}
+function newTask(){rememberDraft();drafts.delete('new');selected=null;$('chatScope').value='active';saveSelection();files=[];$('prompt').value='';lastRender='';document.querySelector('.history').classList.remove('open');error();showChat();$('prompt').focus();}
+$('chatSearch').oninput=()=>render();$('fileSearch').oninput=()=>render();$('chatScope').onchange=()=>render();$('fileType').onchange=()=>render();$('fileSort').onchange=()=>render();$('activitySearch').oninput=()=>renderActivity();
 $('attach').onclick=()=>$('upload').click();
 $('newChat').onclick=newTask;$('mobileNew').onclick=newTask;
 $('chatNav').onclick=()=>{showChat();if(matchMedia('(max-width:720px)').matches)document.querySelector('.history').classList.toggle('open');};$('filesNav').onclick=()=>{view='files';render();};
@@ -62,12 +64,12 @@ function renderActivity(){
   let day='';
   const filter=$('activityFilter').value;
   const matches=task=>filter==='all'||(filter==='active'?['queued','running','cancelling'].includes(task.status):filter==='attention'?['failed','interrupted','cancelled'].includes(task.status):task.status==='completed');
-  const content=[...state.tasks].reverse().filter(matches).map(task=>{
+  const content=[...state.tasks].reverse().filter(matches).filter(task=>task.prompt.toLocaleLowerCase().includes($('activitySearch').value.trim().toLocaleLowerCase())).map(task=>{
     const date=new Date(task.createdAt), key=date.toLocaleDateString();
     const heading=key!==day?'<h3>'+esc(date.toLocaleDateString([], {month:'short',day:'numeric',year:'numeric'}))+'</h3>':'';
     day=key;
     return heading+'<article class="activityEntry"><button class="activityLink" data-jump="'+task.id+'" aria-label="Open conversation: '+esc(task.prompt)+'"><strong>'+esc(task.prompt)+'</strong><span class="activityMeta">'+esc(task.status)+' · '+esc(date.toLocaleTimeString([], {hour:'numeric',minute:'2-digit'}))+'</span><span class="activitySummary">'+esc(task.error||task.activity)+'</span></button><button class="detailLink" data-detail="'+task.id+'">View details</button>'+task.artifacts.map(f=>fileButton(task,f)).join('')+'</article>';
-  }).join('')||'<p class="muted">'+(filter==='all'?'Your activity will appear here.':'No matching activity.')+'</p>';
+  }).join('')||'<p class="muted">'+(filter==='all'&&!$('activitySearch').value.trim()?'Your activity will appear here.':'No matching activity.')+'</p>';
   // Polling must not replace a focused row or reset the panel when nothing changed.
   if(content!==lastActivity){$('activity').innerHTML=content;lastActivity=content;}
 }
@@ -75,28 +77,87 @@ function render(){
   $('chatNav').classList.toggle('active',view==='chat');$('filesNav').classList.toggle('active',view==='files');
   $('conversation').hidden=view!=='chat';$('library').hidden=view!=='files';$('composeWrap').hidden=view!=='chat';
   const chatQuery=$('chatSearch').value.trim().toLocaleLowerCase();
-  const matchingChats=[...state.conversations].reverse().filter(c=>c.title.toLocaleLowerCase().includes(chatQuery));
-  const historyContent=matchingChats.length?matchingChats.map(t=>'<button class="historyItem '+(t.id===selected?'selected':'')+'" data-select="'+t.id+'">'+esc(t.title)+'</button>').join(''):'<div class="emptyHistory">'+(chatQuery?'No matching chats.':'Your chats will appear here.')+'</div>';
+  const matchingChats=orderedChats(state,$('chatScope').value==='archived',chatQuery);
+  const historyContent=matchingChats.length?matchingChats.map(t=>'<button class="historyItem '+(t.id===selected?'selected':'')+'" data-select="'+t.id+'"><span class="chatTitle">'+esc(t.title)+'</span><small>'+(t.pinned?'Pinned · ':'')+chatInfo(state,t).count+' turns · '+esc(chatInfo(state,t).status)+'</small></button>').join(''):'<div class="emptyHistory">'+(chatQuery?'No matching chats.':$('chatScope').value==='archived'?'No archived chats.':'Your chats will appear here.')+'</div>';
   if(historyContent!==lastHistory){$('history').innerHTML=historyContent;lastHistory=historyContent;}
+  const current=state.conversations.find(c=>c.id===selected);
+  $('chatToolbar').hidden=!current||view!=='chat';$('selectedTitle').textContent=current?.title||'';
+  $('chatSummary').textContent=current?chatInfo(state,current).count+' turns':'';
+  $('readOnlyBanner').hidden=!current||view!=='chat'||(!current.archived&&current.continuation==='ready');
+  $('readOnlyReason').textContent=current?.archived?'This chat is archived.':current?.continuation==='legacy'?'This older chat is read-only. Its history and files are preserved.':'This chat cannot safely resume. Its history and files are preserved.';
+  $('restoreChat').hidden=!current?.archived;
   const turns=state.tasks.filter(t=>t.conversationId===selected);
   const task=turns.at(-1);
-  const content=turns.length?turns.map(task=>'<div class="time">'+esc(new Date(task.createdAt).toLocaleString([], {month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}))+'</div><div class="turn" id="turn-'+task.id+'" tabindex="-1"><div class="message user">'+esc(task.prompt)+(task.inputs.length?'<div class="messageLabel">'+task.inputs.map(f=>esc(f.name)).join(' · ')+'</div>':'')+'</div>'+(task.answer?'<div class="message assistant">'+formatted(task.answer)+'</div><button class="copyReply" data-copy-answer="'+task.id+'">Copy reply</button>':'')+(['queued','running','cancelling'].includes(task.status)?'<div class="pending"><span class="pulse"></span>'+esc(task.activity)+'</div>':'<div class="pending">'+esc(task.error||task.activity)+'</div>')+task.artifacts.map(f=>fileButton(task,f)).join('')+'</div>').join(''):'<div class="welcome"><span class="avatar large"><img src="/brain.svg" alt="" aria-hidden="true"></span><h1>What would you like to get done?</h1><p>Bring a file and a question.<br>I’ll do the work and bring back the result.</p><button class="suggestion" id="sample">Find the story in my sales data<small>Try a sample CSV and get a real report ↗</small></button></div>';
+  const content=turns.length?turns.map(task=>'<div class="time">'+esc(new Date(task.createdAt).toLocaleString([], {month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}))+'</div><div class="turn" id="turn-'+task.id+'" tabindex="-1"><div class="message user">'+esc(task.prompt)+(task.inputs.length?'<div class="messageLabel">'+task.inputs.map(f=>'<button class="inputFile" data-input="'+task.id+'" data-name="'+esc(f.name)+'" aria-label="Download original '+esc(f.name)+'">'+esc(f.name)+' ↓</button>').join(' ')+'</div>':'')+'</div>'+(task.answer?'<div class="message assistant">'+formatted(task.answer)+'</div><button class="copyReply" data-copy-answer="'+task.id+'">Copy reply</button>':'')+(['queued','running','cancelling'].includes(task.status)?'<div class="pending"><span class="pulse"></span>'+esc(task.activity)+'</div>':'<div class="pending">'+esc(task.error||task.activity)+'</div>')+task.artifacts.map(f=>fileButton(task,f)).join('')+'</div>').join(''):'<div class="welcome"><span class="avatar large"><img src="/brain.svg" alt="" aria-hidden="true"></span><h1>What would you like to get done?</h1><p>Bring a file and a question.<br>I’ll do the work and bring back the result.</p><button class="suggestion" id="sample">Find the story in my sales data<small>Try a sample CSV and get a real report ↗</small></button></div>';
   if(content!==lastRender){const nearBottom=$('conversation').scrollHeight-$('conversation').scrollTop-$('conversation').clientHeight<100; $('conversation').innerHTML=content;lastRender=content;if(nearBottom)$('conversation').scrollTop=$('conversation').scrollHeight;}
   renderActivity();if($('runDetails').open)renderDetails();
   $('taskFiles').innerHTML=task?.artifacts.length?task.artifacts.map(f=>fileButton(task,f)).join(''):'Finished files will appear here.';
   const fileQuery=$('fileSearch').value.trim().toLocaleLowerCase();
-  const libraryContent=[...state.tasks].reverse().flatMap(t=>t.artifacts.filter(f=>(f.name+' '+(state.conversations.find(c=>c.id===t.conversationId)?.title||'')).toLocaleLowerCase().includes(fileQuery)).map(f=>'<article class="libraryEntry">'+fileButton(t,f)+'<button class="outputOrigin" data-jump="'+t.id+'">'+esc(state.conversations.find(c=>c.id===t.conversationId)?.title||'Conversation')+' · '+esc(new Date(t.createdAt).toLocaleString())+'</button></article>')).join('')||'<p class="muted">'+(fileQuery?'No matching files.':'Nothing created yet. Start a task to make something.')+'</p>';
+  const outputs=visibleOutputs(state,fileQuery,$('fileType').value,$('fileSort').value);
+  $('fileSummary').textContent=outputs.length+' outputs · '+formatBytes(outputs.reduce((sum,e)=>sum+e.file.size,0));
+  const libraryContent=outputs.map(({task:t,file:f,title,version})=>'<article class="libraryEntry">'+fileButton(t,f)+'<button class="outputOrigin" data-jump="'+t.id+'">'+esc(title)+' · Version '+version+' · '+esc(new Date(t.createdAt).toLocaleString())+'</button></article>').join('')||'<p class="muted">'+(fileQuery||$('fileType').value!=='all'?'No matching files.':'Nothing created yet. Start a task to make something.')+'</p>';
   if(libraryContent!==lastLibrary){$('libraryFiles').innerHTML=libraryContent;lastLibrary=libraryContent;}
   const stoppable=turns.find(t=>['running','cancelling','queued'].includes(t.status));
   $('stop').hidden=!stoppable;$('stop').dataset.task=stoppable?.id||'';
-  const unavailable=state.conversations.find(c=>c.id===selected)?.continuation!=='ready'&&selected!==null;
+  const unavailable=state.conversations.find(c=>c.id===selected)?.continuation!=='ready'&&selected!==null||!!state.conversations.find(c=>c.id===selected)?.archived;
   const pending=drafts.get(draftKey())?.pending;
   $('send').hidden=false;$('send').disabled=submitting||unavailable;
   $('send').innerHTML=pending?'Retry':icon('send');$('send').setAttribute('aria-label',pending?'Retry pending message':'Send message');
   $('prompt').disabled=submitting||!!pending||unavailable;$('upload').disabled=submitting||uploading||!!pending||unavailable;$('attach').disabled=$('upload').disabled;
   $('prompt').placeholder='Message';
   $('attachments').innerHTML=files.map((f,i)=>'<span class="chip">'+esc(f.name)+' <small>'+formatBytes(atob(f.data).length)+'</small><button data-remove="'+i+'" aria-label="Remove '+esc(f.name)+'" data-tooltip>×</button></span>').join('');
-  updateComposer();
+  updateComposer();updateLatest();
+}
+
+let optionsBusy=false,previewRaw=false;
+function selectedChat(){return state.conversations.find(c=>c.id===selected);}
+function renderChatOptions(){const c=selectedChat();if(!c)return;$('chatName').value=c.title.slice(0,120);$('pinChat').textContent=c.pinned?'Unpin chat':'Pin chat';$('archiveChat').textContent=c.archived?'Restore chat':'Archive chat';}
+$('chatOptionsButton').onclick=()=>{renderChatOptions();$('chatOptionsError').textContent='';$('chatOptions').showModal();};
+$('closeChatOptions').onclick=()=>$('chatOptions').close();
+async function changeChat(patch){
+  if(optionsBusy||!selected)return;optionsBusy=true;
+  for(const b of $('chatOptions').querySelectorAll('button'))b.disabled=true;
+  $('chatOptionsError').textContent='';
+  try{const c=await(await api('/api/conversations',{method:'POST',body:JSON.stringify({id:selected,...patch})})).json();
+    state.conversations=state.conversations.map(old=>old.id===c.id?c:old);
+    if(c.id===selected&&Object.hasOwn(patch,'archived'))$('chatScope').value=c.archived?'archived':'active';
+    render();renderChatOptions();notice('Chat updated.');
+  }catch(e){$('chatOptionsError').textContent=e.message;if(!$('chatOptions').open)notice(e.message);}
+  finally{optionsBusy=false;for(const b of $('chatOptions').querySelectorAll('button'))b.disabled=false;}
+}
+$('renameChat').onsubmit=e=>{e.preventDefault();changeChat({title:$('chatName').value});};
+$('pinChat').onclick=()=>changeChat({pinned:!selectedChat()?.pinned});
+$('archiveChat').onclick=()=>changeChat({archived:!selectedChat()?.archived});
+$('restoreChat').onclick=()=>changeChat({archived:false});$('startFresh').onclick=newTask;
+$('shortcutHelp').onclick=()=>$('shortcuts').showModal();$('closeShortcuts').onclick=()=>$('shortcuts').close();
+document.addEventListener('keydown',e=>{
+  if(e.defaultPrevented||e.isComposing||document.querySelector('dialog[open]'))return;
+  if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='k'){e.preventDefault();document.querySelector('.history').classList.add('open');$('chatSearch').focus();}
+  if(e.key==='Escape'){if(document.querySelector('.history').classList.contains('open')){document.querySelector('.history').classList.remove('open');$('chatNav').focus();}else if($('inspector').classList.contains('open'))$('closeActivity').click();}
+});
+window.addEventListener('beforeunload',e=>{if($('prompt').value||files.length||[...drafts.entries()].some(([key,d])=>d.pending||(key!==draftKey()&&(d.text||d.files?.length)))){e.preventDefault();e.returnValue='';}});
+function updateLatest(){$('latestBar').hidden=view!=='chat'||!selected||$('conversation').scrollHeight-$('conversation').scrollTop-$('conversation').clientHeight<150;}
+$('conversation').addEventListener('scroll',updateLatest);
+$('jumpLatest').onclick=()=>{$('conversation').scrollTo({top:$('conversation').scrollHeight,behavior:'instant'});updateLatest();};
+function renderPreviewText(){if(!previewFile)return;const md=/\.md$/i.test(previewFile.name);$('previewSource').hidden=!md;$('previewSource').textContent=previewRaw?'View formatted Markdown':'View raw Markdown';$('previewBody').innerHTML=previewFile.text!==undefined?(md&&!previewRaw?markdown(previewFile.text):'<pre>'+esc(previewFile.text)+'</pre>'):'This file is ready to download.';}
+$('previewSource').onclick=()=>{previewRaw=!previewRaw;renderPreviewText();};
+$('previewConversation').onclick=()=>{const task=state.tasks.find(t=>t.id===previewFile?.taskId);$('preview').close();if(task)jumpToTask(task);};
+$('previewVersion').onchange=()=>{if(previewFile){const next=$('previewVersion').value;$('previewVersion').value=previewFile.taskId;openPreview(next,previewFile.name);}};
+async function openPreview(taskId,name){
+  const request=++previewRequest;
+  try{
+    const res=await api('/api/file?task='+encodeURIComponent(taskId)+'&name='+encodeURIComponent(name));const blob=await res.blob();
+    const isText=/\.(md|txt|csv|json|log)$/i.test(name);const text=isText?await blob.text():undefined;
+    if(request!==previewRequest)return;
+    previewFile={blob,name,text,taskId};previewRaw=false;$('previewTitle').textContent=name;
+    const task=state.tasks.find(t=>t.id===taskId);
+    $('previewOrigin').textContent=(state.conversations.find(c=>c.id===task?.conversationId)?.title||'Conversation')+' · '+(task?new Date(task.createdAt).toLocaleString():'')+' · '+formatBytes(blob.size);
+    const versions=outputEntries(state).filter(e=>e.task.conversationId===task?.conversationId&&e.file.name===name);
+    $('versionLabel').hidden=versions.length<2;
+    $('previewVersion').innerHTML=versions.map(e=>'<option value="'+e.task.id+'">Version '+e.version+' · '+esc(new Date(e.task.createdAt).toLocaleString())+'</option>').join('');$('previewVersion').value=taskId;
+    $('copyPreview').hidden=!isText;renderPreviewText();
+    if(!$('preview').open)$('preview').showModal();
+  }catch(e){if(request===previewRequest)notice(e.message);}
 }
 
 document.addEventListener('click',async e=>{
@@ -105,20 +166,10 @@ document.addEventListener('click',async e=>{
   const detail=e.target.closest('[data-detail]');if(detail){detailId=detail.dataset.detail;renderDetails();$('runDetails').showModal();}
   const choose=e.target.closest('[data-select]');if(choose){selectConversation(choose.dataset.select);}
   const remove=e.target.closest('[data-remove]');if(remove&&!submitting&&!uploading&&!drafts.get(draftKey())?.pending){files.splice(Number(remove.dataset.remove),1);render();}
-  const file=e.target.closest('[data-file]');if(file){
-    const request=++previewRequest;
-    try{
-      const res=await api('/api/file?task='+file.dataset.task+'&name='+encodeURIComponent(file.dataset.file));const blob=await res.blob();
-      const isText=/\.(md|txt|csv|json|log)$/i.test(file.dataset.file);const text=isText?await blob.text():undefined;
-      if(request!==previewRequest)return;
-      previewFile={blob,name:file.dataset.file,text};$('previewTitle').textContent=file.dataset.file;
-      const task=state.tasks.find(t=>t.id===file.dataset.task);
-      $('previewOrigin').textContent=(state.conversations.find(c=>c.id===task?.conversationId)?.title||'Conversation')+' · '+(task?new Date(task.createdAt).toLocaleString():'')+' · '+formatBytes(blob.size);
-      $('copyPreview').hidden=!isText;
-      $('previewBody').innerHTML=isText?(/\.md$/i.test(file.dataset.file)?markdown(text):'<pre>'+esc(text)+'</pre>'):'This file is ready to download.';
-      if(!$('preview').open)$('preview').showModal();
-    }catch(e){if(request===previewRequest)notice(e.message);}
-  }
+  const input=e.target.closest('[data-input]');if(input){try{const res=await api('/api/file?kind=input&task='+encodeURIComponent(input.dataset.input)+'&name='+encodeURIComponent(input.dataset.name));downloadBlob(await res.blob(),input.dataset.name);}catch(e){notice(e.message);}}
+  const file=e.target.closest('[data-file]');if(file)await openPreview(file.dataset.task,file.dataset.file);
+  const exp=e.target.closest('[data-export]');if(exp&&selected){try{const format=exp.dataset.export;downloadBlob(new Blob([conversationExport(state,selected,format)],{type:format==='json'?'application/json':'text/markdown'}),'agentmeld-'+selected+'.'+format);}catch(e){notice(e.message);}}
+
   if(e.target.closest('#sample')&&!submitting&&!uploading&&!drafts.get(draftKey())?.pending){
     const csv='month,product,revenue,cost\nJanuary,Studio,12000,5000\nJanuary,Team,18000,8000\nFebruary,Studio,15000,6000\nFebruary,Team,22000,9000\nMarch,Studio,14000,5800\nMarch,Team,29000,11000\n';
     files=[{name:'sample-sales.csv',data:btoa(csv)}];
@@ -168,7 +219,7 @@ $('stop').onclick=async()=>{try{$('stop').disabled=true;await api('/api/stop',{m
 async function refresh(){
   if(refreshing)return;refreshing=true;
   try{state=await(await api('/api/state',{signal:AbortSignal.timeout(8000)})).json();connected=true;
-    if(restoreSelection){restoreSelection=false;let saved;try{saved=sessionStorage.getItem('agentmeld-selection');}catch{}if(state.conversations.some(c=>c.id===saved))selected=saved;else saveSelection();}
+    if(restoreSelection){restoreSelection=false;let saved;try{saved=sessionStorage.getItem('agentmeld-selection');}catch{}if(state.conversations.some(c=>c.id===saved)){selected=saved;$('chatScope').value=selectedChat()?.archived?'archived':'active';}else saveSelection();}
   }catch{connected=false;}finally{
     refreshing=false;$('connectionStatus').textContent=connected?'Connected':'Disconnected';$('connectionDot').classList.toggle('offline',!connected);$('retryConnection').hidden=connected;$('connectionBanner').hidden=connected;
     render();

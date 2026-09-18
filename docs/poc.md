@@ -154,3 +154,7 @@ Browser verification covers trimmed/case-insensitive searches, no results, clear
 ## Composer, files and status usability (2026-09-18)
 
 The [14-improvement usability batch](design/usability-batch.md) records the implemented composer, attachment, copy/preview, Activity-filter and connection-recovery behavior, including exact limits and verification boundaries. It adds no provider calls or dependencies and does not change alpha scope.
+
+## Conversation organization and output workflow (2026-09-18)
+
+The [24-improvement workflow batch](design/workflow-organization.md) adds persistent rename/pin/archive/restore, exports, original-input retrieval, output sorting/type filters/version navigation, and keyboard/navigation improvements. It documents the additive fields and authenticated API changes, evidence and limits. Archives preserve data and do not reclaim turn capacity.

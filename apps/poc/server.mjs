@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises';
 import { randomBytes, timingSafeEqual } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { executeTask } from './runtime.mjs';
-import { openStore, admit, publicTask, publicConversation } from './conversations.mjs';
+import { openStore, admit, updateConversation, publicTask, publicConversation } from './conversations.mjs';
 
 export async function createPocServer({directory=fileURLToPath(new URL('../../.local/poc/',import.meta.url)),port=Number(process.env.PORT||4317),execute=executeTask}={}) {
 let state,save,healthy;
@@ -39,6 +39,15 @@ const server=http.createServer(async(req,res)=>{
     if(url.pathname.startsWith('/api/')){
       if(!authorized(req)) return send(res,401,{error:'Open the local app link printed by the server.'});
       if(req.method==='GET'&&url.pathname==='/api/state')return send(res,200,{tasks:state.tasks.map(publicTask),conversations:state.conversations.map(publicConversation),active:active?.id??null});
+      if(req.method==='POST'&&url.pathname==='/api/conversations'){
+        const data=await body(req);
+        const action=admissions.then(async()=>{
+          if(closing||!healthy())return send(res,503,{error:'The local service is unavailable. Your saved work is preserved.'});
+          if(data?.archived&&state.tasks.some(t=>t.id===active?.id&&t.conversationId===data.id))return send(res,409,{error:'Wait for this conversation’s work to finish before archiving.'});
+          const conversation=updateConversation(state,data);await save();send(res,200,publicConversation(conversation));
+        });
+        admissions=action.catch(()=>{});await action;return;
+      }
       if(req.method==='POST'&&url.pathname==='/api/tasks'){
         const data=await body(req);
         const action=admissions.then(async()=>{
@@ -59,13 +68,15 @@ const server=http.createServer(async(req,res)=>{
       }
       if(req.method==='GET'&&url.pathname==='/api/file'){
         const task=state.tasks.find(t=>t.id===url.searchParams.get('task'));
-        const f=task?.artifacts.find(f=>f.name===url.searchParams.get('name'));
+        const kind=url.searchParams.get('kind')||'output';
+        if(!['input','output'].includes(kind))return send(res,400,{error:'Unknown file kind.'});
+        const f=(kind==='input'?task?.inputs:task?.artifacts)?.find(f=>f.name===url.searchParams.get('name'));
         if(!f)return send(res,404,{error:'File not found.'});
         res.writeHead(200,{'Content-Type':'application/octet-stream','Content-Disposition':"attachment; filename*=UTF-8''"+encodeURIComponent(f.name),'Cache-Control':'no-store'});return res.end(Buffer.from(f.data,'base64'));
       }
       return send(res,404,{error:'Not found.'});
     }
-    const assets={'/':'index.html','/app.js':'app.js','/style.css':'style.css','/brain.svg':'brain.svg','/icons.js':'icons.js','/tooltips.js':'tooltips.js','/composer.js':'composer.js'};
+    const assets={'/':'index.html','/app.js':'app.js','/style.css':'style.css','/brain.svg':'brain.svg','/icons.js':'icons.js','/tooltips.js':'tooltips.js','/composer.js':'composer.js','/organization.js':'organization.js'};
     if(req.method!=='GET'||!assets[url.pathname])return send(res,404,{error:'Not found.'});
     const file=assets[url.pathname];res.setHeader('Content-Type',file.endsWith('.svg')?'image/svg+xml':file.endsWith('.css')?'text/css':file.endsWith('.js')?'text/javascript':'text/html');
     res.end(await readFile(new URL('./public/'+file,import.meta.url)));

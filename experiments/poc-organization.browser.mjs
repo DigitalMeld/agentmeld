@@ -1,0 +1,48 @@
+// Explicit disposable browser fixture. No models, containers or personal files.
+import { createPocServer } from '../apps/poc/server.mjs';
+import { mkdtemp,rm,readFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { randomUUID } from 'node:crypto';
+import assert from 'node:assert/strict';
+const {chromium}=await import(process.env.PLAYWRIGHT_MODULE||'playwright');
+const directory=await mkdtemp(tmpdir()+'/agentmeld-org-ui-');
+const app=await createPocServer({directory,port:0,execute:async task=>{task.status='completed';task.activity='Finished';task.answer='Reply '+task.prompt;task.artifacts=[{name:task.prompt==='Beta'?'data.json':'report.md',data:Buffer.from('# '+task.prompt+'\n\nOriginal output').toString('base64')}];}});
+const headers={Authorization:'Bearer '+app.token,'Content-Type':'application/json'};
+async function submit(prompt,conversationId=null,files=[]){const t=await(await fetch(app.origin+'/api/tasks',{method:'POST',headers,body:JSON.stringify({prompt,conversationId,files,requestKey:randomUUID()})})).json();for(let n=0;n<100;n++){const state=await(await fetch(app.origin+'/api/state',{headers})).json();if(!state.active&&!state.tasks.some(t=>t.status==='queued'))return t;await new Promise(r=>setTimeout(r,10));}throw Error('Fixture did not settle');}
+let browser;
+try{
+ const alpha=await submit('Alpha',null,[{name:'original.txt',data:Buffer.from('Original attachment').toString('base64')}]);await submit('Revision',alpha.conversationId);await submit('Beta');
+ browser=await chromium.launch({channel:'chrome',chromiumSandbox:true});const page=await browser.newPage({viewport:{width:1440,height:900}});const errors=[];page.on('pageerror',e=>errors.push(e.message));
+ await page.goto(app.origin+'/#'+app.token);await page.locator('.historyItem').first().waitFor();
+ assert.equal(await page.locator('.historyItem .chatTitle').first().innerText(),'Beta');
+ await page.locator('.historyItem').filter({has:page.locator('.chatTitle',{hasText:'Alpha'})}).click();
+ assert.equal(await page.locator('#chatSummary').innerText(),'2 turns');
+ const inputDownload=page.waitForEvent('download');await page.locator('[data-input]').click();const input=await inputDownload;assert.equal(await readFile(await input.path(),'utf8'),'Original attachment');
+ await page.locator('#chatOptionsButton').click();await page.locator('#chatName').fill('Renamed Alpha');await page.locator('#renameChat button').click();await page.waitForFunction(()=>document.querySelector('#selectedTitle').textContent==='Renamed Alpha');
+ await page.locator('#pinChat').click();await page.waitForFunction(()=>document.querySelector('#pinChat').textContent==='Unpin chat');
+ const jsonDownload=page.waitForEvent('download');await page.locator('[data-export="json"]').click();const json=JSON.parse(await readFile(await(await jsonDownload).path(),'utf8'));assert.equal(json.conversation.title,'Renamed Alpha');assert.equal(json.turns.length,2);assert.ok(!JSON.stringify(json).includes('Original attachment'));
+ const mdDownload=page.waitForEvent('download');await page.locator('[data-export="md"]').click();assert.match(await readFile(await(await mdDownload).path(),'utf8'),/# Renamed Alpha/);
+ await page.locator('#archiveChat').click();await page.waitForFunction(()=>document.querySelector('#archiveChat').textContent==='Restore chat');await page.locator('#closeChatOptions').click();
+ assert.equal(await page.locator('#prompt').isDisabled(),true);assert.equal(await page.locator('#chatScope').inputValue(),'archived');
+ await page.locator('#chatScope').selectOption('active');assert.equal(await page.locator('.historyItem').count(),1);
+ await page.locator('#chatScope').selectOption('archived');await page.locator('#chatSearch').fill('RENAMED');assert.equal(await page.locator('.historyItem').count(),1);await page.locator('#chatSearch').fill('');
+ await page.screenshot({path:'.local/m0/organized-archive.png'});
+ await page.reload();await page.locator('#restoreChat').waitFor();assert.equal(await page.locator('#chatScope').inputValue(),'archived');
+ await page.locator('#restoreChat').click();await page.waitForFunction(()=>!document.querySelector('#prompt').disabled);assert.equal(await page.locator('.historyItem .chatTitle').first().innerText(),'Renamed Alpha');
+ await page.locator('#filesNav').click();await page.locator('#fileType').selectOption('md');assert.equal(await page.locator('.libraryEntry').count(),2);assert.match(await page.locator('#fileSummary').innerText(),/^2 outputs/);
+ await page.locator('#fileSort').selectOption('oldest');assert.match(await page.locator('.outputOrigin').first().innerText(),/Version 1/);
+ await page.locator('#fileSort').selectOption('newest');assert.match(await page.locator('.outputOrigin').first().innerText(),/Version 2/);
+ await page.locator('#libraryFiles .file').first().click();await page.locator('#preview[open]').waitFor();assert.equal(await page.locator('#previewBody h1').innerText(),'Revision');
+ await page.locator('#previewSource').click();assert.match(await page.locator('#previewBody pre').innerText(),/^# Revision/);
+ await page.locator('#previewVersion').selectOption(alpha.id);await page.waitForFunction(()=>document.querySelector('#previewBody h1')?.textContent==='Alpha');
+ await page.screenshot({path:'.local/m0/organized-preview.png'});
+ await page.locator('#previewConversation').click();assert.ok((await page.locator('.turn:focus').innerText()).includes('Alpha'));
+ await page.locator('#activitySearch').fill('Revision');assert.equal(await page.locator('.activityEntry').count(),1);await page.locator('#activitySearch').fill('');
+ await page.keyboard.press('Control+k');assert.equal(await page.locator('#chatSearch').evaluate(e=>e===document.activeElement),true);
+ await page.locator('#shortcutHelp').click();await page.locator('#shortcuts[open]').waitFor();await page.locator('#closeShortcuts').click();
+ await page.locator('#prompt').fill('Unsent draft');const warning=page.waitForEvent('dialog');const reloading=page.reload();const dialog=await warning;assert.equal(dialog.type(),'beforeunload');await dialog.dismiss();await reloading.catch(()=>{});assert.equal(await page.locator('#prompt').inputValue(),'Unsent draft');await page.locator('#prompt').fill('');
+ await page.evaluate(()=>{document.querySelector('#conversation').style.height='150px';document.querySelector('#conversation').style.flex='none';document.querySelector('#conversation').scrollTop=0;document.querySelector('#conversation').dispatchEvent(new Event('scroll'));});
+ await page.locator('#jumpLatest').click();assert.equal(await page.locator('#latestBar').isVisible(),false);
+ await page.setViewportSize({width:390,height:844});await page.locator('#chatOptionsButton').click();await page.screenshot({path:'.local/m0/organized-mobile.png'});assert.equal(await page.locator('#chatOptions').isVisible(),true);await page.locator('#closeChatOptions').click();
+ assert.deepEqual(errors,[]);console.log('Organization browser passed: rename/pin/archive/restore, exports and originals, versions, filters, shortcuts, unsent warning, mobile.');
+}finally{if(browser)await browser.close();await app.shutdown();await rm(directory,{recursive:true,force:true});}
