@@ -7,7 +7,7 @@ let token=location.hash.slice(1)||sessionStorage.getItem('agentmeld-token')||'';
 if(token){sessionStorage.setItem('agentmeld-token',token);history.replaceState(null,'',location.pathname);}
 window.addEventListener('hashchange',()=>{if(location.hash.length>1){token=location.hash.slice(1);sessionStorage.setItem('agentmeld-token',token);history.replaceState(null,'',location.pathname);error();refresh();}});
 let state={tasks:[],conversations:[],active:null},selected=null,files=[],view='chat',lastRender='';
-let restoreSelection=true,lastHistory='';
+let restoreSelection=true,lastHistory='',showArchived=false;
 function saveSelection(){try{if(selected)sessionStorage.setItem('agentmeld-selection',selected);else sessionStorage.removeItem('agentmeld-selection');}catch{}}
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function formatted(text){return esc(text).replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>');}
@@ -40,9 +40,9 @@ function showChat(){view='chat';render();}
 const drafts=new Map();let submitting=false;
 const draftKey=()=>selected||'new';
 function rememberDraft(){const key=draftKey(),draft=drafts.get(key)||{};Object.assign(draft,{text:$('prompt').value,files,scroll:$('conversation').scrollTop});drafts.set(key,draft);}
-function selectConversation(id){document.querySelector('.history').classList.remove('open');rememberDraft();selected=id;$('chatScope').value=state.conversations.find(c=>c.id===id)?.archived?'archived':'active';saveSelection();const d=drafts.get(draftKey());$('prompt').value=d?.text||'';files=d?.files||[];lastRender='';showChat();$('conversation').scrollTop=d?.scroll||0;error();}
-function newTask(){rememberDraft();drafts.delete('new');selected=null;$('chatScope').value='active';saveSelection();files=[];$('prompt').value='';lastRender='';document.querySelector('.history').classList.remove('open');error();showChat();$('prompt').focus();}
-$('chatSearch').oninput=()=>render();$('fileSearch').oninput=()=>render();$('chatScope').onchange=()=>render();$('fileType').onchange=()=>render();$('fileSort').onchange=()=>render();$('activitySearch').oninput=()=>renderActivity();
+function selectConversation(id){document.querySelector('.history').classList.remove('open');rememberDraft();selected=id;showArchived=!!state.conversations.find(c=>c.id===id)?.archived;saveSelection();const d=drafts.get(draftKey());$('prompt').value=d?.text||'';files=d?.files||[];lastRender='';showChat();$('conversation').scrollTop=d?.scroll||0;error();}
+function newTask(){rememberDraft();drafts.delete('new');selected=null;showArchived=false;saveSelection();files=[];$('prompt').value='';lastRender='';document.querySelector('.history').classList.remove('open');error();showChat();$('prompt').focus();}
+$('chatSearch').oninput=()=>render();$('fileSearch').oninput=()=>render();$('archiveChats').onclick=()=>{showArchived=!showArchived;render();};$('fileType').onchange=()=>render();$('fileSort').onchange=()=>render();$('activitySearch').oninput=()=>renderActivity();
 $('attach').onclick=()=>$('upload').click();
 $('newChat').onclick=newTask;$('mobileNew').onclick=newTask;
 $('chatNav').onclick=()=>{showChat();if(matchMedia('(max-width:720px)').matches)document.querySelector('.history').classList.toggle('open');};$('filesNav').onclick=()=>{view='files';render();};
@@ -74,11 +74,14 @@ function renderActivity(){
   if(content!==lastActivity){$('activity').innerHTML=content;lastActivity=content;}
 }
 function render(){
+  $('chatHeading').textContent=showArchived?'Archived':'Chats';
+  $('archiveChats').setAttribute('aria-pressed',String(showArchived));
+  $('archiveChats').setAttribute('aria-label',showArchived?'Show active chats':'Show archived chats');
   $('chatNav').classList.toggle('active',view==='chat');$('filesNav').classList.toggle('active',view==='files');
   $('conversation').hidden=view!=='chat';$('library').hidden=view!=='files';$('composeWrap').hidden=view!=='chat';
   const chatQuery=$('chatSearch').value.trim().toLocaleLowerCase();
-  const matchingChats=orderedChats(state,$('chatScope').value==='archived',chatQuery);
-  const historyContent=matchingChats.length?matchingChats.map(t=>'<button class="historyItem '+(t.id===selected?'selected':'')+'" data-select="'+t.id+'"><span class="chatTitle">'+esc(t.title)+'</span><small>'+(t.pinned?'Pinned · ':'')+chatInfo(state,t).count+' turns · '+esc(chatInfo(state,t).status)+'</small></button>').join(''):'<div class="emptyHistory">'+(chatQuery?'No matching chats.':$('chatScope').value==='archived'?'No archived chats.':'Your chats will appear here.')+'</div>';
+  const matchingChats=orderedChats(state,showArchived,chatQuery);
+  const historyContent=matchingChats.length?matchingChats.map(t=>'<button class="historyItem '+(t.id===selected?'selected':'')+'" data-select="'+t.id+'"><span class="chatTitle">'+esc(t.title)+'</span><small>'+(t.pinned?'Pinned · ':'')+chatInfo(state,t).count+' turns · '+esc(chatInfo(state,t).status)+'</small></button>').join(''):'<div class="emptyHistory">'+(chatQuery?'No matching chats.':showArchived?'No archived chats.':'Your chats will appear here.')+'</div>';
   if(historyContent!==lastHistory){$('history').innerHTML=historyContent;lastHistory=historyContent;}
   const current=state.conversations.find(c=>c.id===selected);
   $('chatToolbar').hidden=!current||view!=='chat';$('selectedTitle').textContent=current?.title||'';
@@ -120,7 +123,7 @@ async function changeChat(patch){
   $('chatOptionsError').textContent='';
   try{const c=await(await api('/api/conversations',{method:'POST',body:JSON.stringify({id:selected,...patch})})).json();
     state.conversations=state.conversations.map(old=>old.id===c.id?c:old);
-    if(c.id===selected&&Object.hasOwn(patch,'archived'))$('chatScope').value=c.archived?'archived':'active';
+    if(c.id===selected&&Object.hasOwn(patch,'archived'))showArchived=!!c.archived;
     render();renderChatOptions();notice('Chat updated.');
   }catch(e){$('chatOptionsError').textContent=e.message;if(!$('chatOptions').open)notice(e.message);}
   finally{optionsBusy=false;for(const b of $('chatOptions').querySelectorAll('button'))b.disabled=false;}
@@ -219,7 +222,7 @@ $('stop').onclick=async()=>{try{$('stop').disabled=true;await api('/api/stop',{m
 async function refresh(){
   if(refreshing)return;refreshing=true;
   try{state=await(await api('/api/state',{signal:AbortSignal.timeout(8000)})).json();connected=true;
-    if(restoreSelection){restoreSelection=false;let saved;try{saved=sessionStorage.getItem('agentmeld-selection');}catch{}if(state.conversations.some(c=>c.id===saved)){selected=saved;$('chatScope').value=selectedChat()?.archived?'archived':'active';}else saveSelection();}
+    if(restoreSelection){restoreSelection=false;let saved;try{saved=sessionStorage.getItem('agentmeld-selection');}catch{}if(state.conversations.some(c=>c.id===saved)){selected=saved;showArchived=!!selectedChat()?.archived;}else saveSelection();}
   }catch{connected=false;}finally{
     refreshing=false;$('connectionStatus').textContent=connected?'Connected':'Disconnected';$('connectionDot').classList.toggle('offline',!connected);$('retryConnection').hidden=connected;$('connectionBanner').hidden=connected;
     render();

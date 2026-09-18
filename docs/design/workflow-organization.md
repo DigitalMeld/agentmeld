@@ -11,7 +11,7 @@ Implemented 2026-09-18 in the local Codex-only client. This batch extends the ex
 | 3 | Recent ordering | Within each pin group, chats sort by their latest retained turn rather than creation date. |
 | 4 | Archive | Preserves all messages, outputs, attachments and native session references; running/queued/stopping work cannot be archived. |
 | 5 | Restore | Archived conversations have a clear read-only banner and Restore action. Restoration does not bypass unavailable/legacy continuation rules. |
-| 6 | Archive browsing | Active/Archived picker and title search let the owner find retained archived work; selecting it through Activity also selects the correct list. |
+| 6 | Archive browsing | An archive icon beside the Chats heading toggles the archived list, with a tooltip, keyboard access and pressed state. Title search lets the owner find retained archived work; selecting it through Activity also selects the correct list. |
 | 7 | Turn counts | Chat rows and the selected-conversation toolbar show retained turn counts. |
 | 8 | Chat status | Rows show active work status, otherwise the last turn's actual status. |
 | 9 | Selected title | Toolbar shows which conversation is open and provides its options. |
@@ -44,3 +44,5 @@ Transcript exports deliberately exclude attachment/output contents and provider 
 Node fixtures cover pin/recent ordering, archive filtering, validation, active-work rejection, export field exclusion, type/sort/version behavior, metadata persistence through service restart, archived admission rejection, original-byte retrieval, and authentication/origin boundaries. The explicit organization browser fixture covers the owner journey across rename/pin/archive/reload/restore, both download formats, original attachment bytes, version switching, raw/formatted preview, search, keyboard access, unsent warning and mobile options. All 185 Node tests and both explicit browser fixtures passed, and 58 Markdown files passed link/fence validation. Rendered desktop preview and mobile options were inspected. All fixtures are disposable; no provider call or container is required.
 
 Commands: `node --test experiments/*.test.mjs`; the two explicit browser fixtures are `experiments/poc-ui.browser.mjs` and `experiments/poc-organization.browser.mjs`, with `PLAYWRIGHT_MODULE` pointing to the existing runtime. Run `python3 scripts/check-docs.py`. The full local script still requires Cargo, unavailable on this host. Live native execution was not requalified for this UI/metadata batch.
+
+The archive dropdown was replaced following visual feedback. Browsing archives changes only the list, preserving the selected conversation and draft; the heading reads “Archived” while that view is selected. New chat returns to the active list.
