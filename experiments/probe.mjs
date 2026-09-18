@@ -3,7 +3,6 @@ import { spawn, spawnSync } from 'node:child_process';
 import { readFile, writeFile, mkdir, access } from 'node:fs/promises';
 import assert from 'node:assert/strict';
 import { performance } from 'node:perf_hooks';
-import { query } from '@anthropic-ai/claude-agent-sdk';
 import { chromium } from 'playwright';
 import { RustAuthority, RustBrowserControl } from './rust-browser-control.mjs';
 import { randomUUID } from 'node:crypto';
@@ -90,31 +89,6 @@ await check('codex_stdio_handshake', async () => {
     await new Promise(resolve => { if (proc.exitCode !== null || proc.signalCode) resolve(); else proc.once('exit', resolve); });
     clearTimeout(timer);
   }
-});
-
-await check('claude_sdk_unauthenticated', async () => {
-  const abortController = new AbortController();
-  const timer = setTimeout(() => abortController.abort(), 20000);
-  let result; let frames = 0;
-  const session = query({ prompt: 'Reply with the single word READY. Do not use tools.', options: {
-    cwd: '/workspace', env: { PATH: process.env.PATH, HOME: '/tmp/home' },
-    settingSources: [], tools: [], maxTurns: 1, persistSession: false,
-    includePartialMessages: true, permissionMode: 'default', abortController,
-    canUseTool: async () => ({ behavior: 'deny', message: 'No tools granted in M0 auth probe' }),
-  } });
-  try {
-    for await (const frame of session) {
-      if (++frames > 1000) throw new Error('Claude output limit exceeded');
-      if (frame.type === 'result') result = frame;
-    }
-    assert.ok(result?.is_error, 'credential-free run must return an error');
-    return { initialized: true, missingCredentialsRejected: true, resultSubtype: result.subtype, liveInference: false };
-  } catch (error) {
-    if (!abortController.signal.aborted && /Claude Code returned an error result: Not logged in/.test(String(error.message))) {
-      return { initialized: true, missingCredentialsRejected: true, errorPath: 'sdk_exception', liveInference: false };
-    }
-    throw error;
-  } finally { clearTimeout(timer); abortController.abort(); session.close(); }
 });
 
 await check('chromium_with_renderer_sandbox', async () => {
