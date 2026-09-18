@@ -25,7 +25,10 @@ let client; let stage = 'initialize';
 const report = { phase: 'm0', model: 'gpt-5.5', liveInference: true, subscriptionRecognized: false, commandSuccess: false, commandFailure: false, processReplacement: false, conversationContinued: false, apiKeyUsed: false, rawAccountOrOutputRetainedInReport: false };
 try {
   client = start(); await client.initialize();
-  assert.equal((await client.request('account/read', { refreshToken: false })).account?.type, 'chatgpt'); report.subscriptionRecognized = true;
+  await client.qualifyModel('gpt-5.5'); report.subscriptionRecognized = true;
+  stage = 'model-unavailable';
+  await assert.rejects(client.qualifyModel('agentmeld-m0-unavailable-model'), /configured model unavailable in native catalog/);
+  report.unavailableModelRejectedBeforeTurn = true;
   stage = 'thread-start';
   const thread = await client.request('thread/start', { cwd: '/workspace', model: 'gpt-5.5', allowProviderModelFallback: false, permissions: 'agentmeld', approvalPolicy: 'on-request', ephemeral: false });
   const nonce = randomUUID();

@@ -49,7 +49,7 @@ try {
     return result;
   });
   await client.initialize();
-  assert.equal((await client.request('account/read', { refreshToken: false })).account?.type, 'chatgpt');
+  await client.qualifyModel('gpt-5.5');
   for (scenario of ['allow', 'deny', 'interrupt']) {
     stage = scenario; calls = 0; callbacks = 0;
     const thread = await client.request('thread/start', { cwd: '/workspace', model: 'gpt-5.5', allowProviderModelFallback: false, permissions: 'agentmeld', approvalPolicy: 'on-request', ephemeral: true,

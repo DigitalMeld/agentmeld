@@ -27,6 +27,7 @@ export class LiveClient {
   send(frame) { this.proc.stdin.write(JSON.stringify(frame) + '\n'); }
   frame(frame) {
     if (this.failed) return;
+    if (frame.method === 'model/rerouted') return this.fail();
     if (frame.method && frame.id !== undefined) {
       if (this.onRequest) {
         if (this.callbacks.has(frame.id) || this.callbacks.size >= 32) return this.fail();
@@ -43,7 +44,7 @@ export class LiveClient {
       return;
     }
     const p = this.pending.get(frame.id);
-    if (p) { this.pending.delete(frame.id); if (frame.error) p.reject(Object.assign(Error('native rejected probe request'), { rpcCode: frame.error.code, experimentalRequired: /experimental/i.test(frame.error.message ?? '') })); else p.resolve(frame.result); return; }
+    if (p) { this.pending.delete(frame.id); if (frame.error) p.reject(Object.assign(Error('native rejected probe request'), { rpcCode: frame.error.code, experimentalRequired: /experimental/i.test(frame.error.message ?? '') })); else if (p.expectedModel && frame.result?.model !== p.expectedModel) p.reject(Error('native model mismatch')); else p.resolve(frame.result); return; }
     if (!frame.method) return;
     if (this.events.length >= 4096) return this.fail();
     this.events.push(frame);
@@ -52,13 +53,21 @@ export class LiveClient {
   request(method, params) {
     if (this.failed || this.closing) return Promise.reject(Error('native probe unavailable'));
     return new Promise((resolve, reject) => {
-      const id = ++this.sequence; this.pending.set(id, { resolve, reject }); this.send({ id, method, params });
+      const id = ++this.sequence; this.pending.set(id, { resolve, reject, expectedModel: ['thread/start', 'thread/resume'].includes(method) ? params?.model : null }); this.send({ id, method, params });
     });
   }
   wait(match) {
     if (this.failed || this.closing) return Promise.reject(Error('native probe unavailable'));
     const found = this.events.find(match); if (found) return Promise.resolve(found);
     return new Promise((resolve, reject) => this.waiters.add({ match, resolve, reject }));
+  }
+  async qualifyModel(model) {
+    if (typeof model !== 'string' || !model) throw Error('explicit model required');
+    const account = await this.request('account/read', { refreshToken: false });
+    if (account?.account?.type !== 'chatgpt') throw Error('ChatGPT subscription required');
+    const catalog = await this.request('model/list', { limit: 100 });
+    if (!Array.isArray(catalog?.data) || !catalog.data.some(entry => entry.model === model)) throw Error('configured model unavailable in native catalog');
+    return { subscription: true, model };
   }
   async initialize() {
     await this.request('initialize', { clientInfo: { name: 'agentmeld_m0_live', version: '0.1.0' }, capabilities: { experimentalApi: true } });

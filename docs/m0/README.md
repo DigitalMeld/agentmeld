@@ -4,6 +4,8 @@ This milestone has begun. The Rust crate contains experimental contracts and tes
 
 ## What exists
 
+- [Completion audit and current capability matrix](completion-audit.md), mapped to the authoritative M0 roadmap.
+
 - [Separate browser isolation](browser-isolation.md), synthetic private login and native harness/profile boundary evidence.
 
 - [Runtime distribution inventory](distribution-inventory.md), installed package versions and notice-file evidence with explicit release gaps.
@@ -12,10 +14,10 @@ This milestone has begun. The Rust crate contains experimental contracts and tes
 
 - [Workspace disk limit](workspace-disk-limit.md), fixed-size persistent filesystem, disk-full recovery and container-replacement evidence.
 - [Dedicated subscription store](codex-auth-store.md), owner-authorized subscription import with private readback and native tool-denial evidence.
-- [Provider egress](provider-egress.md), an isolated CONNECT gateway with public TLS and denied-destination checks; native login remains open.
+- [Provider egress](provider-egress.md), an isolated CONNECT gateway with public TLS and denied-destination checks; native subscription login and inference now pass.
 - [Current exit checklist](exit-checklist.md), Codex subscription scope and explicit remaining gates.
 - [Native command credential boundary](codex-credential-boundary.md), synthetic canaries through standalone sandbox and real app-server command execution.
-- [Codex subscription protocol](codex-subscription.md), offline schemas and isolated logged-out account readback.
+- [Codex subscription protocol](codex-subscription.md), offline schemas, isolated logged-out rejection and live subscription evidence.
 - [Fresh-process worker evidence](recovery-worker.md), engine-bound reconstruction without dispatch authority.
 
 - [Durable reviewed recovery](reviewed-recovery.md), distinct accepted-output and closed-unknown dispositions, with restart/readback and Linux checks.
