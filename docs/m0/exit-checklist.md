@@ -2,28 +2,29 @@
 
 **Priority change, 2026-09-18:** the owner directed delivery of a useful POC instead of further patch qualification. The scoped patch and remaining qualification work are deferred; they do not gate the [working local POC](../poc.md). Historical evidence below is retained, not a mandate to resume the patch.
 
-Updated: 2026-09-18. M0 remains incomplete. This is the current task checkpoint; older probe documents retain historical evidence and do not add exit gates.
+Updated: 2026-09-18. **M0 qualification is complete with recorded limitations.** The [completion audit](completion-audit.md#closeout-decisions) contains the requirement-by-requirement closeout and evidence readback. The local POC is delivered; M1 and the multi-system alpha are not complete.
 
-## Current scope
+## Current scope and exit checklist
 
-Codex-only alpha using supported ChatGPT subscription login. Claude Code, Ollama, iMessage and WhatsApp are deferred. macOS, local browser, iOS, multiple Mac hosts and away-from-home control remain alpha requirements; full client delivery is M1/M2, not evidence already supplied by M0.
+Codex-only alpha using ChatGPT subscription authentication. Claude Code, Ollama, iMessage and WhatsApp remain deferred. macOS, local browser, iOS, multiple Mac hosts and away-from-home control remain alpha requirements.
 
-The [completion audit](completion-audit.md) maps these entries to the roadmap and separates qualification gaps from later product/release work.
+- [x] Pin Codex/base images and record authentication paths and installed licenses.
+- [x] Exercise streamed answer, bounded tool call, model-facing tool error, allow/deny, interruption plus terminal cleanup, process replacement and unavailable account/model.
+- [x] Verify scoped native process/file boundaries, protected host state and separate browser credentials.
+- [x] Verify selected restricted egress and dedicated native credential approach; record the trusted-harness exception.
+- [x] Demonstrate viewer/takeover/fresh resume; select Playwright/Chromium screenshot capture, native image rendering and the owned controller for the local workflow.
+- [x] Record initial native/browser resource measurements and the tested VM envelope. Minimum-host installation promises remain prohibited until separately validated.
+- [x] Verify the selected GPT-5.5 execution role and pinned app-server protocol.
 
-## Current work order
+## Explicit limitations and next work
 
-| Requirement | Evidence now | Next action |
-| --- | --- | --- |
-| Local baseline | 194 tests plus formatting, lint, build and docs checks passed on 2026-09-18 after implementation edits | Run relevant checks after changes |
-| Codex subscription authentication | Dedicated store/import verified; subscription recognized; native device challenge/cancel and live GPT-5.5 streaming pass | [Native lifecycle fixture](auth-lifecycle.md) passes refresh, expiry, transient recovery and logout; live provider refresh/revocation remains explicitly unqualified |
-| Real native execution | Live streamed answer, command success and conversation continuation after native process replacement pass; live tool error is verified by correlated native history; its UI command-result event remains missing | Live mediated allow/deny and both pending/running cancellation pass; resolve remaining native UI error-event delivery |
-| Process/file/network boundary | Command read/write, native patch/image canaries, provider TLS gateway and standalone tool network denial pass | Native command/browser coverage and isolated lifecycle checks pass; retain scoped boundary limits |
-| Recovery | Durable journals, unsettled output review, worker termination and fresh-process engine-bound assessment pass | Native process replacement and persisted nonce continuation pass; [Controlled dedicated-VM restart](workspace-disk-limit.md#controlled-vm-restart) now passes; sudden power loss and production recovery remain unqualified |
-| Storage and resources | Bounded temporary filesystem/archive; fixed-size persistent workspace passes disk-full/replacement tests; 150-second offline resource baseline passes | Authenticated bounded workspace and replacement-worker continuation pass; qualify broader live workloads and longer soaks |
-| Browser workflow | Fixture viewer, takeover, resume and cancellation pass; [separate-browser private login fixture](browser-isolation.md) passes | Authenticated native callback integration now passes; real owner credential-entry transport remains unqualified |
-| Versions and licenses | [Installed runtime inventory](distribution-inventory.md) verified: 4 npm / 199 Debian packages and local Rust resolution | Codex-only image verified; finish embedded notices and resolve source license before release |
+The failed-command UI lifecycle event is still missing; the model-facing native error result is verified. The owner deferred the patch. Production event delivery, real-provider refresh/revocation, release notices/license, broader workload sizing and remote viewer transport are not qualified by M0.
 
-## Working checkpoint
+Use the [working POC](../poc.md) for real tasks. Next product increments are conversational follow-up and integrated browser/computer interaction, then the M1 durable service and M2 native/cross-host clients. Do not restart deferred patch work automatically.
+
+The entries below are preserved chronology, **not current next actions or additional exit gates**. Later evidence and the closeout audit supersede their pending statuses.
+
+## Historical working checkpoints
 
 Previous work is merged and verified on GitHub: [#18](https://github.com/DigitalMeld/agentmeld/pull/18) reconciled alpha scope and initial isolation/recovery, [#19](https://github.com/DigitalMeld/agentmeld/pull/19) extended native file-tool coverage, [#20](https://github.com/DigitalMeld/agentmeld/pull/20) added restricted provider egress, and [#21](https://github.com/DigitalMeld/agentmeld/pull/21) qualified synthetic dedicated credential storage. Their owning reports retain exact images, evidence and limitations.
 

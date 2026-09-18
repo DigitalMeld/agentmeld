@@ -1,6 +1,6 @@
 # AgentMeld delivery roadmap
 
-Updated: 2026-09-18. Status: proposed sequence, not a schedule or effort estimate. M0 experiments have started; see [current evidence](../m0/results.md). The [product specification](product-spec.md) owns intended behavior; [architecture](architecture.md) owns the proposed design.
+Updated: 2026-09-18. Status: proposed sequence, not a schedule or effort estimate. M0 qualification is complete with [recorded limitations](../m0/completion-audit.md#closeout-decisions); the [local POC](../poc.md) is delivered. M1 and alpha remain incomplete. The [product specification](product-spec.md) owns intended behavior; [architecture](architecture.md) owns the proposed design.
 
 ## Immediate priority: prove product value
 
