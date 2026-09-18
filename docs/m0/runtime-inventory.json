@@ -2133,10 +2133,10 @@
   },
   "limitation": "Package declarations and installed notice-file hashes are evidence, not a redistribution clearance or complete embedded-component SBOM.",
   "image": {
-    "Id": "sha256:7a1816efc7b11137feaac11afe47b666d0cccb7cdfe9a1783a5420260ffc9ffc",
+    "Id": "sha256:fd9aed760a4aa7a904c2dc3e72e5a88204bb8d7490b6682d602f6ab149b96b9d",
     "Os": "linux",
     "Architecture": "arm64",
-    "Created": "2026-09-18T03:23:48.351450673-05:00"
+    "Created": "2026-09-18T03:29:11.382782708-05:00"
   },
   "localCheckoutInputs": {
     "Cargo.lock": "9822983e89e0f77b10c898f254f8edde6f5eb5ddce96583b7ed5ac2879efd0cd",

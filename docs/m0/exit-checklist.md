@@ -16,7 +16,7 @@ Codex-only alpha using supported ChatGPT subscription login. Claude Code, Ollama
 | Process/file/network boundary | Command read/write, native patch/image canaries, provider TLS gateway and standalone tool network denial pass | Qualify persistent credential storage and authenticated egress; expand native-tool coverage |
 | Recovery | Durable journals, unsettled output review, worker termination and fresh-process engine-bound assessment pass | Live transport reattachment, whole-machine restart and production recovery remain unqualified |
 | Storage and resources | Bounded temporary filesystem/archive; fixed-size persistent workspace passes disk-full/replacement tests; 150-second offline resource baseline passes | Integrate bounded storage with authenticated workers; qualify live workloads and longer soaks |
-| Browser workflow | Fixture viewer, takeover, resume and cancellation pass | Recheck in the authenticated harness workflow; protected credential-entry behavior remains unqualified |
+| Browser workflow | Fixture viewer, takeover, resume and cancellation pass; [separate-browser private login fixture](browser-isolation.md) passes | Recheck in the authenticated harness workflow; real owner credential-entry transport remains unqualified |
 | Versions and licenses | [Installed runtime inventory](distribution-inventory.md) verified: 4 npm / 197 Debian packages and local Rust resolution | Codex-only image verified; finish embedded notices and resolve source license before release |
 
 ## Working checkpoint
@@ -32,3 +32,5 @@ Next: authorize/create the dedicated store, qualify native subscription login th
 The [workspace disk-limit experiment](workspace-disk-limit.md) passes with a fixed-size 64 MiB ext4 fixture, preserved files after disk-full, recovered writes and replacement-container readback. The normal bind launcher remains unbounded; production quota integration is not claimed. The [offline resource baseline](resource-baseline.md) passed 51 verified native/browser cycles with zero OOM kills and 212.04 MiB peak charged memory; authenticated workload sizing remains open.
 
 The active qualification image now installs only Codex and Playwright npm packages. Its [inventory and regression evidence](distribution-inventory.md#codex-only-rebuild-verification) replace the mixed runtime as the current baseline; historical provider experiments remain deferred.
+
+The browser-isolation probe qualifies separate browser/harness containers and synthetic private-mode entry with session preservation. It does not add an owner login endpoint or complete the authenticated browser gate.
