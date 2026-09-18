@@ -1,0 +1,12 @@
+const panel=document.getElementById('approvalList'),error=document.getElementById('approvalError'),tab=document.getElementById('approvalsTab');
+let busy=false,last='';
+async function api(data){const r=await fetch('/api/approvals',{method:data?'POST':'GET',headers:{Authorization:'Bearer '+(sessionStorage.getItem('agentmeld-token')||''),'Content-Type':'application/json'},...(data?{body:JSON.stringify(data)}:{})});const value=await r.json();if(!r.ok)throw Error(value.error||'Approvals unavailable.');return value;}
+async function refresh(){if(busy||document.hidden)return;try{const rows=await api(),key=JSON.stringify(rows);const count=rows.filter(r=>r.status==='pending').length;tab.setAttribute('aria-label',count?'Approvals, '+count+' pending':'Approvals');tab.classList.toggle('needsReview',count>0);document.getElementById('approvalNotice').hidden=!count;if(key===last)return;last=key;panel.replaceChildren();for(const row of rows.slice().reverse()){
+ const article=document.createElement('article'),status=document.createElement('strong'),command=document.createElement('pre'),meta=document.createElement('p'),reason=document.createElement('p');
+ status.textContent=row.status==='pending'?'Review command':row.status[0].toUpperCase()+row.status.slice(1);command.textContent=row.command;meta.textContent=row.cwd+' · '+new Date(row.createdAt).toLocaleString();reason.textContent=row.reason;article.append(status,command,meta,reason);
+ if(row.status==='pending')for(const [allow,label] of [[false,'Deny'],[true,'Approve once']]){const button=document.createElement('button');button.textContent=label;button.onclick=async()=>{if(busy)return;busy=true;for(const b of article.querySelectorAll('button'))b.disabled=true;error.textContent='';try{await api({id:row.id,digest:row.digest,allow});}catch(e){error.textContent=e.message;}finally{busy=false;last='';refresh();}};article.append(button);}
+ const link=document.createElement('button');link.textContent='Open conversation';link.dataset.jump=row.taskId;article.append(link);panel.append(article);
+ }if(!rows.length)panel.textContent='No recorded requests.';error.textContent='';}catch(e){error.textContent=e.message;}}
+setInterval(refresh,2000);window.addEventListener('hashchange',refresh);document.addEventListener('visibilitychange',refresh);refresh();
+
+document.getElementById('reviewApproval').onclick=()=>{const inspector=document.getElementById('inspector');inspector.classList.remove('closed');inspector.classList.add('open');tab.click();tab.focus();};

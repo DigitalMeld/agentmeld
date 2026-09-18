@@ -1,3 +1,4 @@
+import {createApprovals} from './approvals.mjs';
 import { agentProfile, updateProfile, profileContext } from './profile.mjs';
 import { workspaceView, workspaceFile } from './filesystem.mjs';
 import { recordEvent } from './events.mjs';
@@ -9,7 +10,7 @@ import { executeTask } from './runtime.mjs';
 import { openStore, admit, updateConversation, publicTask, publicConversation } from './conversations.mjs';
 
 export async function createPocServer({directory=fileURLToPath(new URL('../../.local/poc/',import.meta.url)),port=Number(process.env.PORT||4317),execute=executeTask}={}) {
-let state,save,healthy;
+let state,save,healthy,approvals;
 const token=randomBytes(32).toString('hex');
 let origin,active=null,closing=false,admissions=Promise.resolve();
 function pump(){
@@ -17,7 +18,7 @@ function pump(){
   const task=state.tasks.find(t=>t.status==='queued');if(!task)return;
   const conversation=state.conversations.find(c=>c.id===task.conversationId);
   const profile=agentProfile(state);
-  const control={id:task.id,stop:null,agentContext:profileContext(profile)};active=control;
+  const control={id:task.id,stop:null,agentContext:profileContext(profile)};active=control;control.requestApproval=proposal=>approvals.request(task,proposal);
   control.done=(async()=>{
     if(conversation.continuation!=='ready'){
       task.status='failed';task.activity='Continuation unavailable';task.error='Start a new chat; earlier work is preserved.';return;
@@ -29,7 +30,7 @@ function pump(){
     await execute(task,save,control,conversation);
   })().catch(()=>{
     task.status='failed';task.activity='Needs attention';task.error='The turn could not finish safely. Start a new chat.';conversation.continuation='unavailable';
-  }).finally(async()=>{try{if(['completed','failed','cancelled'].includes(task.status))recordEvent(task,task.status);await save();}finally{active=null;pump();}});
+  }).finally(async()=>{try{await approvals.cancel(task.id);if(['completed','failed','cancelled'].includes(task.status))recordEvent(task,task.status);await save();}finally{active=null;pump();}});
   control.done.catch(()=>{});
 }
 function authorized(req) {const supplied=Buffer.from(req.headers.authorization||'');const expected=Buffer.from('Bearer '+token);return supplied.length===expected.length&&timingSafeEqual(supplied,expected);}
@@ -45,6 +46,8 @@ const server=http.createServer(async(req,res)=>{
     if(url.pathname.startsWith('/api/')){
       if(!authorized(req)) return send(res,401,{error:'Open the local app link printed by the server.'});
       if(req.method==='GET'&&url.pathname==='/api/state')return send(res,200,{agentName:agentProfile(state).name,tasks:state.tasks.map(publicTask),conversations:state.conversations.map(publicConversation),active:active?.id??null});
+      if(req.method==='GET'&&url.pathname==='/api/approvals')return send(res,200,approvals.list());
+      if(req.method==='POST'&&url.pathname==='/api/approvals'){const data=await body(req);return send(res,200,await approvals.decide(data));}
       if(req.method==='GET'&&url.pathname==='/api/agent')return send(res,200,agentProfile(state));
       if(req.method==='POST'&&url.pathname==='/api/agent'){
         const data=await body(req);
@@ -76,7 +79,7 @@ const server=http.createServer(async(req,res)=>{
         if(!task)return send(res,404,{error:'Task not found.'});
         if(task.status==='queued'){recordEvent(task,'cancelled');task.status='cancelled';task.activity='Stopped before execution';await save();return send(res,200,{stopped:true});}
         if(active?.id!==task.id||!active.stop||!['running','cancelling'].includes(task.status))return send(res,409,{error:'This turn cannot be stopped yet. Try again in a moment.'});
-        const control=active;recordEvent(task,'cancelling');task.status='cancelling';task.activity='Stopping';await save();
+        const control=active;control.cancelRequested=true;await approvals.cancel(task.id);recordEvent(task,'cancelling');task.status='cancelling';task.activity='Stopping';await save();
         if(active!==control||!control.stop)return send(res,200,{finished:true});
         await control.stop();
         return send(res,202,{requested:true});
@@ -101,7 +104,7 @@ const server=http.createServer(async(req,res)=>{
       }
       return send(res,404,{error:'Not found.'});
     }
-    const assets={'/agent-settings.js':'agent-settings.js','/':'index.html','/app.js':'app.js','/style.css':'style.css','/brain.svg':'brain.svg','/icons.js':'icons.js','/tooltips.js':'tooltips.js','/composer.js':'composer.js','/organization.js':'organization.js','/file-browser.js':'file-browser.js','/artifact-tools.js':'artifact-tools.js','/conversation-tools.js':'conversation-tools.js','/preview-reader.js':'preview-reader.js'};
+    const assets={'/approvals.js':'approvals.js','/agent-settings.js':'agent-settings.js','/':'index.html','/app.js':'app.js','/style.css':'style.css','/brain.svg':'brain.svg','/icons.js':'icons.js','/tooltips.js':'tooltips.js','/composer.js':'composer.js','/organization.js':'organization.js','/file-browser.js':'file-browser.js','/artifact-tools.js':'artifact-tools.js','/conversation-tools.js':'conversation-tools.js','/preview-reader.js':'preview-reader.js'};
     if(req.method!=='GET'||!assets[url.pathname])return send(res,404,{error:'Not found.'});
     const file=assets[url.pathname];res.setHeader('Content-Type',file.endsWith('.svg')?'image/svg+xml':file.endsWith('.css')?'text/css':file.endsWith('.js')?'text/javascript':'text/html');
     res.end(await readFile(new URL('./public/'+file,import.meta.url)));
@@ -110,8 +113,9 @@ const server=http.createServer(async(req,res)=>{
 await new Promise((resolve,reject)=>{server.once('error',reject);server.listen(port,'127.0.0.1',resolve);});
 port=server.address().port;origin='http://127.0.0.1:'+port;
 try{({state,save,healthy}=await openStore(directory));}catch(e){server.closeAllConnections();await new Promise(resolve=>server.close(resolve));throw e;}
+approvals=createApprovals({state,save,directory,isActive:id=>active?.id===id&&!active.cancelRequested&&!closing&&state.tasks.some(t=>t.id===id&&t.status==='running')});await approvals.recover();
 pump();
-async function shutdown(){if(closing)return;closing=true;await admissions;const running=active;if(running)running.cancelRequested=true;if(running?.stop)await running.stop().catch(()=>{});if(running?.done)await running.done.catch(()=>{});await save();server.closeAllConnections();await new Promise(resolve=>server.close(resolve));}
+async function shutdown(){if(closing)return;closing=true;await approvals.close();await admissions;const running=active;if(running)running.cancelRequested=true;if(running?.stop)await running.stop().catch(()=>{});if(running?.done)await running.done.catch(()=>{});await save();server.closeAllConnections();await new Promise(resolve=>server.close(resolve));}
 return {origin,token,shutdown};
 }
 if(process.argv[1]===fileURLToPath(import.meta.url)){

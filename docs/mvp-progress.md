@@ -11,7 +11,7 @@ Main includes PR64; the context qualification follow-up is recorded below. The l
 | Delivery | Current evidence / remaining work |
 | --- | --- |
 | Agent identity and approved memory (P5/P10) | First local web slice implemented: revision-checked owner editing, runtime context, deletion/export, restart and UI fixtures. Two-turn live provider acceptance now passes across deletion and restart. Individual memory editing/provenance and full version history remain |
-| Browser and exact-action approvals (M1d/P2/P3) | Isolated experiments exist; production workflow, durable waiting requests and owner controls missing |
+| Browser and exact-action approvals (M1d/P2/P3) | Command approval callback/UI slice now uses Rust authority and durable history; live callback qualification, restart continuation, general browser workflow and takeover remain |
 | Service durability and storage (M1e) | Node format-2 store exists; Rust API, SQLite migration, supervision, replay/reconciliation and migration readback required |
 | Reusable outputs and activity (M1b/c/P9/P10) | Working POC slices; complete tool events and lifecycle/deletion semantics remain |
 | Scheduling and notifications (P4) | Sidebar placeholder; persistent schedules, timezone/DST, history, coalescing, cancellation and limits required |
@@ -26,4 +26,4 @@ Keep this document current at each functional checkpoint. Owner data and credent
 
 ## Current checkpoint
 
-PR64 merged the first agent-context slice. Branch `codex/context-live-qualification` adds a passing two-turn live acceptance probe and records full Rust/Node verification. Next functional work: integrate durable exact-action approvals and browser control before scheduling. Existing Rust authority and native tool broker contracts are available; browser qualification currently operates a synthetic isolated fixture and is not general web browsing. Preserve the working local app and its session during each server update.
+PR64 and PR65 delivered agent context and live acceptance. Branch `codex/native-approvals` connects supported native command requests to owner review using the existing Rust authority. Focused tests cover denial/replay/expiry/persistence failures and browser review. Full browser/takeover and waiting-run restart recovery remain open; no complete P3 claim. Next: live native callback qualification, browser runtime integration and durable service ownership. The full MVP scope above remains active.

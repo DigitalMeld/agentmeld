@@ -1,3 +1,4 @@
+import {commandProposal} from './approvals.mjs';
 import { recordEvent } from './events.mjs';
 import { spawn, execFile } from 'node:child_process';
 import { promisify } from 'node:util';
@@ -20,6 +21,7 @@ export const safeName = name => typeof name === 'string' && /^[a-zA-Z0-9][a-zA-Z
 export async function executeTask(task, changed, control, conversation) {
   const id = randomUUID(), network = 'agentmeld-poc-net-' + id;
   const proxy = 'agentmeld-poc-proxy-' + id, worker = 'agentmeld-poc-worker-' + id;
+  let approvalThread=null;
   let networkCreated = false, proxyCreated = false, workerCreated = false, client;
   let phase='setup';
   let stopping = !!control.cancelRequested;
@@ -80,7 +82,10 @@ print(json.dumps([str(p) for p in module.verify_prepared(root)]))`]);
         }
       }
     }
-    client = new POCClient(spawn('docker',['--context',context,'start','-ai',worker], {stdio:['pipe','pipe','pipe']}), 600000);
+    client = new POCClient(spawn('docker',['--context',context,'start','-ai',worker], {stdio:['pipe','pipe','pipe']}), 600000, async frame=>{
+      try{const proposal=commandProposal(frame,approvalThread,client.events);const decision=await control.requestApproval(proposal);return {decision:stopping||control.cancelRequested?'decline':decision};}
+      catch{if(frame.method==='item/commandExecution/requestApproval')return {decision:'decline'};throw Error('Unsupported native callback');}
+    });
     await client.initialize(); await client.qualifyModel('gpt-5.5');
     checkpoint();
     phase='restore';
@@ -99,7 +104,7 @@ print(json.dumps([str(p) for p in module.verify_prepared(root)]))`]);
       ?await client.request('thread/resume',{...params,threadId:conversation.session.threadId})
       :await client.request('thread/start',{...params,ephemeral:false});
     if(conversation.session)assert.equal(thread.thread.id,conversation.session.threadId);
-    conversation.session={...binding,threadId:thread.thread.id};
+    approvalThread=thread.thread.id;conversation.session={...binding,threadId:thread.thread.id};
     await changed(); // Persist the native reference before admitting a turn.
     checkpoint();
     recordEvent(task,'thinking');task.activity = 'Thinking'; notify();

@@ -60,3 +60,5 @@ For a meaningful change, record the reason, affected behavior, evidence/checks, 
 - [MVP completion ledger](mvp-progress.md): current functional gaps, dependency order and acceptance evidence.
 
 - [Agent context](design/agent-context.md): editable identity, approved memory, revisions, runtime context and deletion limits.
+
+- [Native command approvals](design/native-approvals.md): one-time review, Rust decision binding, durable history and recovery limits.

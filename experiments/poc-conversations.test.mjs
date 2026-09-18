@@ -72,7 +72,7 @@ test('store API and files preserve local authentication and omit private continu
  assert.equal((await fetch(app.origin+'/api/state',{headers:{Authorization:'Bearer '+app.token,Origin:'https://unrelated.example'}})).status,403);
  const headers={Authorization:'Bearer '+app.token,'Content-Type':'application/json'};
  const task=await (await fetch(app.origin+'/api/tasks',{method:'POST',headers,body:JSON.stringify(request('Output'))})).json();
- await delay(30);
+ await settled(async()=>({data:await(await fetch(app.origin+'/api/state',{headers})).json()}));
  const state=await (await fetch(app.origin+'/api/state',{headers})).text();assert.ok(!state.includes('private-reference'));assert.ok(!state.includes('c2F2ZWQ='));
  const file=await fetch(app.origin+'/api/file?task='+task.id+'&name=result.txt',{headers});assert.equal(await file.text(),'saved');
 });
