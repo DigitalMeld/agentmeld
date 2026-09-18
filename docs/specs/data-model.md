@@ -121,3 +121,7 @@ A source manifest references immutable source/input blob IDs with content hashes
 | Hosted usage | Tenant/meter/entitlement/invoice links and measured aggregate usage | M5; subscription tokens are not a fabricated API dollar bill |
 
 Each extension gets its own reviewed DDL and migration when its slice begins. Deferring its physical tables does not remove its coverage from the [complete source mapping](data/muse-schema-map.md).
+
+## Local prototype metadata checkpoint (2026-09-18)
+
+The JSON version-2 prototype now supports optional conversation `pinned`/`archived` flags (missing means false), editable titles, and original-input size metadata. [Workflow organization](../design/workflow-organization.md) defines the authenticated update/retrieval contracts. This is additive prototype behavior, not an application of the draft SQL schema. Archive retains all runs/session references and forbids new admissions until restored; it never changes continuation safety. Output version numbers remain derived from conversation/filename and retained run order, not stable artifact-version entities. Transcript exports are allowlisted views, not a full backup/import mechanism.

@@ -57,6 +57,7 @@ export function admit(state,data) {
   if(state.tasks.length>=30)throw new RequestError('This local preview holds up to 30 turns. Existing results are preserved.',409);
   let conversation=state.conversations.find(c=>c.id===data.conversationId);
   if(data.conversationId&&!conversation)throw new RequestError('Conversation not found.',404);
+  if(conversation?.archived)throw new RequestError('Restore this conversation before sending a message.',409);
   if(conversation && conversation.continuation!=='ready')throw new RequestError('This conversation cannot safely resume. Start a new chat; its history and files are preserved.',409);
   if(conversation && data.files.some(f=>(conversation.workspace.some(p=>p.name===f.name)||state.tasks.some(t=>t.conversationId===conversation.id&&['queued','running','cancelling'].includes(t.status)&&t.inputs.some(p=>p.name===f.name)))))throw new RequestError('A file with that name already exists in this chat. Rename the attachment to preserve earlier work.',409);
   const createdAt=new Date().toISOString();
@@ -64,5 +65,17 @@ export function admit(state,data) {
   const task={id:randomUUID(),conversationId:conversation.id,requestKey:data.requestKey,requestDigest:digest,prompt:data.prompt.trim(),inputs:data.files,artifacts:[],answer:'',status:'queued',activity:'Queued',createdAt};
   recordEvent(task,'queued');state.tasks.push(task);return {task,duplicate:false};
 }
-export const publicTask=t=>({id:t.id,conversationId:t.conversationId,prompt:t.prompt,answer:t.answer,status:t.status,activity:t.activity,error:t.error,createdAt:t.createdAt,events:publicEvents(t),inputs:t.inputs.map(f=>({name:f.name})),artifacts:t.artifacts.map(f=>({name:f.name,size:Buffer.from(f.data,'base64').length}))});
-export const publicConversation=c=>({id:c.id,title:c.title,createdAt:c.createdAt,continuation:c.continuation});
+export const publicTask=t=>({id:t.id,conversationId:t.conversationId,prompt:t.prompt,answer:t.answer,status:t.status,activity:t.activity,error:t.error,createdAt:t.createdAt,events:publicEvents(t),inputs:t.inputs.map(f=>({name:f.name,size:Buffer.from(f.data,'base64').length})),artifacts:t.artifacts.map(f=>({name:f.name,size:Buffer.from(f.data,'base64').length}))});
+export const publicConversation=c=>({id:c.id,title:c.title,createdAt:c.createdAt,continuation:c.continuation,pinned:!!c.pinned,archived:!!c.archived});
+
+export function updateConversation(state,data){
+  if(!data||typeof data!=='object'||Array.isArray(data)||typeof data.id!=='string'||Object.keys(data).some(k=>!['id','title','pinned','archived'].includes(k)))throw new RequestError('Invalid conversation update.');
+  const conversation=state.conversations.find(c=>c.id===data.id);
+  if(!conversation)throw new RequestError('Conversation not found.',404);
+  if(Object.hasOwn(data,'title')&&(typeof data.title!=='string'||!data.title.trim()||data.title.trim().length>120||/[\r\n\x00-\x1f]/.test(data.title)))throw new RequestError('Use a title of 1–120 characters on one line.');
+  for(const key of ['pinned','archived'])if(Object.hasOwn(data,key)&&typeof data[key]!=='boolean')throw new RequestError('Invalid conversation setting.');
+  if(data.archived&&state.tasks.some(t=>t.conversationId===data.id&&['queued','running','cancelling'].includes(t.status)))throw new RequestError('Wait for this conversation’s work to finish before archiving.',409);
+  if(Object.hasOwn(data,'title'))conversation.title=data.title.trim();
+  for(const key of ['pinned','archived'])if(Object.hasOwn(data,key))conversation[key]=data[key];
+  return conversation;
+}

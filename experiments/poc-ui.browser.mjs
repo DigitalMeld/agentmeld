@@ -97,10 +97,10 @@ try{
  await page.locator('.outputOrigin').filter({hasText:'First conversation'}).last().click();
  assert.equal(await page.locator('.turn:focus .message.user').innerText(),'First conversation');
  await page.reload();await page.locator('.message.assistant').first().waitFor();
- assert.equal(await page.locator('.historyItem.selected').innerText(),'First conversation');
+ assert.equal(await page.locator('.historyItem.selected .chatTitle').innerText(),'First conversation');
  await page.locator('#chatSearch').fill(' SECOND ');
  assert.equal(await page.locator('.historyItem').count(),1);
- assert.equal(await page.locator('.historyItem').innerText(),'Second conversation');
+ assert.equal(await page.locator('.historyItem .chatTitle').innerText(),'Second conversation');
  assert.equal(await page.locator('.message.assistant').count(),2);
  await page.locator('#chatSearch').fill('no-such-chat');assert.equal(await page.locator('.historyItem').count(),0);
  await page.locator('#chatSearch').fill('');
