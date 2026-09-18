@@ -178,6 +178,16 @@ Same-day follow-up from the owner's click-through of v2:
 
 Verification for v3: inline JS passes `node --check`; `scripts/check-docs.py` passes; no dangling references to removed screens. Visual click-through still pending on the owner's Mac.
 
+## 13. Prototype v4: visual reskin toward the Muse baseline (2026-09-18)
+
+The owner's click-through of v3: the flow is fine, but the UI doesn't look as polished as the Muse app itself. v4 is presentation only — the journey, steps, states, and copy in §§1–12 are unchanged. It applies the visual patterns recorded in [muse-baseline.md](muse-baseline.md) (dark neutral surfaces, subtle elevation, rounded controls, limited accent):
+
+- **Chat reads as the app.** The chat screen now sits in a minimal app shell: a narrow icon rail (Chat / Library / Activity / Settings, rail hidden under 680 px), a centered readable message column, muted assistant bubbles, restrained accent-wash user bubbles, and a rounded bottom-anchored composer with an attachment chip (removable in the mock) and a circular send button. The shell widens the layout only on the chat screen.
+- **Quieter wizard chrome.** Subtler 1px borders, more whitespace and vertical rhythm, larger headlines with tighter letter-spacing, ghost (borderless-until-hover) secondary buttons, refined code block and approval cards.
+- **Restrained accent.** Purple is reserved for primary actions, the active rail item, user-bubble wash, and progress; panels and borders moved toward neutral.
+
+Verification for v4: inline JS passes `node --check`; `scripts/check-docs.py` passes; all `getElementById`/`data-go` targets resolve. Headless screenshots remain impossible in the Linux build environment, so visual review is pending on the owner's Mac — treat v4 as proposed until clicked through.
+
 ---
 
 ## 10. Open questions for the owner
