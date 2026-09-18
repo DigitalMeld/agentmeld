@@ -42,3 +42,5 @@ Use `design/` for observed interaction patterns and visual acceptance, `specs/` 
 For a meaningful change, record the reason, affected behavior, evidence/checks, limitations and next action. Update current specs when a decision changes; preserve older research with a clear supersession note. Documentation is part of completion, not a later cleanup task. Run `python3 scripts/check-docs.py` for documentation changes. Never describe planned functionality as shipped.
 
 - [Complete saved workspace browser and universal file layouts](design/workspace-browser.md)
+
+- [Artifact actions and previews](design/artifact-actions.md): selection/export, latest versions and safe previews, with behavior and verification boundaries.
