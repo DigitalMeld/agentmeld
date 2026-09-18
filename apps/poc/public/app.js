@@ -1,5 +1,5 @@
 import { installPreviewReader, textMetrics } from './preview-reader.js';
-import { statusLabel, queueWait, activityExport, countLabel, showTurnStatus, dayLabel, chatSearch, activityTasks, duration, elapsedLabel, runExport, renderMarkdown, literalMatches } from './conversation-tools.js';
+import { statusLabel, queueWait, countLabel, showTurnStatus, dayLabel, chatSearch, activityTasks, duration, elapsedLabel, runExport, renderMarkdown, literalMatches } from './conversation-tools.js';
 import { artifactKey, latestVersions, textFile, csvRows, manifest, zipFiles } from './artifact-tools.js';
 import { browseWorkspace, fileKind, breadcrumbs, readPreferences } from './file-browser.js';
 import { chatInfo, orderedChats, outputEntries, visibleOutputs, conversationExport } from './organization.js';
@@ -76,17 +76,9 @@ $('libraryMenu').onclick=()=>$('fileSidebar').classList.toggle('open');
 $('libraryChat').onclick=()=>{fileChatOpen=!fileChatOpen;render();if(fileChatOpen)$('prompt').focus();};
 $('fileChatClose').onclick=()=>{fileChatOpen=false;render();$('libraryChat').focus();};
 $('fileChatNew').onclick=()=>{newTask();view='files';fileChatOpen=true;render();$('prompt').focus();};
-let activityFilter='all',activityOldest=false,activityPeriod='all';
-try{const p=JSON.parse(localStorage.getItem('agentmeld-activity')||'{}');if(['all','active','attention','completed','failed','stopped'].includes(p.filter))activityFilter=p.filter;if(['all','today','week'].includes(p.period))activityPeriod=p.period;activityOldest=p.oldest===true;for(const [id,key] of [['activityCurrent','current'],['activityOutputs','outputs'],['activityInputs','inputs']])$(id).checked=p[key]===true;}catch{}
-function saveActivityPreferences(){try{localStorage.setItem('agentmeld-activity',JSON.stringify({filter:activityFilter,period:activityPeriod,oldest:activityOldest,current:$('activityCurrent').checked,outputs:$('activityOutputs').checked,inputs:$('activityInputs').checked}));}catch{}}
-for(const b of document.querySelectorAll('[data-period]'))b.onclick=()=>{activityPeriod=b.dataset.period;saveActivityPreferences();renderActivity();};
+function selectInspectorTab(name){for(const b of document.querySelectorAll('[data-inspector-tab]')){const active=b.dataset.inspectorTab===name;b.setAttribute('aria-selected',String(active));b.tabIndex=active?0:-1;$(b.dataset.inspectorTab+'Panel').hidden=!active;}}
+for(const b of document.querySelectorAll('[data-inspector-tab]')){b.onclick=()=>selectInspectorTab(b.dataset.inspectorTab);b.onkeydown=e=>{const tabs=[...document.querySelectorAll('[data-inspector-tab]')],i=tabs.indexOf(b);let next;if(e.key==='ArrowRight')next=(i+1)%tabs.length;else if(e.key==='ArrowLeft')next=(i+tabs.length-1)%tabs.length;else if(e.key==='Home')next=0;else if(e.key==='End')next=tabs.length-1;else return;e.preventDefault();selectInspectorTab(tabs[next].dataset.inspectorTab);tabs[next].focus();};}
 $('clearActivitySearch').onclick=()=>{$('activitySearch').value='';renderActivity();$('activitySearch').focus();};
-$('resetActivity').onclick=()=>{activityFilter='all';activityPeriod='all';activityOldest=false;for(const id of ['activityCurrent','activityOutputs','activityInputs'])$(id).checked=false;$('activitySearch').value='';saveActivityPreferences();renderActivity();$('activitySearch').focus();};
-for(const [id,format] of [['exportActivityJson','json'],['exportActivityMd','md']])$(id).onclick=()=>downloadBlob(new Blob([activityExport(currentActivity(),state,format)],{type:format==='json'?'application/json':'text/markdown'}),'agentmeld-activity.'+format);
-
-for(const b of document.querySelectorAll('[data-activity-filter]'))b.onclick=()=>{activityFilter=b.dataset.activityFilter;saveActivityPreferences();renderActivity();};
-$('activityCurrent').onchange=$('activityOutputs').onchange=$('activityInputs').onchange=()=>{saveActivityPreferences();renderActivity();};
-$('activityOrder').onclick=()=>{activityOldest=!activityOldest;saveActivityPreferences();renderActivity();};
 $('closeActivity').onclick=()=>{$('inspector').classList.remove('open');$('inspector').classList.add('closed');$('details').focus();};
 $('details').onclick=()=>{const panel=$('inspector');if(matchMedia('(min-width:1001px)').matches)panel.classList.toggle('closed');else{panel.classList.remove('closed');panel.classList.toggle('open');}};
 function fileButton(task,f){return '<button class="file" aria-label="Open '+esc(f.name)+'" data-tooltip data-task="'+task.id+'" data-file="'+esc(f.name)+'"><span class="fileIcon">'+icon('file')+'</span><span>'+esc(f.name)+'<small>'+formatBytes(f.size)+' · Open</small></span></button>';}
@@ -102,21 +94,20 @@ function renderDetails(){
  $('copyRunReply').disabled=!task.answer;$('copyMilestones').disabled=!task.events?.length;
  const tasks=currentActivity(),index=tasks.findIndex(t=>t.id===detailId);$('previousRun').disabled=index<=0;$('nextRun').disabled=index<0||index>=tasks.length-1;$('runPosition').textContent=index<0?'':(index+1)+' / '+tasks.length;
 }
-let lastActivity='',lastLibrary='';
-function currentActivity(filter=activityFilter){if($('activityCurrent').checked&&!selected)return [];return activityTasks(state,{filter,query:$('activitySearch').value,conversationId:$('activityCurrent').checked?selected:null,outputs:$('activityOutputs').checked,inputs:$('activityInputs').checked,period:activityPeriod,oldest:activityOldest});}
+let lastActivity='',lastLibrary='',lastAlerts='';
+function currentActivity(){return activityTasks(state,{query:$('activitySearch').value});}
 function renderActivity(){
  let day='';const tasks=currentActivity();
- $('clearActivitySearch').hidden=!$('activitySearch').value;$('resetActivity').hidden=activityFilter==='all'&&activityPeriod==='all'&&!activityOldest&&!$('activityCurrent').checked&&!$('activityOutputs').checked&&!$('activityInputs').checked&&!$('activitySearch').value;
- $('exportActivityJson').disabled=$('exportActivityMd').disabled=!tasks.length;
- for(const b of document.querySelectorAll('[data-period]'))b.setAttribute('aria-pressed',String(b.dataset.period===activityPeriod));
-
- $('activityCount').textContent=countLabel(tasks.length,'run')+' · '+($('activityCurrent').checked?'This chat':'All chats');$('activityOrder').textContent=activityOldest?'Oldest first':'Newest first';$('activityOrder').setAttribute('aria-pressed',String(activityOldest));
- for(const b of document.querySelectorAll('[data-activity-filter]')){b.setAttribute('aria-pressed',String(b.dataset.activityFilter===activityFilter));const label=({all:'All',active:'Active',attention:'Attention',completed:'Done',failed:'Failed',stopped:'Stopped'})[b.dataset.activityFilter];b.textContent=label+' '+currentActivity(b.dataset.activityFilter).length;}
+ $('clearActivitySearch').hidden=!$('activitySearch').value;
+ $('activityCount').textContent=$('activitySearch').value.trim()?countLabel(tasks.length,'matching run'):'';
+ const alerts=state.tasks.filter(t=>['failed','interrupted'].includes(t.status));
+ const alertContent=alerts.length?'<details class="runAlerts"><summary>'+countLabel(alerts.length,'run')+' need'+(alerts.length===1?'s':'')+' attention</summary>'+alerts.map(t=>'<button class="detailLink" data-detail="'+t.id+'">'+esc(t.prompt)+'<small>'+esc(t.error||statusLabel(t.status))+'</small></button>').join('')+'</details>':'';
+ if(lastAlerts!==alertContent){const open=$('activityAlerts').querySelector('details')?.open;$('activityAlerts').innerHTML=alertContent;if(open&&$('activityAlerts').querySelector('details'))$('activityAlerts').querySelector('details').open=true;lastAlerts=alertContent;}
  const content=tasks.map(task=>{
  const date=new Date(task.createdAt),key=date.toLocaleDateString(),heading=key!==day?'<h3>'+esc(date.toLocaleDateString([], {month:'short',day:'numeric',year:'numeric'}))+'</h3>':'';day=key;
  const title=state.conversations.find(c=>c.id===task.conversationId)?.title||'Conversation';
  return heading+'<article class="activityEntry"><button class="activityLink" data-jump="'+task.id+'" aria-label="Open conversation: '+esc(task.prompt)+'"><strong>'+esc(task.prompt)+'</strong><span class="activityMeta">'+'<span class="statusBadge" data-status="'+esc(task.status)+'">'+esc(statusLabel(task.status))+'</span> · '+esc(date.toLocaleTimeString([], {hour:'numeric',minute:'2-digit'}))+(duration(task)!==null?' · '+elapsedLabel(duration(task)):'')+'</span><span class="activityChat">'+esc(title)+'</span>'+((task.error||!['Finished','Completed','Done'].includes(task.activity))?'<span class="activitySummary">'+esc(task.error||task.activity)+'</span>':'')+'<span class="activityFileCount">'+countLabel(task.inputs.length,'input')+' · '+countLabel(task.artifacts.length,'output')+'</span></button><button class="detailLink" data-detail="'+task.id+'">View details</button>'+task.artifacts.map(f=>fileButton(task,f)).join('')+'</article>';
- }).join('')||'<p class="muted">'+($('activityCurrent').checked&&!selected?'Open a chat to see its activity.':state.tasks.length?'No runs match these filters. Reset filters to see all activity.':'No activity yet. Send a message to start.')+'</p>';
+ }).join('')||'<p class="muted">'+(state.tasks.length?'No matching activity.':'No activity yet. Send a message to start.')+'</p>';
  if(content!==lastActivity){$('activity').innerHTML=content;lastActivity=content;}
 }
 function messageAction(attribute,id,label,symbol,extra=''){

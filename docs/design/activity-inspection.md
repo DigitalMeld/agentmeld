@@ -2,7 +2,17 @@
 
 Implemented 2026-09-18. This batch improves browsing retained runs without changing execution, credentials, retention, or filesystem access.
 
-## Delivered behavior
+## Current sidebar revision
+
+The owner requested a simpler Muse-like sidebar after reviewing the filtering batch. Activity, Approvals and Schedule now use icon tabs with accessible names, selected states, tooltips, arrow-key navigation and Home/End support. Activity retains local search and a clear action, newest-first history and run details. Failed/interrupted runs appear in an expandable alert with links to their details; stopped runs remain in ordinary history. Alerts remain visible independently of search and stay expanded through unchanged polling.
+
+Status/date/attachment/scope filters, filter preferences and the sidebar bulk-export controls have been removed from the interface. Old saved filter preferences are ignored, so they cannot silently hide history. Per-run export remains in run details. The sidebar capability footer is removed.
+
+Approvals and Schedule are navigation destinations with explicit unavailable states. The POC API currently supplies neither an approval queue nor a scheduler. These tabs do not claim an empty connected queue, invent records, grant approval or schedule work. Runtime-backed integration remains planned.
+
+Verified with the revised Activity inspection and conversation-navigation browser fixtures, including search, alert navigation, keyboard tabs and mobile layout. The earlier batch below is historical; the changes above supersede its filter, preference and bulk-export UI.
+
+## Original delivered behavior
 
 1. Readable outcome labels replace raw status values in Activity.
 2. Quiet status badges distinguish active, completed, and failed outcomes.

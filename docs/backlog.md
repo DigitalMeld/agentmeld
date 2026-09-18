@@ -132,3 +132,7 @@ The [file reading batch](design/file-reading.md) adds 24 read-only usability imp
 ## Activity inspection checkpoint
 
 The [25-improvement Activity inspection batch](design/activity-inspection.md) adds outcome/date/input filters, live counts, local preference persistence, filtered exports and recorded run timing/copy/navigation controls. Existing retention and milestone evidence boundaries remain unchanged.
+
+## Simplified agent sidebar
+
+Owner feedback supersedes the Activity filter-heavy design: retain search and history; use an expandable failure/interruption alert rather than status filters; add Activity, Approvals and Schedule icon tabs; remove the capability footer. Approvals and Schedule currently show explicit unavailable states pending service integration. See [current sidebar behavior](design/activity-inspection.md#current-sidebar-revision).
