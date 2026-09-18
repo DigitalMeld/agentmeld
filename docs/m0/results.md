@@ -98,3 +98,5 @@ The [native credential boundary batch](codex-credential-boundary.md) passes stan
 The [native file-tool extension](codex-credential-boundary.md#native-file-tool-extension) adds command-write, patch and image canaries with positive workspace controls. All pass offline under the pinned GPT-5.5 tool configuration. Code-mode model configurations and live subscription access remain separate gates.
 
 The [provider-egress experiment](provider-egress.md) adds eight deterministic local tests and an explicit unauthenticated public TLS probe from an isolated container network. It does not qualify native authentication or inference.
+
+The [dedicated auth-store experiment](codex-auth-store.md) adds three local checks and qualifies synthetic volume persistence across two replacement containers with protected configuration/canary read-write denials. Real owner storage and login are not yet created. The default suite now has 168 tests.
