@@ -1,15 +1,17 @@
 // Owns two ephemeral containers and one isolated network in an explicit Docker context.
 import { execFileSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, writeFile, readFile } from 'node:fs/promises';
 import { parseArgs } from 'node:util';
 import { fileURLToPath } from 'node:url';
+import { validateStore, storeMount } from '../experiments/codex-auth-store.mjs';
 import assert from 'node:assert/strict';
 import { setTimeout as delay } from 'node:timers/promises';
-const { values } = parseArgs({ options: { context: { type: 'string' } } });
+const { values } = parseArgs({ options: { context: { type: 'string' }, 'device-login': { type: 'boolean', default: false }, subscription: { type: 'boolean', default: false } } });
+if (values.subscription && values['device-login']) throw Error('select one probe mode');
 if (!values.context) throw Error('explicit --context required');
 const root = fileURLToPath(new URL('../', import.meta.url));
-const docker = args => execFileSync('docker', ['--context', values.context, ...args], { encoding: 'utf8', timeout: 45000, maxBuffer: 1024 * 1024 });
+const docker = args => execFileSync('docker', ['--context', values.context, ...args], { encoding: 'utf8', timeout: values.subscription ? 90000 : 45000, maxBuffer: 1024 * 1024 });
 const run = randomUUID(); const network = 'agentmeld-m0-net-' + run; const proxy = 'agentmeld-m0-proxy-' + run; const worker = 'agentmeld-m0-egress-' + run;
 const directory = root + '.local/m0/egress/' + run; await mkdir(directory, { recursive: true });
 const image = docker(['image', 'inspect', 'agentmeld-m0:local', '--format', '{{.Id}}']).trim();
@@ -21,6 +23,14 @@ module=importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 print(json.dumps([str(p) for p in module.verify_prepared(root)]))`], { encoding: 'utf8' }));
 const limits = ['--read-only', '--user=1000:1000', '--cap-drop=ALL', '--security-opt=no-new-privileges', '--memory=256m', '--cpus=1', '--pids-limit=64', '--tmpfs=/tmp:rw,nosuid,nodev,size=33554432,mode=1777'];
+let store;
+if (values.subscription) {
+  const events = (await readFile(root + '.local/m0/subscription/store.jsonl', 'utf8')).trim().split('\n').map(line => JSON.parse(line));
+  store = events[0]; assert.equal(store.context, values.context);
+  assert.equal(docker(['info', '--format', '{{.ID}}']).trim(), store.engine);
+  assert.ok(events.some(e => e.status === 'subscription-auth-imported' && e.instance === store.instance));
+  validateStore(JSON.parse(docker(['volume', 'inspect', store.name]))[0], store.name, store.instance);
+}
 let createdNetwork = false; let createdProxy = false; let createdWorker = false;
 try {
   docker(['network', 'create', '--internal', '--opt=com.docker.network.bridge.gateway_mode_ipv4=isolated', network]); createdNetwork = true;
@@ -38,11 +48,15 @@ try {
   assert.equal(details.HostConfig.Privileged, false); assert.deepEqual(details.Mounts, []);
   assert.equal(Object.keys(details.HostConfig.PortBindings ?? {}).length, 0);
   const proxyIp = details.NetworkSettings.Networks[network].IPAddress;
-  docker(['create', '--name', worker, ...limits, '--security-opt=seccomp=' + policyPaths[0], '--security-opt=apparmor=agentmeld-m0-codex', '--network=' + network, '--dns=127.0.0.1', '--env=AGENTMELD_PROXY_IP=' + proxyIp, '--env=AGENTMELD_GATEWAY_IP=' + hostBridge, image, 'node', '/opt/agentmeld/provider-egress-probe.mjs']); createdWorker = true;
+  docker(['create', '--name', worker, ...limits, ...(store ? ['--memory=1g', '--pids-limit=256', '--tmpfs=/workspace:rw,nosuid,nodev,size=33554432,uid=1000,gid=1000,mode=700', '--mount=' + storeMount(store.name), '--env=AGENTMELD_STORE_INSTANCE=' + store.instance] : []), '--security-opt=seccomp=' + policyPaths[0], '--security-opt=apparmor=agentmeld-m0-codex', '--network=' + network, '--dns=127.0.0.1', '--env=AGENTMELD_PROXY_IP=' + proxyIp, '--env=AGENTMELD_GATEWAY_IP=' + hostBridge, image, 'node', values.subscription ? '/opt/agentmeld/codex-subscription-probe.mjs' : values['device-login'] ? '/opt/agentmeld/codex-device-egress-probe.mjs' : '/opt/agentmeld/provider-egress-probe.mjs']); createdWorker = true;
   const workerDetails = JSON.parse(docker(['inspect', worker]))[0];
   assert.deepEqual(Object.keys(workerDetails.NetworkSettings.Networks), [network]);
-  assert.deepEqual(workerDetails.HostConfig.Dns, ['127.0.0.1']); assert.deepEqual(workerDetails.Mounts, []);
-  const output = docker(['start', '-a', worker]);
+  assert.deepEqual(workerDetails.HostConfig.Dns, ['127.0.0.1']); if (store) { assert.equal(workerDetails.Mounts.length, 1); assert.equal(workerDetails.Mounts[0].Name, store.name); assert.equal(workerDetails.Mounts[0].Destination, '/agentmeld-home'); }
+  else assert.deepEqual(workerDetails.Mounts, []);
+  let output;
+  try { output = docker(['start', '-a', worker]); }
+  catch (error) { if (!Number.isInteger(error.status) || typeof error.stdout !== 'string') throw error; output = error.stdout; }
+  await writeFile(directory + '/routing.jsonl', docker(['logs', proxy]), { mode: 0o600 });
   const exitCode = JSON.parse(docker(['inspect', worker]))[0].State.ExitCode;
   await writeFile(directory + '/report.json', output, { mode: 0o600 });
   assert.equal(exitCode, 0);

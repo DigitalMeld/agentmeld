@@ -4,12 +4,12 @@ Updated: 2026-09-18. This records the local qualification image, not an approved
 
 ## Verified scope
 
-[Machine-readable inventory](runtime-inventory.json) records image `sha256:fd9aed760a4aa7a904c2dc3e72e5a88204bb8d7490b6682d602f6ab149b96b9d`, Linux ARM64, installed package versions, declared npm licenses and available notice-file SHA-256 hashes. The image's package lock matches the local lock byte-for-byte. Dockerfile and Cargo lock hashes describe the checkout; they are not an attestation of embedded build provenance.
+[Machine-readable inventory](runtime-inventory.json) records image `sha256:6a7748f493b8b9f27b2abbd4f47ebb117670b6f93f195618954e7589d5349223`, Linux ARM64, installed package versions, declared npm licenses and available notice-file SHA-256 hashes. The image's package lock matches the local lock byte-for-byte. Dockerfile and Cargo lock hashes describe the checkout; they are not an attestation of embedded build provenance.
 
 | Surface | Observed inventory | Evidence boundary |
 | --- | --- | --- |
 | npm | 4 installed packages | Package manifests and top-level notice files, including platform packages |
-| Debian | 197 installed packages | Version/architecture from dpkg; all 197 copyright files present and hashed |
+| Debian | 199 installed packages | Version/architecture from dpkg; all 199 copyright files present and hashed |
 | Rust | 22 locked packages including AgentMeld | Local offline Cargo metadata; includes target-specific dependencies, not a linked-binary SBOM |
 | Node | Exact runtime version in JSON | `/usr/local/LICENSE` present and hashed |
 | Browsers | Playwright browser manifest plus three installed notice files | Manifest includes downloadable products not necessarily installed; notice paths identify installed assets |
@@ -45,3 +45,5 @@ On original Codex-only image `sha256:7a1816efc7b11137feaac11afe47b666d0cccb7cdfe
 The new image passed native Codex initialization and missing-session rejection, renderer sandbox checks, viewer takeover/resume/privacy/restart checks, native command/patch/image credential-boundary probes, synthetic credential-volume persistence across replacement containers, and the restricted provider TLS egress probe. No subscription login or live inference occurred. All 168 default tests plus formatting, lint, build and documentation checks passed. Prior resource and disk-limit reports retain their original image IDs; their measurements are not silently transferred to this image.
 
 The current inventory refresh includes the separate-browser fixture scripts. Dependency versions/counts are unchanged; its new image passed the [browser isolation probe](browser-isolation.md). The original rebuild measurements above remain tied to their named image.
+
+The live subscription image adds the standard Debian CA bundle and its OpenSSL dependency. All 199 installed Debian packages have copyright-file evidence. This fixes native TLS verification; Node-only TLS tests were insufficient. The refreshed image passes the [live subscription checkpoint](codex-subscription.md#verified-live-subscription-checkpoint).

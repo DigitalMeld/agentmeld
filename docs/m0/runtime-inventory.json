@@ -157,6 +157,16 @@
       }
     },
     {
+      "name": "ca-certificates",
+      "version": "20250419~deb12u1",
+      "architecture": "all",
+      "copyright": {
+        "path": "/usr/share/doc/ca-certificates/copyright",
+        "bytes": 18940,
+        "sha256": "e85e1bcad3a915dc7e6f41412bc5bdeba275cadd817896ea0451f2140a93967c"
+      }
+    },
+    {
       "name": "coreutils",
       "version": "9.1-1",
       "architecture": "arm64",
@@ -1877,6 +1887,16 @@
       }
     },
     {
+      "name": "openssl",
+      "version": "3.0.20-1~deb12u2",
+      "architecture": "arm64",
+      "copyright": {
+        "path": "/usr/share/doc/openssl/copyright",
+        "bytes": 2543,
+        "sha256": "6a7da622fe0637a334d2a8fc470852d2ffb77d9a2b2f930f854e32a41ad6ef35"
+      }
+    },
+    {
       "name": "passwd",
       "version": "1:4.13+dfsg1-1+deb12u2",
       "architecture": "arm64",
@@ -2133,15 +2153,15 @@
   },
   "limitation": "Package declarations and installed notice-file hashes are evidence, not a redistribution clearance or complete embedded-component SBOM.",
   "image": {
-    "Id": "sha256:fd9aed760a4aa7a904c2dc3e72e5a88204bb8d7490b6682d602f6ab149b96b9d",
+    "Id": "sha256:6a7748f493b8b9f27b2abbd4f47ebb117670b6f93f195618954e7589d5349223",
     "Os": "linux",
     "Architecture": "arm64",
-    "Created": "2026-09-18T03:29:11.382782708-05:00"
+    "Created": "2026-09-18T03:51:47.306214875-05:00"
   },
   "localCheckoutInputs": {
     "Cargo.lock": "9822983e89e0f77b10c898f254f8edde6f5eb5ddce96583b7ed5ac2879efd0cd",
     "package-lock.json": "447b974d0e90d598ea039eb9ce2665a61a738b7580b84056f5ba41671230313d",
-    "infra/m0/Dockerfile": "7c5b4bb89af36b561054255f962754563b73f1334859b3900c0904b7fddaa54a"
+    "infra/m0/Dockerfile": "375c70316ab50db0d7d20346c62f10d20703b0db5d460a77e50e8689a0ebc243"
   },
   "rustLockResolution": [
     {
