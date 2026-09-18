@@ -96,3 +96,5 @@ On 2026-09-18 the local suite passed 153 tests (18 Rust, 133 Node, 2 Python), fo
 The [native credential boundary batch](codex-credential-boundary.md) passes standalone sandbox and app-server `exec_command` canary checks on Codex 0.154.0. The isolated profile retains enforced AppArmor, deny-default seccomp, zero outer capabilities and no-new-privileges. The current image and policy hashes are recorded in that report; this does not requalify unrelated probes on the new image. All 157 default tests, formatting, Clippy, build and documentation checks pass. No subscription login, real credentials or live inference occurred.
 
 The [native file-tool extension](codex-credential-boundary.md#native-file-tool-extension) adds command-write, patch and image canaries with positive workspace controls. All pass offline under the pinned GPT-5.5 tool configuration. Code-mode model configurations and live subscription access remain separate gates.
+
+The [provider-egress experiment](provider-egress.md) adds eight deterministic local tests and an explicit unauthenticated public TLS probe from an isolated container network. It does not qualify native authentication or inference.

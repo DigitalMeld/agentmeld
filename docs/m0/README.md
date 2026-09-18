@@ -4,6 +4,7 @@ This milestone has begun. The Rust crate contains experimental contracts and tes
 
 ## What exists
 
+- [Provider egress](provider-egress.md), an isolated CONNECT gateway with public TLS and denied-destination checks; native login remains open.
 - [Current exit checklist](exit-checklist.md), Codex subscription scope and explicit remaining gates.
 - [Native command credential boundary](codex-credential-boundary.md), synthetic canaries through standalone sandbox and real app-server command execution.
 - [Codex subscription protocol](codex-subscription.md), offline schemas and isolated logged-out account readback.
