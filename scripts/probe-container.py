@@ -19,7 +19,7 @@ parser.add_argument("--context", required=True)
 parser.add_argument("--image", default="agentmeld-m0:local")
 parser.add_argument("--workspace", default="fixture")
 parser.add_argument("--seccomp-profile", choices=["browser", "docker-default", "codex"], default="browser")
-parser.add_argument("--probe", choices=["native", "recovery", "workspace", "archive", "reconciliation", "codex-auth", "codex-boundary", "codex-command-error", "resource"], default="native")
+parser.add_argument("--probe", choices=["native", "recovery", "workspace", "archive", "reconciliation", "codex-auth", "codex-auth-lifecycle", "codex-boundary", "codex-command-error", "resource"], default="native")
 args = parser.parse_args()
 root = Path(__file__).resolve().parents[1]
 owned = root / ".local/m0/workspaces"
@@ -38,7 +38,7 @@ if args.probe in {"recovery", "archive", "reconciliation"}:
     plan[-1:] = ["--test", "--test-reporter=tap", f"/opt/agentmeld/{test_file}.test.mjs"]
     if args.probe == "archive":
         plan.append("/opt/agentmeld/settled-results.test.mjs")
-elif args.probe in {"codex-auth", "codex-boundary", "codex-command-error", "resource"}:
+elif args.probe in {"codex-auth", "codex-auth-lifecycle", "codex-boundary", "codex-command-error", "resource"}:
     plan[-1:] = [f"/opt/agentmeld/{args.probe}-probe.mjs"]
 elif args.probe == "workspace":
     plan[-1:] = ["--test", "--test-reporter=tap", "/opt/agentmeld/workspace-tools.test.mjs"]
@@ -75,7 +75,7 @@ except subprocess.TimeoutExpired:
 evidence = root / ".local/m0/evidence"
 evidence.mkdir(parents=True, exist_ok=True)
 run_id = str(time.time_ns())
-(evidence / (run_id + (".stdout.json" if args.probe in {"native", "codex-auth", "codex-boundary", "codex-command-error", "resource"} else ".stdout.tap"))).write_text(result.stdout)
+(evidence / (run_id + (".stdout.json" if args.probe in {"native", "codex-auth", "codex-auth-lifecycle", "codex-boundary", "codex-command-error", "resource"} else ".stdout.tap"))).write_text(result.stdout)
 (evidence / (run_id + ".stderr.txt")).write_text(result.stderr)
 metadata = {"imageId": image_id, "probe": args.probe, "exitCode": result.returncode, "elapsedSeconds": round(time.monotonic() - started, 3), "workspace": args.workspace, "seccompProfile": args.seccomp_profile, "seccompSha256": profile_digest, "apparmorSourceSha256": apparmor_digest}
 (evidence / (run_id + ".meta.json")).write_text(json.dumps(metadata, indent=2) + "\n")

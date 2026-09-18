@@ -112,3 +112,5 @@ Three additional offline tests cover call/result correlation, forged stdout or a
 Verified follow-up image: `sha256:d9f1b9a8c100d28422c82656348cbf1863b800482980dd26adf48385125f0cbc`. Sanitized live report: `.local/m0/live-error-evidence.log`; offline reproduction: `.local/m0/command-error-offline.log`. Subscription recognition, command success, correlated native error result and replacement-process continuation all pass. The report separately retains `commandErrorEvent: false`.
 
 The subsequent [live control qualification](live-control.md) passes mediated allow/deny and pending/running cancellation. This supersedes the earlier pending status for those specific live cases; the separate UI error-event gap and broader checklist remain open.
+
+The [native lifecycle fixture](auth-lifecycle.md) now verifies refresh, expiry, transient failure/recovery and logout against the pinned app-server with synthetic credentials and offline loopback endpoints. This supersedes the untested-native-lifecycle status above, but does not claim real-provider refresh or revoke the shared owner session.

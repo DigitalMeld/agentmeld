@@ -4,7 +4,7 @@ Updated: 2026-09-18. This records the local qualification image, not an approved
 
 ## Verified scope
 
-[Machine-readable inventory](runtime-inventory.json) records image `sha256:5935ec3e3ede08620649e9aad2c657699f729233e3ce7d0c6b4149e47d03d754`, Linux ARM64, installed package versions, declared npm licenses and available notice-file SHA-256 hashes. The image's package lock matches the local lock byte-for-byte. Dockerfile and Cargo lock hashes describe the checkout; they are not an attestation of embedded build provenance.
+[Machine-readable inventory](runtime-inventory.json) records image `sha256:64ca70099c076f09630ac1ba2e006b70a21eeaf220ba1377859d89120c4f9471`, Linux ARM64, installed package versions, declared npm licenses and available notice-file SHA-256 hashes. The image's package lock matches the local lock byte-for-byte. Dockerfile and Cargo lock hashes describe the checkout; they are not an attestation of embedded build provenance.
 
 | Surface | Observed inventory | Evidence boundary |
 | --- | --- | --- |
@@ -61,3 +61,5 @@ The model-qualification refresh preserves package versions/counts and adds exact
 The authenticated browser integration refresh preserves all package versions/counts. The [live browser report](live-browser.md) records real subscription-backed takeover/resume on this image; the restricted egress regression also passes.
 
 The controlled VM-recovery image preserves package versions/counts. [Restart qualification](workspace-disk-limit.md#controlled-vm-restart) verifies native subscription continuation and bounded workspace identity across a new VM boot.
+
+The [native authentication lifecycle](auth-lifecycle.md) refresh preserves all package versions/counts. Refresh, expiry, transient recovery and logout pass with synthetic tokens and loopback endpoints; the owner auth volume was not mounted.
