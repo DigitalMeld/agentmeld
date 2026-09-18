@@ -4,6 +4,8 @@ This milestone has begun. The Rust crate contains experimental contracts and tes
 
 ## What exists
 
+- [Live native browser integration](live-browser.md), authenticated model callbacks through separate browser containment and host-owned takeover/resume.
+
 - [Completion audit and current capability matrix](completion-audit.md), mapped to the authoritative M0 roadmap.
 
 - [Separate browser isolation](browser-isolation.md), synthetic private login and native harness/profile boundary evidence.
