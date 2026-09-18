@@ -10,9 +10,9 @@ Codex-only alpha using supported ChatGPT subscription login. Claude Code, Ollama
 
 | Requirement | Evidence now | Next action |
 | --- | --- | --- |
-| Local baseline | 177 tests plus formatting, lint, build and docs checks passed on 2026-09-18 after implementation edits | Run relevant checks after changes |
+| Local baseline | 180 tests plus formatting, lint, build and docs checks passed on 2026-09-18 after implementation edits | Run relevant checks after changes |
 | Codex subscription authentication | Dedicated store/import verified; subscription recognized; native device challenge/cancel and live GPT-5.5 streaming pass | Qualify refresh/session lifecycle without revoking the shared owner session |
-| Real native execution | Live streamed answer, command success and conversation continuation after native process replacement pass; failure fixture executes but its command-result event is missing | Resolve the missing native error event; run subscription-backed allow/deny and cancellation |
+| Real native execution | Live streamed answer, command success and conversation continuation after native process replacement pass; live tool error is verified by correlated native history; its UI command-result event remains missing | Run subscription-backed allow/deny and cancellation; track native UI error-event delivery separately |
 | Process/file/network boundary | Command read/write, native patch/image canaries, provider TLS gateway and standalone tool network denial pass | Expand live native-tool coverage and session lifecycle checks |
 | Recovery | Durable journals, unsettled output review, worker termination and fresh-process engine-bound assessment pass | Native process replacement and persisted nonce continuation pass; whole-machine restart and production recovery remain unqualified |
 | Storage and resources | Bounded temporary filesystem/archive; fixed-size persistent workspace passes disk-full/replacement tests; 150-second offline resource baseline passes | Integrate bounded storage with authenticated workers; qualify live workloads and longer soaks |
@@ -27,7 +27,7 @@ The current [dedicated-store qualification](codex-auth-store.md) passes using sy
 
 Native file-tool probes select pinned GPT-5.5 configuration with synthetic responses. Newer code-mode configurations remain unqualified; no product default has changed. The original egress probe qualified TLS and standalone sandbox network denial; the subscription follow-up now verifies native authentication transport and a live streamed answer. Its corrected host-bridge result supersedes the initial invalid input.
 
-Next: use the verified subscription gateway for live tool/error/approval/cancellation/continuation checks. Independently finish workspace integration, alpha packaging and the recovery/browser gates above. Preserve the full checklist; fixture success does not close authenticated gates.
+Next: use the verified subscription gateway for mediated approval and cancellation checks; retain the native UI error-event finding. Independently finish workspace integration, alpha packaging and the recovery/browser gates above. Preserve the full checklist; fixture success does not close authenticated gates.
 
 The [workspace disk-limit experiment](workspace-disk-limit.md) passes with a fixed-size 64 MiB ext4 fixture, preserved files after disk-full, recovered writes and replacement-container readback. The normal bind launcher remains unbounded; production quota integration is not claimed. The [offline resource baseline](resource-baseline.md) passed 51 verified native/browser cycles with zero OOM kills and 212.04 MiB peak charged memory; authenticated workload sizing remains open.
 
@@ -37,4 +37,6 @@ The browser-isolation probe qualifies separate browser/harness containers and sy
 
 Live subscription streaming and managed device challenge/cancel now pass after adding the missing system CA bundle. See the [live checkpoint](codex-subscription.md#verified-live-subscription-checkpoint) for exact evidence, authorization and remaining gates.
 
-Latest execution evidence: [live execution follow-up](codex-subscription.md#live-execution-follow-up). This batch does not close M0: the intentional failure has no native command-result event despite verified execution. The probe exits nonzero and the finding stays open; approval/cancellation checks are next after isolating the event gap.
+Latest execution evidence: [native command-error follow-up](codex-subscription.md#native-command-error-evidence). Live command success, model-facing error and persisted continuation pass. The offline diagnostic still exits nonzero for missing UI error events. Neither result closes M0; approval/cancellation checks and the remaining checklist gates stay open.
+
+The [native command-error follow-up](codex-subscription.md#native-command-error-evidence) now verifies the model-facing exit-23 result in live native history and reproduces the absent UI event offline. This supersedes the earlier unqualified tool-error result, while preserving the separate UI event gap. No production fallback or dependency patch was introduced.

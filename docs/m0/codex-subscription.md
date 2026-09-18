@@ -91,3 +91,22 @@ node scripts/probe-provider-egress.mjs --context colima-agentmeld-m0 --execution
 ```
 
 Next: reproduce the missing command-result lifecycle with an offline native stream, inspect pinned native history/event handling, and qualify live error reporting before calling this matrix complete. Approval allow/deny and interruption remain separate gates. Persisted-thread nonce recovery is verified even though the error gate remains open.
+
+## Native command-error evidence
+
+The earlier live error-event finding now has a deterministic offline reproduction: `codex-command-error` completes in about half a second with a synthetic Responses stream and no credentials. Exit 0 produces a `commandExecution` item and a model-facing exit-0 result. Exit 23 produces the correct model-facing result but no command item. The diagnostic intentionally exits nonzero while that lifecycle gap exists. This isolates the issue to native command/event behavior rather than subscription transport or model compliance.
+
+```sh
+python3 scripts/probe-container.py --context colima-agentmeld-m0 \
+  --probe codex-command-error --seccomp-profile codex --workspace command-error
+```
+
+The live probe now independently verifies the failed command in its own persisted native history. It reads only the exact path returned for that synthetic probe thread, beneath the protected native sessions directory, refuses symlink resolution and limits the read to 1 MiB. It matches the exact `exec_command` arguments and call ID to the model-facing exit-23 result. Only the native header before the output section counts; an assistant message or forged stdout cannot satisfy it. A separate fixture marker proves execution. No raw history or credentials are copied into reports.
+
+**Live tool error and UI event delivery are separate results:** `nativeHistoryErrorResult: true` qualifies the actual tool error returned to the model; `commandErrorEvent: false` keeps the missing UI event visible. The history path is an unstable native interface used only for qualification. This is not a production event fallback, dependency patch, or claim that the UI can display every failed command. Alpha's event integration must resolve the gap before relying on these lifecycle notifications.
+
+The pinned 0.154.0 [exec handler](https://github.com/openai/codex/blob/rust-v0.154.0/codex-rs/core/src/tools/handlers/unified_exec/exec_command.rs) can convert a sandbox-denied process result into a model-facing tool output. The [process manager](https://github.com/openai/codex/blob/rust-v0.154.0/codex-rs/core/src/unified_exec/process_manager.rs) has early failure paths before normal item emission. These are source-supported investigation leads, not a proven complete root cause. Relevant 0.155.0 source was compared; no runtime upgrade or downstream patch was made.
+
+Three additional offline tests cover call/result correlation, forged stdout or assistant claims, and malformed/oversized history. The default suite now has 180 tests. Next live gates are mediated approval allow/deny and interruption; source-level event diagnosis remains open separately.
+
+Verified follow-up image: `sha256:d9f1b9a8c100d28422c82656348cbf1863b800482980dd26adf48385125f0cbc`. Sanitized live report: `.local/m0/live-error-evidence.log`; offline reproduction: `.local/m0/command-error-offline.log`. Subscription recognition, command success, correlated native error result and replacement-process continuation all pass. The report separately retains `commandErrorEvent: false`.

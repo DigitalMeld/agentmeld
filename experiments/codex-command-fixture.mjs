@@ -3,6 +3,7 @@ import { createServer } from 'node:http';
 import { spawn } from 'node:child_process';
 
 export async function runCommandFixture({ home, command, patch, imagePath }) {
+  const commandExitCodes = []; let returnedExitCode = null;
   let requests = 0; let toolOutputSeen = false; let selectedTool; let advertisedTools = []; let deniedRequests = 0; let imageReturned = false;
   let resolveDone, rejectDone;
   const done = new Promise((resolve, reject) => { resolveDone = resolve; rejectDone = reject; }); done.catch(() => {});
@@ -16,6 +17,7 @@ export async function runCommandFixture({ home, command, patch, imagePath }) {
       if (++requests > 2) throw Error('model turn limit');
       const returned = body.input?.find(item => ['function_call_output', 'custom_tool_call_output'].includes(item.type));
       toolOutputSeen ||= Boolean(returned);
+      if (returned) { const output = typeof returned.output === 'string' ? returned.output : JSON.stringify(returned.output); const match = output.match(/Process exited with code (-?\d+)/); if (match) returnedExitCode = Number(match[1]); }
       const names = body.tools?.map(tool => tool.name ?? tool.function?.name ?? tool.custom?.name) ?? [];
       advertisedTools = names.filter(name => typeof name === 'string');
       selectedTool ??= imagePath !== undefined ? (names.includes('view_image') ? 'view_image' : null) : patch !== undefined ? (names.includes('apply_patch') ? 'apply_patch' : null) : names.includes('exec_command') ? 'exec_command' : names.includes('shell_command') ? 'shell_command' : null;
@@ -55,7 +57,8 @@ export async function runCommandFixture({ home, command, patch, imagePath }) {
       } else if (pending.has(frame.id)) {
         const waiter = pending.get(frame.id); pending.delete(frame.id);
         if (frame.error) waiter.reject(new Error('native protocol rejected request')); else waiter.resolve(frame.result);
-      } else if (frame.method === 'turn/completed') resolveDone(frame.params.turn.status);
+      } else if (frame.method === 'item/completed' && frame.params?.item?.type === 'commandExecution') { commandExitCodes.push(frame.params.item.exitCode); }
+      else if (frame.method === 'turn/completed') resolveDone(frame.params.turn.status);
     }
   });
   function request(method, params) {
@@ -70,7 +73,7 @@ export async function runCommandFixture({ home, command, patch, imagePath }) {
     await request('turn/start', { threadId: started.thread.id, input: [{ type: 'text', text: 'Run the supplied local boundary fixture once without escalation.', text_elements: [] }] });
     const status = await done;
     if (status !== 'completed' || !toolOutputSeen || requests !== 2) throw Error('native command completion unqualified');
-    return { status, requests, toolOutputSeen, selectedTool, advertisedTools, deniedRequests, imageReturned, modelConfiguration: 'gpt-5.5', liveInference: false };
+    return { status, commandExitCodes, returnedExitCode, requests, toolOutputSeen, selectedTool, advertisedTools, deniedRequests, imageReturned, modelConfiguration: 'gpt-5.5', liveInference: false };
   } finally {
     clearTimeout(deadline); closing = true; server.closeAllConnections(); await new Promise(resolve => server.close(resolve));
     const exited = new Promise(resolve => { if (proc.exitCode !== null || proc.signalCode) resolve(); else proc.once('exit', resolve); });
