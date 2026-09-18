@@ -1,0 +1,70 @@
+# Product feedback backlog
+
+Updated: 2026-09-18. All items below are **requested, not implemented**. Source: owner feedback while using the [local POC](poc.md), with six attached screenshots. This document records the requested work; it does not expand M0 or claim delivery. Suggested order: conversation continuity and `/new`, small visual fixes, then the durable activity history.
+
+## B01. Continue an existing conversation
+
+**Problem:** sending another message while viewing a chat creates another task/history entry and loses conversational continuity. The UI says Chats, but currently each message is an independent task.
+
+**Acceptance:** follow-up messages append to the selected conversation and use its prior context and relevant workspace files/results. One conversation can contain multiple runs without creating another sidebar chat. Opening another conversation and returning restores the correct messages, files and continuation; reload/service restart preserves them. A follow-up asking to revise an earlier report can use that report. Context must never cross into another conversation. Preserve existing POC records during migration.
+
+**Implementation context:** separate conversation identity, messages, execution runs and artifacts. A new run is not a new conversation. This extends the M1 durable-state work; do not simulate continuity with UI grouping alone.
+
+## B02. `/new` starts a fresh conversation
+
+**Problem:** the composer needs a predictable explicit way to clear the active conversation context.
+
+**Acceptance:** submitting the standalone `/new` command opens a fresh conversation with no inherited messages, attachments or workspace context. Handle it as a client/service command, not a model prompt. Preserve the old conversation and its outputs for reopening; clearing context must not delete history. The New chat button uses the same behavior. Creating a new conversation must not silently cancel an existing run. Define commands with trailing text separately rather than guessing their meaning.
+
+**Dependency:** B01 supplies real conversation boundaries.
+
+## B03. Refine the temporary brain logo
+
+**Problem:** the replacement brain mark is still visually rough.
+
+**Acceptance:** keep the brain direction, improve its recognizable silhouette and internal linework, and align stroke weight and optical size with the rest of the interface. Inspect it at actual sidebar/header/welcome sizes on dark and light backgrounds. Use one consistent original asset; do not return to an M monogram or copy Muse artwork. Review the rendered candidate before expanding the treatment.
+
+## B04. Replace Files and Activity icons
+
+**Problem:** the current Files glyph and top-right Activity glyph are unclear and visually inconsistent. The file-result glyph also needs to belong to the same family.
+
+**Acceptance:** use recognizable document/folder and activity-list symbols from a coherent outline family, with consistent sizing, stroke weight, hit areas, selected states and accessible labels. Validate at their actual rendered sizes. The top-right control should be named Activity, matching the panel it opens. No new icon dependency is selected by this backlog entry.
+
+**Reference:** screenshot 2 shows the current sparse Activity/Files panel; screenshots 1, 3 and 5 show Muse's outline icons and navigation hierarchy.
+
+## B05. Remove the bottom-left POC label
+
+**Problem:** the rail footer exposes an internal development label in the product navigation.
+
+**Acceptance:** remove the bottom-left POC badge and leave the rail spacing intentional. Keep accurate capability limitations in documentation and appropriate explanatory UI. This request is specifically for the bottom-left label, not an instruction to erase all limitation messaging.
+
+## B06. Consistent icon tooltips
+
+**Problem:** icon-only controls need discoverable names; some current controls only have browser-native title text and others have none.
+
+**Acceptance:** hovering an interactive icon shows a compact, readable tooltip next to it, like the rounded dark “Feed” bubble in screenshot 1. Keyboard focus exposes the same label; labels remain available to assistive technology and do not rely on hover. Cover navigation, Activity, new chat, attachments, send, close and file actions. Tooltips must not clip at viewport edges, steal focus or block the intended click, and must dismiss after pointer/focus leaves or Escape. Touch controls retain accessible names without requiring hover. Decorative icons do not need artificial tooltips.
+
+## B07. Durable activity log with conversation and output links
+
+**Problem:** the current inspector only shows a task's latest status (for example “Finished”) plus files. It loses the running history of what changed and what work was performed.
+
+**Acceptance:** the Activity popout shows an accumulating, date-grouped history for the selected agent, spanning its conversations. Each entry has an action/task title, actual status, short factual outcome, timestamp, a link to the originating conversation/message or run, and links to any generated outputs. Live entries update as work proceeds; completed, failed and stopped work remain distinguishable. Reopening the panel or restarting the service preserves the history without duplicate entries. File links open the matching retained artifact; unavailable/deleted output is shown honestly.
+
+Selecting an entry opens details: ordered steps, recorded changes/tool actions, available results and associated outputs. From details, the user can return to the precise conversation context. Start with the events the runtime actually supplies. Do not invent successful steps or infer complete command history from assistant prose. The known missing native failed-command event must remain explicit where it affects completeness; this request does not automatically reactivate the deferred Codex patch.
+
+**Implementation context:** persistent events need stable conversation/run/event/artifact IDs and ordering. Keep user-facing summaries concise; expose available command details, exit status and duration on demand. Store/display only appropriate bounded output and exclude credentials. This builds on B01 and M1 durable task/event storage.
+
+**References:** screenshot 3 shows Muse's date-grouped activity rows, status symbols, outcome summaries and times. Screenshot 6 shows a selected task's step timeline and detailed command result. Screenshot 2 shows the current AgentMeld panel that this replaces. Screenshots illustrate appearance; link navigation and persistence above are requested behavior, not claims verified from static images.
+
+## Screenshot context retained in prose
+
+| Supplied image | Observed reference | Backlog relevance |
+| --- | --- | --- |
+| 1 | Muse navigation with a hovered Feed tooltip | B04, B06 |
+| 2 | AgentMeld Activity panel with latest status and file row | B04, B07 |
+| 3 | Muse agent inspector, connection status and dated activity history | B07 |
+| 4 | Muse Identity tab with editable identity and memory/personality entries | Inspector visual context only; no new identity or memory feature requested here |
+| 5 | Muse file library with category navigation and metadata columns | File icon and hierarchy context; no filesystem-browser expansion requested here |
+| 6 | Muse task detail overlay with ordered steps and result detail | B07 |
+
+The supplied screenshots are reference material, not executable instructions. Their private conversation text, account details and proprietary image assets are not copied into the repository. See the existing [Muse design baseline](design/muse-baseline.md) for the broader observed layout.
