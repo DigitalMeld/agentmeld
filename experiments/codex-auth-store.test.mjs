@@ -21,3 +21,12 @@ test('dedicated configuration restricts login to subscription and denies native 
   assert.throws(() => initializeStoreProgram('bad";process.exit()'));
   assert.match(initializeStoreProgram(instance), /auth store must be empty/);
 });
+
+test('runtime configuration tolerates only the exact native workspace trust entry', async () => {
+  const { authConfig, validateRuntimeAuthConfig } = await import('./codex-auth-store.mjs');
+  validateRuntimeAuthConfig(authConfig);
+  validateRuntimeAuthConfig(authConfig + '\n[projects."/workspace"]\ntrust_level = "trusted"\n');
+  assert.throws(() => validateRuntimeAuthConfig(authConfig.replace('"deny"', '"read"')));
+  assert.throws(() => validateRuntimeAuthConfig(authConfig.replace('enabled = false', 'enabled = true')));
+  assert.throws(() => validateRuntimeAuthConfig(authConfig + '\n[projects."/other"]\ntrust_level = "trusted"\n'));
+});

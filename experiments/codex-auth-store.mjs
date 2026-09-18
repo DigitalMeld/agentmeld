@@ -10,6 +10,11 @@ default_permissions = "agentmeld"
 [permissions.agentmeld.network]
 enabled = false
 `;
+// Native thread/start adds this exact workspace trust entry. Permission policy must remain unchanged.
+export function validateRuntimeAuthConfig(text) {
+  const trust = '\n[projects."/workspace"]\ntrust_level = "trusted"\n';
+  if (text !== authConfig && text !== authConfig + trust) throw Error('auth permission policy changed');
+}
 export const storeLabels = { 'io.digitalmeld.agentmeld.purpose': 'm0-codex-auth', 'io.digitalmeld.agentmeld.format': '1' };
 const uuid = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/;
 export function validateStoreName(name) {

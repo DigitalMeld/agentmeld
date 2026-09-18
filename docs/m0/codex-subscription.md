@@ -1,6 +1,6 @@
 # Codex subscription qualification
 
-Updated: 2026-09-18. Status: required alpha path; authenticated isolated inference not yet qualified.
+Updated: 2026-09-18. Status: first authenticated isolated stream and native device challenge/cancel verified; the broader live tool/session matrix remains open.
 
 ## Scope and decision
 
@@ -46,4 +46,25 @@ The offline canary qualification now passes both standalone Codex sandbox execut
 
 See [credential boundary evidence](codex-credential-boundary.md) for the separate named AppArmor/seccomp policy, reproduction, limitations and next steps. This qualifies those command paths only. Persistent credential storage, other native tools, mediated egress and authenticated inference remain open.
 
-The [dedicated store proposal](codex-auth-store.md) now specifies the exact VM-local volume, native token-file path, permissions, setup command and recovery behavior. Synthetic persistence and tool denial pass; real creation and login remain pending explicit authorization.
+The [dedicated store proposal](codex-auth-store.md) now specifies the exact VM-local volume, native token-file path, permissions, setup command and recovery behavior. Synthetic persistence and tool denial pass; the dedicated store and narrowly scoped existing-subscription import are now verified under explicit owner authorization. Live inference and managed login remain separately qualified.
+
+## Verified live subscription checkpoint
+
+On 2026-09-18, after the owner explicitly authorized the existing subscription token, the dedicated-store importer copied only native authentication fields and preserved the source file. Image `sha256:6a7748f493b8b9f27b2abbd4f47ebb117670b6f93f195618954e7589d5349223` then passed real app-server account recognition, model availability and a streamed GPT-5.5 turn through the restricted gateway. The exact synthetic reply was verified without retaining raw model output or account details. No API key or fallback billing path was used. The report is `.local/m0/subscription-smoke.log`.
+
+The same image separately requested an official managed device-login challenge in an empty temporary home and canceled it immediately. A second cancel returned `notFound`; account readback stayed logged out and no auth file was created. The challenge code/URL were never printed or retained. This proves the native challenge/cancel transport, not owner completion of that new login. Report: `.local/m0/device-egress.log`.
+
+The first live attempts failed because the slim image lacked `/etc/ssl/certs/ca-certificates.crt`. Node's earlier TLS probe used its bundled roots and did not catch the native client's missing system trust store. Installing Debian's standard `ca-certificates` package resolved both native device authentication transport and live streaming with certificate verification enabled. The Dockerfile now checks the bundle exists. No verification bypass, custom root injection, proxy allowlist expansion or sandbox relaxation was used.
+
+The dedicated native home denies tool access to the actual authentication file; preflight checks both read and read/write opens without reading or modifying credential bytes. Native `thread/start` adds the exact `/workspace` trust entry to config. The runtime verifier permits that one observed suffix while rejecting changes to login mode, home denial or network permissions.
+
+```sh
+# Requires the owner-authorized dedicated store; this consumes subscription usage.
+node scripts/probe-provider-egress.mjs --context colima-agentmeld-m0 --subscription
+# Separate unauthenticated challenge/cancel test; never presents a code to a user.
+node scripts/probe-provider-egress.mjs --context colima-agentmeld-m0 --device-login
+```
+
+Each mode uses the same isolated network, explicit proxy, disabled upstream DNS and enforced native sandbox. The subscription worker mounts only the verified auth volume and uses a bounded temporary workspace. Cleanup removes its worker/proxy/network and preserves the dedicated credential volume. Ordinary default checks use neither mode.
+
+This closes the first live subscription stream and native login-egress gaps. Tool success/error, allow/deny, interruption, continuation after process replacement, refresh/logout behavior and recovery remain open. The imported token is not proof of independently issued login sessions. No logout test may revoke the owner's shared session without explicit authorization.
