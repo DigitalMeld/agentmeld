@@ -2,7 +2,11 @@
 
 Updated 2026-09-18. Proposed procedure only. No running service, retained data or credentials have been changed. Parent: [data model](../data-model.md); target [SQL draft](core-schema.sql).
 
-## Current state, inspected in source
+## Current implementation checkpoint
+
+The continuity slice now writes POC JSON format 2: `conversations` hold stable IDs, title, native binding, continuation availability and bounded working snapshots; `tasks` retain per-turn inputs, outputs and request identity plus `conversationId`. The Node server creates an exact private format-1 backup and preserves legacy task/file lookup. This is an intermediate implementation, not installation of the SQL draft. The format-1 inventory and mapping below remain the migration reference. A future SQLite importer must also preserve format-2 conversation grouping, native bindings, queued turns and working snapshots instead of splitting those chats into one conversation per task. Verify both formats with fixtures before cutover. See [POC limits](../../poc.md#scope-and-limits).
+
+## Original format-1 state, inspected in source
 
 `apps/poc/server.mjs` loads `.local/poc/state.json` with a `tasks` array. Each task saves `id`, `prompt`, `inputs[{name,data}]`, `artifacts[{name,data}]`, `answer`, `status`, `activity`, `createdAt` and optional error. File bytes are base64 in JSON. The server serializes state saves through temporary-file rename and admits one active task. Startup marks previously running tasks interrupted. Task completion is saved; intermediate runtime progress is not a durable event journal. The public API masks base64; downloads identify task plus filename.
 

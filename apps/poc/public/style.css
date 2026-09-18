@@ -8,3 +8,7 @@ dialog{color:var(--text);background:#1c1c1f;border:1px solid #3b3b42;border-radi
 .brand{letter-spacing:normal;margin-right:0;display:grid;place-items:center}.brand img{width:29px;height:29px}.avatar{padding:0}.avatar img{width:27px;height:27px}.avatar.large img{width:40px;height:40px}
 
 .inspector.closed{display:none}
+
+@media(max-width:720px){.history.open{display:flex;position:absolute;left:50px;top:0;bottom:0;width:240px;z-index:10;box-shadow:15px 0 40px #0005}}
+#send:has(+ #stop:not([hidden])){flex-shrink:0}
+#send[aria-label="Retry pending message"]{font-size:11px}

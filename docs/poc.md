@@ -30,9 +30,12 @@ document those prerequisites. Do not copy a personal home/profile into a worker.
    its response updates while it works.
 3. Open the generated report or CSV in the conversation or Files view. Download
    the original bytes from the preview.
-4. Start another task and use **Stop** while it runs. Stop terminates the owned
-   worker and verifies its stopped state.
-5. Restart the local server and reopen the newly printed link. Completed results
+4. Send a follow-up in the same chat to revise the report without reuploading.
+   Use **New chat** or send `/new` for fresh context and working files. Neither
+   deletes earlier chats nor stops unrelated work. Follow-ups queue while a turn runs.
+5. Use **Stop** while a turn runs. Stop targets that turn and verifies worker shutdown.
+   A stopped/interrupted chat is preserved but cannot resume in this slice.
+6. Restart the local server and reopen the newly printed link. Completed results
    and task history remain available.
 
 ## Verified locally
@@ -50,15 +53,43 @@ document those prerequisites. Do not copy a personal home/profile into a worker.
 
 ## Scope and limits
 
-One local owner and one active task. Each message starts an independent task;
-this version does not yet resume a conversation or carry a previous workspace
-into the next task. Up to five uploaded files, 2 MiB each and 5 MiB combined.
-Top-level output files are limited to 2 MiB each and 8 MiB combined. Thirty
-retained tasks maximum; no automatic deletion of user results. Ten-minute task
-deadline. Uploads, text responses and results are saved under ignored
-`.local/poc/state.json` with owner-only file permissions. Inputs are sent to the
-configured subscription provider as needed to perform the task. Native session
-history also remains in the existing dedicated provider store.
+One local owner and one executing turn, with a durable FIFO queue. Each chat has
+its own native Codex thread and bounded workspace snapshot. Completed turns can
+continue after reload/service restart, using the same model, runtime image,
+subscription-store identity and policy binding. Unsupported/missing continuation
+fails closed; there is no silent reconstructed-context fallback.
+
+Up to five new attachments, 2 MiB each and 5 MiB combined. Retained workspaces
+allow 128 files/directories, eight directory levels, 2 MiB per file and 16 MiB
+combined. Regular files and directories with supported names are retained;
+symlinks, special files and unsupported names are rejected. Changed top-level
+outputs are downloadable, at most 8 MiB per turn. Existing filenames cannot be
+replaced by uploads; ask the agent to revise a file or rename the new attachment.
+Thirty retained turns maximum; no automatic deletion. Ten-minute turn deadline.
+Native tools may show their own scaffold directories in a fresh workspace;
+prior user files and transcripts do not carry over.
+
+Text, uploads, outputs and workspace snapshots stay in owner-only
+`.local/poc/state.json` (format 2). The first upgrade preserves the exact old
+JSON in an owner-only `state-v1-backup-<id>.json` before writing format 2.
+Each legacy task becomes a separate read-only conversation because its native
+continuation was never recorded. Download links and original file bytes remain.
+Do not downgrade the server onto format 2; preserve/export new writes first.
+
+Cancelled, failed or interrupted execution makes its conversation unavailable
+for further turns: native execution and the last successful workspace snapshot
+may differ. History and earlier outputs remain readable. Start a new chat and
+explicitly attach a downloaded result. Recovery/reconstruction is future work.
+Draft text, attachment selections and scroll positions survive chat switching
+within the current page, not a page reload. Admission retries use the same
+request key; an uncertain submission offers Retry without silently resending a
+changed payload. Client drafts are not persisted to browser storage.
+
+Inputs are sent to the configured subscription provider as needed. Native
+session history remains in the existing protected provider store, never returned
+in the state API. Snapshots are captured only after successful execution;
+unfinished new files are not promised after Stop. Streaming text saves are
+throttled; power-loss durability and orphan-worker recovery remain unqualified.
 
 No remote listener, host-home mount, Docker-socket mount, arbitrary website
 access, native app, live computer viewer, payments, sharing or messaging.
@@ -81,3 +112,15 @@ Use the POC for representative real tasks and identify what is useful or missing
 Then add conversational follow-up and browser/computer interaction, followed by
 the native clients and cross-host access already required for alpha. Resume a
 dependency patch only when a demonstrated product need warrants it.
+
+## Conversation continuity verification (2026-09-18)
+
+- The idle local development app was upgraded to format 2 after an exact private backup. All seven pre-existing records and their input/output bytes compared equal after migration; authenticated API readback confirmed the retained conversations.
+- Local HTTP fixtures verify serial follow-ups, duplicate admission, conflicting request keys, restart, fresh conversations, scoped queued Stop, invalid input, API redaction and exact legacy backup bytes.
+- Real subscription-backed execution completed three turns in one chat. After a service restart, the second turn remembered a synthetic label, read a nested source file and revised a report from 42 to 63. The third read 63. Fresh native conversations reported all three prior paths absent; native scaffolding is allowed.
+- One earlier live turn returned a valid answer but failed finalization. Its cause was not captured in that run; the chat failed closed. Stage-specific, bounded snapshot diagnostics were subsequently added. Later fresh-chat and resume checks passed; this is not a claim that every native execution is reliable.
+- Browser fixtures passed on desktop (1440×900) and narrow web (390×844): two turns/one chat, draft restoration, `/new`, reload and mobile history selection; screenshots inspected and no page errors. This is web evidence, not native iOS acceptance.
+- A real native command waiting 120 seconds was stopped by its task ID; the worker stopped, the turn became cancelled and continuation was disabled. No test containers remained.
+- The explicit container snapshot probe passed nested capture, file/directory symlink rejection and oversized-file rejection. It mounts no credentials and uses no provider.
+
+Reproduce ordinary fixtures with `node --test experiments/poc-conversations.test.mjs`. Run the explicit browser fixture with `node experiments/poc-ui.browser.mjs` using the installed Playwright package (or `PLAYWRIGHT_MODULE` pointing to an existing installation). Run `node experiments/poc-workspace-probe.mjs` only against the prepared disposable VM runtime. Live subscription checks remain separate from the default test suite. No image or dependency patch rebuild is required.
