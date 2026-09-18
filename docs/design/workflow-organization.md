@@ -46,3 +46,13 @@ Node fixtures cover pin/recent ordering, archive filtering, validation, active-w
 Commands: `node --test experiments/*.test.mjs`; the two explicit browser fixtures are `experiments/poc-ui.browser.mjs` and `experiments/poc-organization.browser.mjs`, with `PLAYWRIGHT_MODULE` pointing to the existing runtime. Run `python3 scripts/check-docs.py`. The full local script still requires Cargo, unavailable on this host. Live native execution was not requalified for this UI/metadata batch.
 
 The archive dropdown was replaced following visual feedback. Browsing archives changes only the list, preserving the selected conversation and draft; the heading reads “Archived” while that view is selected. New chat returns to the active list.
+
+## Artifact workspace layout
+
+Files replaces the chat-history sidebar with its own compact search and category navigation, following the supplied Muse desktop references. The chat identity header and Activity inspector are hidden in this workspace. All artifacts uses a preview grid; Documents initially uses compact rows. Display options retain type filtering, sorting, and grid/list choice. System files is anchored at the bottom of the sidebar and uses Name, Type, Created, and Size columns. Created uses the originating task timestamp; real filesystem modification times are not yet available.
+
+The Chat toggle opens the existing conversation and composer beside the library, with New chat and Close controls. Closing this panel preserves its draft and attachments. Sending a message keeps the library open. Create an artifact opens that composer without submitting a prompt or invoking a model automatically. On narrow screens the categories and chat are dismissible panels; Command/Control-K searches the current area.
+
+This is a layout implementation over retained outputs, not full filesystem or media-generation parity. System files explicitly identifies its limited scope; it does not expose host files, credentials, private runtime files, or invented Muse directories. Media categories filter available metadata and may be empty. Text thumbnails use authenticated output retrieval, render text only, and are limited to 24 entries per pass, 256 KiB per file, and 3,000 displayed characters. Generated HTML is never executed for a thumbnail. Selection/bulk actions and full agent filesystem browsing remain follow-up work.
+
+Verification: disposable browser checks cover category switching, sidebar separation, search, real text thumbnails, grid/document/table layouts, chat draft preservation and message submission from Files, preview navigation, and mobile panels. No live inference is needed for these fixtures.

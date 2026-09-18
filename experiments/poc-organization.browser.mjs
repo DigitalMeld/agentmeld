@@ -30,9 +30,10 @@ try{
  await page.screenshot({path:'.local/m0/organized-archive.png'});
  await page.reload();await page.locator('#restoreChat').waitFor();assert.equal(await page.locator('#archiveChats').getAttribute('aria-pressed'),'true');
  await page.locator('#restoreChat').click();await page.waitForFunction(()=>!document.querySelector('#prompt').disabled);assert.equal(await page.locator('.historyItem .chatTitle').first().innerText(),'Renamed Alpha');
- await page.locator('#filesNav').click();await page.locator('#fileType').selectOption('md');assert.equal(await page.locator('.libraryEntry').count(),2);assert.match(await page.locator('#fileSummary').innerText(),/^2 outputs/);
+ await page.locator('#filesNav').click();await page.locator('#fileOptions summary').click();await page.locator('#fileType').selectOption('md');assert.equal(await page.locator('.libraryEntry').count(),2);assert.match(await page.locator('#fileSummary').innerText(),/^2 outputs/);
  await page.locator('#fileSort').selectOption('oldest');assert.match(await page.locator('.outputOrigin').first().innerText(),/Version 1/);
  await page.locator('#fileSort').selectOption('newest');assert.match(await page.locator('.outputOrigin').first().innerText(),/Version 2/);
+ await page.locator('#fileOptions summary').click();
  await page.locator('#libraryFiles .file').first().click();await page.locator('#preview[open]').waitFor();assert.equal(await page.locator('#previewBody h1').innerText(),'Revision');
  await page.locator('#previewSource').click();assert.match(await page.locator('#previewBody pre').innerText(),/^# Revision/);
  await page.locator('#previewVersion').selectOption(alpha.id);await page.waitForFunction(()=>document.querySelector('#previewBody h1')?.textContent==='Alpha');
@@ -45,5 +46,23 @@ try{
  await page.evaluate(()=>{document.querySelector('#conversation').style.height='150px';document.querySelector('#conversation').style.flex='none';document.querySelector('#conversation').scrollTop=0;document.querySelector('#conversation').dispatchEvent(new Event('scroll'));});
  await page.locator('#jumpLatest').click();assert.equal(await page.locator('#latestBar').isVisible(),false);
  await page.setViewportSize({width:390,height:844});await page.locator('#chatOptionsButton').click();await page.screenshot({path:'.local/m0/organized-mobile.png'});assert.equal(await page.locator('#chatOptions').isVisible(),true);await page.locator('#closeChatOptions').click();
+ await page.evaluate(()=>{document.querySelector('#conversation').style.removeProperty('height');document.querySelector('#conversation').style.removeProperty('flex');});
+ await page.setViewportSize({width:1440,height:900});await page.locator('#filesNav').click();
+ assert.equal(await page.locator('.history').isVisible(),false);assert.equal(await page.locator('#inspector').isVisible(),false);assert.equal(await page.locator('.top').isVisible(),false);
+ assert.equal(await page.locator('#library #fileSearch').count(),0);assert.equal(await page.locator('#fileSidebar #fileSearch').isVisible(),true);
+ await page.locator('[data-category="all"]').click();await page.waitForFunction(()=>document.querySelector('.thumbnailText')?.textContent.includes('Original output'));
+ await page.screenshot({path:'.local/m0/artifacts-grid.png'});
+ await page.locator('[data-category="documents"]').click();assert.equal(await page.locator('#libraryFiles').getAttribute('class'),'artifactList');await page.screenshot({path:'.local/m0/artifacts-documents.png'});
+ await page.locator('[data-category="system"]').click();assert.equal(await page.locator('#libraryFiles tbody tr').count(),3);assert.equal(await page.locator('#systemScope').isVisible(),true);await page.screenshot({path:'.local/m0/artifacts-system.png'});
+ await page.locator('[data-category="images"]').click();assert.equal(await page.locator('.libraryEntry').count(),0);
+ await page.locator('[data-category="all"]').click();await page.keyboard.press('Control+k');assert.equal(await page.locator('#fileSearch').evaluate(e=>e===document.activeElement),true);await page.keyboard.press('Escape');
+ await page.locator('#libraryChat').click();assert.equal(await page.locator('#prompt').isVisible(),true);assert.equal(await page.locator('.history').isVisible(),false);
+ await page.locator('#prompt').fill('Draft beside files');await page.locator('#fileChatClose').click();await page.locator('#libraryChat').click();assert.equal(await page.locator('#prompt').inputValue(),'Draft beside files');
+ await page.screenshot({path:'.local/m0/artifacts-chat.png'});
+ await page.locator('#send').click();await page.waitForFunction(()=>[...document.querySelectorAll('.message.assistant')].some(e=>e.textContent.includes('Reply Draft beside files')));
+ assert.equal(await page.locator('#library').isVisible(),true);await page.locator('#fileChatClose').click();
+ await page.setViewportSize({width:390,height:844});await page.locator('#libraryMenu').click();await page.locator('[data-category="documents"]').click();assert.equal(await page.locator('#fileSidebar').isVisible(),false);
+ await page.locator('#libraryChat').click();assert.equal(await page.locator('#prompt').isVisible(),true);await page.screenshot({path:'.local/m0/artifacts-mobile-chat.png'});await page.locator('#fileChatClose').click();
+ assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
  assert.deepEqual(errors,[]);console.log('Organization browser passed: rename/pin/archive/restore, exports and originals, versions, filters, shortcuts, unsent warning, mobile.');
 }finally{if(browser)await browser.close();await app.shutdown();await rm(directory,{recursive:true,force:true});}
