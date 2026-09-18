@@ -33,3 +33,5 @@ dialog{color:var(--text);background:#1c1c1f;border:1px solid #3b3b42;border-radi
 .detailLink,.outputOrigin{font-size:12px;color:#adc2ff;text-align:left;padding:8px 0;border-radius:4px}.detailLink:hover,.outputOrigin:hover{text-decoration:underline}
 .libraryEntry{margin-bottom:20px}.outputOrigin{color:var(--muted);overflow-wrap:anywhere;line-height:1.5}
 #runBody{padding:24px;overflow:auto;max-height:65dvh;line-height:1.6;font-size:14px}#runBody h3{font-size:13px}.runPrompt{white-space:pre-wrap;overflow-wrap:anywhere;margin-top:0}.milestones{padding-left:24px}.milestones li{padding:8px}.milestones time{display:block;color:var(--muted);font-size:12px}#runConversation{padding:10px 16px;background:var(--surface);border-radius:18px}
+
+.searchInput{display:block;width:100%;min-width:0;background:var(--surface);color:var(--text);border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin:0 0 16px;font-size:13px}.searchInput::placeholder{color:var(--muted)}.searchInput:focus-visible{outline:2px solid #94b1ff;outline-offset:2px}#fileSearch{max-width:420px;margin-bottom:24px}
