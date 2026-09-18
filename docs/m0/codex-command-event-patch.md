@@ -1,5 +1,7 @@
 # Native failed-command lifecycle patch
 
+**Priority change, 2026-09-18:** the owner directed delivery of a useful POC instead of further patch qualification. The scoped patch and remaining qualification work are deferred; they do not gate the [working local POC](../poc.md). Historical evidence below is retained, not a mandate to resume the patch.
+
 ## Decision and current state
 
 On 2026-09-18 the owner authorized preparing a scoped Codex dependency patch for

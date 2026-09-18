@@ -1,5 +1,7 @@
 # M0 completion audit and capability matrix
 
+**Priority change, 2026-09-18:** the owner directed delivery of a useful POC instead of further patch qualification. The scoped patch and remaining qualification work are deferred; they do not gate the [working local POC](../poc.md). Historical evidence below is retained, not a mandate to resume the patch.
+
 Updated: 2026-09-18. M0 is not complete. This audit maps evidence to the seven requirements in the [roadmap](../specs/roadmap.md#m0-prove-codex-subscription-execution-and-its-isolation-boundary); it does not replace the [exit checklist](exit-checklist.md) or convert experiments into product claims.
 
 ## Requirement coverage

@@ -7,7 +7,8 @@
     "node": ">=24"
   },
   "scripts": {
-    "test": "node --test experiments/*.test.mjs"
+    "test": "node --test experiments/*.test.mjs",
+    "poc": "node apps/poc/server.mjs"
   },
   "dependencies": {
     "@openai/codex": "0.154.0",
