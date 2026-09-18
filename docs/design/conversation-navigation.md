@@ -54,3 +54,7 @@ Disposable unit/browser fixtures cover search isolation and filters, excerpts, e
 - Desktop Find, mobile Activity and run-detail screenshots were inspected. The local server was restarted only after verifying no active/queued runs, and the existing app tab reported Connected with the new controls.
 - Documentation checks passed for 61 Markdown files. Cargo remains unavailable, so Rust checks are not claimed. No model inference was used.
 - Focused review covered the pending diff and new modules/tests, including escaping, data projection, event timing and draft protection; no unresolved task-introduced finding remained. GitHub Actions is disabled, with no workflows or repository hooks.
+
+## Request-action refinement
+
+Owner feedback supersedes items 9–10 above: Copy request and Run details now use compact original outline icons with hover/focus tooltips and accessible names. The redundant Use request action and its draft-appending handler have been removed. Copy request continues to copy the original prompt; reusing that text can be done explicitly by pasting into the composer.
