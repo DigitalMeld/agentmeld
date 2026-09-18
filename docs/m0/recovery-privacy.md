@@ -1,5 +1,6 @@
 # M0 reconnect, private screen and cancellation
 
+Current scope: Codex subscription alpha only. Earlier Claude/Ollama/messaging next steps below are historical and deferred. The [M0 exit checklist](exit-checklist.md) owns current gates.
 Date: 2026-09-17. This batch extends local qualification without model credentials, personal browser data or messages. It does not add a production identity service or secure credential-entry transport.
 
 ## Durable request identity

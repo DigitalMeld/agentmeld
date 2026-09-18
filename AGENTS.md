@@ -8,3 +8,5 @@
 - Never disable browser sandboxing, seccomp, macOS SIP, or approval checks just to make a probe pass. Record failures and investigate the owning boundary.
 - The default verification suite does not send messages, invoke a paid model, start a container, or read user files. Container and provider probes are explicit separate commands.
 - AgentMeld source license selection is pending. Do not copy separately licensed enterprise code, private account exports, or proprietary product assets.
+
+- Document meaningful discoveries and behavior changes in `docs/` as part of the same work. Use `docs/README.md` to locate current specs, dated research, decisions and verification evidence; keep current scope consistent and distinguish planned, implemented, verified and shipped states.

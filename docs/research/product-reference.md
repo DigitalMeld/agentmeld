@@ -63,3 +63,7 @@ Design takeaway: treat working compute, memory, and browser identity as separate
 ## Evidence limits
 
 This is a product and source review, not a security audit or runtime benchmark. Muse's documentation and signed-in surfaces can change or vary by account. Computer takeover, scheduled execution, output generation, connector operations, and sharing were not executed. The reference-project and runtime reports provide pinned code findings and integration constraints separately.
+
+## 2026-09-18 Mac application and design follow-up
+
+The installed Mac app and existing Chrome tab were inspected visually. See the [Muse design baseline](../design/muse-baseline.md) for observed surfaces, proposed AgentMeld adaptations and evidence limits. A subsequent live iPhone pass inspected Settings, chat switching and the main chat layout after mirroring setup; deeper interaction checks remain. The [mobile reference](../design/muse-mobile-reference.md) now records 22 user-supplied screenshots and the public App Store gallery, superseding the incomplete live capture for visual coverage. See [public design sources](muse-design-sources.md) for Meta’s designer rationale. Similar Mac/web layouts do not establish shared account state or the app implementation framework.

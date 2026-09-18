@@ -1,5 +1,6 @@
 # M0 local worker identity, grants and cancellation
 
+Current scope: Codex subscription alpha only. Earlier Claude/Ollama/messaging next steps below are historical and deferred. The [M0 exit checklist](exit-checklist.md) owns current gates.
 Date: 2026-09-17. Scope: trusted local Docker runtime, host-owned control files, three explicit Codex dynamic tools and authenticated viewer cancellation. This is not remote worker authentication, a production grant service or live inference.
 
 ## Local identity binding

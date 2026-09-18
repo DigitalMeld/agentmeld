@@ -12,6 +12,7 @@ import { startViewer } from '../experiments/viewer-server.mjs';
 import { ResultArchive } from '../experiments/result-archive.mjs';
 import { assessRecovery } from '../experiments/recovery-assessment.mjs';
 import { prepareRecoveryReview, commitRecoveryReview } from '../experiments/reviewed-recovery.mjs';
+import { saveWorkerRecord } from '../experiments/recovery-worker.mjs';
 import { setTimeout as delay } from 'node:timers/promises';
 
 const args = process.argv.slice(2);
@@ -36,13 +37,15 @@ plan[plan.length - 1] = '/opt/agentmeld/computer-worker.mjs';
 let authority; let computer; let viewer;
 const report = { phase: 'm0', image, runId, liveInference: false, checks: {} };
 const stop = () => { try { docker(['stop', '--time', '1', name]); } catch { } };
-const deadline = setTimeout(stop, 30000);
+const deadline = setTimeout(stop, 60000);
 try {
   authority = await RustAuthority.open(binary, join(controlDirectory, 'cancel.jsonl'), stop);
   computer = new ContainerComputer('docker', ['--context', context, ...plan], stop);
   assert.equal((await computer.request('linger_fixture')).started, true);
   const id = (await readFile(join(controlDirectory, 'worker.cid'), 'utf8')).trim();
   const worker = await OwnedWorker.bind({ id, image, workspace, computer, runtime: dockerRuntime(context), tools: ['fixture_sum'] });
+  const workerRecordPath = join(controlDirectory, 'worker-record.json');
+  await saveWorkerRecord(workerRecordPath, worker);
   assert.equal((await worker.observeTermination({ worker: id, workspace })).state, 'present');
   // Preserve a real returned result without settlement to qualify recovery evidence after cancellation.
   const scope = { workspace, worker: id, thread: 'recovery', turn: 'fixture', request: 'sum' };
@@ -54,6 +57,19 @@ try {
   const value = await worker.request('fixture_sum', action.arguments);
   const archive = new ResultArchive(binary, join(controlDirectory, 'results'));
   const receipt = await archive.put({ scope, action, ticket: allowed.pending, value });
+  const requestPath = join(controlDirectory, 'recovery-request.json');
+  await writeFile(requestPath, JSON.stringify({ scope, ticket: allowed.pending, receipt }), { flag: 'wx', mode: 0o600 });
+  const freshAssessment = () => JSON.parse(execFileSync(process.execPath, [join(root, 'scripts/review-recovery.mjs'),
+    '--recover', '--journal', join(controlDirectory, 'cancel.jsonl'), '--archive', join(controlDirectory, 'results'),
+    '--request', requestPath, '--worker-record', workerRecordPath, '--context', context],
+  { encoding: 'utf8', timeout: 45000, stdio: ['ignore', 'pipe', 'pipe'], env: { PATH: process.env.PATH } }));
+  await authority.request({ op: 'disconnect' });
+  await authority.close();
+  const presentRecovery = freshAssessment();
+  assert.equal(presentRecovery.workerState, 'present');
+  assert.equal(presentRecovery.requiresWorkerReconciliation, true);
+  assert.equal(presentRecovery.resumeAuthorized, false);
+  authority = await RustAuthority.open(binary, join(controlDirectory, 'cancel.jsonl'), stop);
   const control = new RustBrowserControl(computer, authority, worker);
   viewer = await startViewer(control);
   const beats = await readFile(join(workspace, 'termination.jsonl'), 'utf8');
@@ -73,6 +89,13 @@ try {
   assert.equal(await readFile(join(workspace, 'termination.jsonl'), 'utf8'), stopped);
   await assert.rejects(computer.request('metrics'), /unavailable|disconnected/);
   await authority.close();
+  const absentRecovery = freshAssessment();
+  assert.equal(absentRecovery.workerState, 'absent');
+  assert.equal(absentRecovery.status, 'pending_output_verified');
+  assert.equal(absentRecovery.requiresWorkerReconciliation, false);
+  assert.equal(absentRecovery.requiresOutcomeReview, true);
+  assert.equal(absentRecovery.mode, 'cancelled');
+  report.freshProcessRecovery = { present: presentRecovery, absent: absentRecovery };
   authority = await RustAuthority.open(binary, join(controlDirectory, 'cancel.jsonl'));
   assert.equal(authority.current.mode, 'cancelled');
   const assessment = await assessRecovery(authority, archive, { scope, ticket: allowed.pending, receipt }, worker);
