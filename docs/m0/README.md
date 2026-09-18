@@ -33,7 +33,7 @@ This milestone has begun. The Rust crate contains experimental contracts and tes
 - [Separated supervisor probe](protected-supervisor.md) with host-owned journal/viewer, container-only workspace, bounded responses and payload-bound dispatch.
 - [Durable Rust authority](durable-control.md) with exclusive journal ownership, persisted action admission, paused restart and unresolved-action recovery.
 - Rust action approval/state fixture with payload binding, expiry, one-time admission, cancellation, and controller generations.
-- Bounded JSONL decoding and initial Codex, Claude SDK, and Ollama event handling.
+- Bounded JSONL decoding and initial Codex event handling; historical Claude/Ollama replay fixtures remain offline protocol references, not alpha runtime dependencies.
 - Ollama tool-stream accumulation that withholds calls until a complete terminal frame, plus a strictly limited integer-sum fixture tool.
 - A Node HTTP-loop experiment that executes the Rust tool and feeds the result into the next model turn. It uses an injected fixture transport in default tests; this is not the final native Rust inference client.
 - Offline Docker argument generation using an immutable local image ID, one operator-owned workspace, non-root UID, read-only root, no network, an explicit seccomp policy, dropped capabilities, and CPU/memory/PID limits.
@@ -72,7 +72,7 @@ python3 scripts/prepare-seccomp.py
 python3 scripts/probe-container.py --context YOUR_CONTEXT
 ```
 
-The probe runs real Codex app-server initialization, empty-session readback and missing-resume rejection. It also checks real Claude SDK startup without credentials, tests an isolated Chromium fixture with renderer sandboxing enabled and an authenticated viewer/takeover flow, verifies in-container OS controls, and writes an owned workspace marker. All provider inference is unavailable in this offline image by design.
+The probe runs real Codex app-server initialization, empty-session readback and missing-resume rejection. It tests an isolated Chromium fixture with renderer sandboxing enabled and an authenticated viewer/takeover flow, verifies in-container OS controls, and writes an owned workspace marker. All provider inference is unavailable in this offline image by design.
 
 `prepare-seccomp.py` explicitly downloads a commit-pinned Playwright configuration over HTTPS, verifies its SHA-256, and generates the browser policy in ignored `.local/m0/seccomp/`. The launcher checks the prepared bytes before every browser-profile run. No upstream source is vendored. See [policy rationale and evidence](browser-sandbox.md).
 

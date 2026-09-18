@@ -104,3 +104,5 @@ The [dedicated auth-store experiment](codex-auth-store.md) adds three local chec
 The [workspace disk-limit experiment](workspace-disk-limit.md) enforces a 64 MiB backing-file ceiling, verifies `ENOSPC` without loss of existing fixture data, recovers writes and preserves results across container replacement. It is not yet integrated into the default bind-mounted worker launcher.
 
 The [sustained offline resource baseline](resource-baseline.md) passed 51 verified native command/browser cycles over idle, active and cooldown phases, with zero OOM kills and 212.04 MiB peak charged memory. These synthetic measurements do not establish live inference performance or minimum host sizing.
+
+The [Codex-only runtime rebuild](distribution-inventory.md#codex-only-rebuild-verification) removes the historical Claude SDK and platform binary from active packaging. Installed npm packages fall from 107 to four; native/browser, credential-boundary, synthetic auth-store and provider-egress regressions pass on the new immutable image. Historical evidence above remains tied to its original versions and images.
