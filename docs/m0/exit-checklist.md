@@ -10,7 +10,7 @@ Codex-only alpha using supported ChatGPT subscription login. Claude Code, Ollama
 
 | Requirement | Evidence now | Next action |
 | --- | --- | --- |
-| Local baseline | 157 tests plus formatting, lint, build and docs checks passed on 2026-09-18 after implementation edits | Run relevant checks after changes |
+| Local baseline | 165 tests plus formatting, lint, build and docs checks passed on 2026-09-18 after implementation edits | Run relevant checks after changes |
 | Codex subscription authentication | Pinned Linux native schemas and isolated logged-out account readback pass; no dedicated login yet | Settle protected dedicated credential storage and scoped egress, then owner login |
 | Real native execution | Container startup and dynamic callbacks pass with synthetic inference | Run subscription-backed stream, tool error, allow/deny, cancellation and continuation |
 | Process/file/network boundary | Offline container, Chromium sandbox and standalone/app-server command credential canaries pass | Qualify persistent credential storage and authenticated egress; expand native-tool coverage |
@@ -32,3 +32,8 @@ Cleanup verified for this batch: no probe containers remained; the temporary `ag
 
 
 Publication resumed: [PR #18](https://github.com/DigitalMeld/agentmeld/pull/18) merged the accumulated scope documentation, fresh-worker recovery and initial command-boundary qualification. GitHub readback confirmed the merge and checklist blob. The follow-up native file probe adds protected command writes, patch deletion and image reads with successful workspace controls. It uses pinned GPT-5.5 tool configuration with synthetic responses. Newer code-mode model configurations still need their own protocol qualification; no product model default was changed. Next: bounded egress and dedicated storage, with code-mode coverage retained as an explicit gap.
+
+
+[PR #19](https://github.com/DigitalMeld/agentmeld/pull/19) merged native file-boundary coverage; remote blob readback matched. The next [provider-egress experiment](provider-egress.md) adds eight local tests and an explicit isolated-network probe. The worker reaches an enrolled provider through TLS while tested direct routes, DNS and disallowed destinations fail. This is transport evidence only: native Codex proxy use, authenticated app-server tool network denial, dedicated login storage and subscription inference remain open. The gateway does not inspect encrypted application destinations on shared provider IPs.
+
+The egress rerun also confirms standalone native sandbox commands cannot reach the proxy or public Internet while the parent can complete provider TLS. A missing gateway input in the first host-bridge test was corrected and rerun against the actual Docker bridge address; only the corrected result is authoritative.
