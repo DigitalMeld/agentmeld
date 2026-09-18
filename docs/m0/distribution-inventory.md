@@ -4,7 +4,7 @@ Updated: 2026-09-18. This records the local qualification image, not an approved
 
 ## Verified scope
 
-[Machine-readable inventory](runtime-inventory.json) records image `sha256:6a7748f493b8b9f27b2abbd4f47ebb117670b6f93f195618954e7589d5349223`, Linux ARM64, installed package versions, declared npm licenses and available notice-file SHA-256 hashes. The image's package lock matches the local lock byte-for-byte. Dockerfile and Cargo lock hashes describe the checkout; they are not an attestation of embedded build provenance.
+[Machine-readable inventory](runtime-inventory.json) records image `sha256:234693db10bda5e3c547ab3c644d4f6473b3033d1a43e6be3afa7fddb59b9217`, Linux ARM64, installed package versions, declared npm licenses and available notice-file SHA-256 hashes. The image's package lock matches the local lock byte-for-byte. Dockerfile and Cargo lock hashes describe the checkout; they are not an attestation of embedded build provenance.
 
 | Surface | Observed inventory | Evidence boundary |
 | --- | --- | --- |
@@ -47,3 +47,5 @@ The new image passed native Codex initialization and missing-session rejection, 
 The current inventory refresh includes the separate-browser fixture scripts. Dependency versions/counts are unchanged; its new image passed the [browser isolation probe](browser-isolation.md). The original rebuild measurements above remain tied to their named image.
 
 The live subscription image adds the standard Debian CA bundle and its OpenSSL dependency. All 199 installed Debian packages have copyright-file evidence. This fixes native TLS verification; Node-only TLS tests were insufficient. The refreshed image passes the [live subscription checkpoint](codex-subscription.md#verified-live-subscription-checkpoint).
+
+The latest image adds the explicit live execution probe and protocol client. Package versions/counts remain unchanged. Its [live execution results](codex-subscription.md#live-execution-follow-up) distinguish verified command success and conversation recovery from the unresolved command-error notification gap. Earlier regression results remain tied to their recorded images.
