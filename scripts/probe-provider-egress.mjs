@@ -6,8 +6,16 @@ import { parseArgs } from 'node:util';
 import { fileURLToPath } from 'node:url';
 import { validateStore, storeMount } from '../experiments/codex-auth-store.mjs';
 import assert from 'node:assert/strict';
+import { validateQuotaVolume } from '../experiments/quota-volume.mjs';
 import { setTimeout as delay } from 'node:timers/promises';
-const { values } = parseArgs({ options: { context: { type: 'string' }, 'device-login': { type: 'boolean', default: false }, subscription: { type: 'boolean', default: false }, execution: { type: 'boolean', default: false }, control: { type: 'boolean', default: false } } });
+const { values } = parseArgs({ options: { context: { type: 'string' }, 'device-login': { type: 'boolean', default: false }, subscription: { type: 'boolean', default: false }, execution: { type: 'boolean', default: false }, control: { type: 'boolean', default: false }, 'workspace-stage': { type: 'string' }, 'workspace-instance': { type: 'string' } } });
+const workspaceStage = values['workspace-stage'];
+if (workspaceStage || values['workspace-instance']) {
+  assert.ok(['write', 'read'].includes(workspaceStage));
+  assert.equal(values.context, 'colima-agentmeld-m0');
+  assert.ok(!values.control && !values.execution && !values['device-login']);
+  values.subscription = true;
+}
 if (values.control && values.execution) throw Error('select one probe mode');
 if (values.execution || values.control) values.subscription = true;
 if (values.subscription && values['device-login']) throw Error('select one probe mode');
@@ -25,6 +33,11 @@ module=importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 print(json.dumps([str(p) for p in module.verify_prepared(root)]))`], { encoding: 'utf8' }));
 const limits = ['--read-only', '--user=1000:1000', '--cap-drop=ALL', '--security-opt=no-new-privileges', '--memory=256m', '--cpus=1', '--pids-limit=64', '--tmpfs=/tmp:rw,nosuid,nodev,size=33554432,mode=1777'];
+let workspaceMount;
+if (workspaceStage) {
+  const name = 'agentmeld-m0-quota-' + values['workspace-instance'];
+  workspaceMount = validateQuotaVolume(JSON.parse(docker(['volume', 'inspect', name]))[0], values['workspace-instance']);
+}
 let store;
 if (values.subscription) {
   const events = (await readFile(root + '.local/m0/subscription/store.jsonl', 'utf8')).trim().split('\n').map(line => JSON.parse(line));
@@ -50,10 +63,10 @@ try {
   assert.equal(details.HostConfig.Privileged, false); assert.deepEqual(details.Mounts, []);
   assert.equal(Object.keys(details.HostConfig.PortBindings ?? {}).length, 0);
   const proxyIp = details.NetworkSettings.Networks[network].IPAddress;
-  docker(['create', '--name', worker, ...limits, ...(store ? ['--memory=1g', '--pids-limit=256', '--tmpfs=/workspace:rw,nosuid,nodev,size=33554432,uid=1000,gid=1000,mode=700', '--mount=' + storeMount(store.name), '--env=AGENTMELD_STORE_INSTANCE=' + store.instance] : []), '--security-opt=seccomp=' + policyPaths[0], '--security-opt=apparmor=agentmeld-m0-codex', '--network=' + network, '--dns=127.0.0.1', '--env=AGENTMELD_PROXY_IP=' + proxyIp, '--env=AGENTMELD_GATEWAY_IP=' + hostBridge, image, 'node', values.control ? '/opt/agentmeld/codex-live-control-probe.mjs' : values.execution ? '/opt/agentmeld/codex-live-execution-probe.mjs' : values.subscription ? '/opt/agentmeld/codex-subscription-probe.mjs' : values['device-login'] ? '/opt/agentmeld/codex-device-egress-probe.mjs' : '/opt/agentmeld/provider-egress-probe.mjs']); createdWorker = true;
+  docker(['create', '--name', worker, ...limits, ...(store ? ['--memory=1g', '--pids-limit=256', ...(workspaceMount ? ['--mount=' + workspaceMount, '--env=AGENTMELD_QUOTA_INSTANCE=' + values['workspace-instance'], '--env=AGENTMELD_WORKSPACE_STAGE=' + workspaceStage] : ['--tmpfs=/workspace:rw,nosuid,nodev,size=33554432,uid=1000,gid=1000,mode=700']), '--mount=' + storeMount(store.name), '--env=AGENTMELD_STORE_INSTANCE=' + store.instance] : []), '--security-opt=seccomp=' + policyPaths[0], '--security-opt=apparmor=agentmeld-m0-codex', '--network=' + network, '--dns=127.0.0.1', '--env=AGENTMELD_PROXY_IP=' + proxyIp, '--env=AGENTMELD_GATEWAY_IP=' + hostBridge, image, 'node', workspaceStage ? '/opt/agentmeld/codex-live-workspace-probe.mjs' : values.control ? '/opt/agentmeld/codex-live-control-probe.mjs' : values.execution ? '/opt/agentmeld/codex-live-execution-probe.mjs' : values.subscription ? '/opt/agentmeld/codex-subscription-probe.mjs' : values['device-login'] ? '/opt/agentmeld/codex-device-egress-probe.mjs' : '/opt/agentmeld/provider-egress-probe.mjs']); createdWorker = true;
   const workerDetails = JSON.parse(docker(['inspect', worker]))[0];
   assert.deepEqual(Object.keys(workerDetails.NetworkSettings.Networks), [network]);
-  assert.deepEqual(workerDetails.HostConfig.Dns, ['127.0.0.1']); if (store) { assert.equal(workerDetails.Mounts.length, 1); assert.equal(workerDetails.Mounts[0].Name, store.name); assert.equal(workerDetails.Mounts[0].Destination, '/agentmeld-home'); }
+  assert.deepEqual(workerDetails.HostConfig.Dns, ['127.0.0.1']); if (store) { assert.equal(workerDetails.Mounts.length, workspaceMount ? 2 : 1); assert.equal(workerDetails.Mounts.find(m => m.Destination === '/agentmeld-home')?.Name, store.name); if (workspaceMount) assert.equal(workerDetails.Mounts.find(m => m.Destination === '/workspace')?.Name, 'agentmeld-m0-quota-' + values['workspace-instance']); }
   else assert.deepEqual(workerDetails.Mounts, []);
   let output;
   try { output = docker(['start', '-a', worker]); }

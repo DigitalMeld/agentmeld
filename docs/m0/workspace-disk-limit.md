@@ -24,4 +24,22 @@ The script intentionally accepts only this dedicated Colima context. It requires
 
 ## Remaining work
 
-This establishes a hard filesystem bound and persistence across container replacement. It does not establish power-loss durability, filesystem repair, whole-VM restart recovery, encrypted storage, aggregate host admission or a production quota API. Integrate the qualified storage boundary into the authenticated worker lifecycle with explicit owner capacity selection, retained-data backup/restore and low-space reporting. Keep the existing bind-mounted launcher's unbounded-disk limitation visible until that integration is verified. Model output cannot resize a workspace or attach a block device.
+This establishes a hard filesystem bound and persistence across container replacement. It does not establish power-loss durability, filesystem repair, whole-VM restart recovery, encrypted storage, aggregate host admission or a production quota API. Extend the authenticated experiment below into a production lifecycle with explicit owner capacity selection, retained-data backup/restore and low-space reporting. Keep the existing bind-mounted launcher's unbounded-disk limitation visible until that integration is verified. Model output cannot resize a workspace or attach a block device.
+
+## Authenticated worker integration
+
+Verified 2026-09-18: the existing quota owner can now run the subscription worker against the same bounded filesystem. Use the explicit mode below; the default remains offline.
+
+```sh
+node scripts/probe-workspace-quota.mjs --context colima-agentmeld-m0 --subscription
+```
+
+The run first repeats disk-full, retained-file preservation, recovered writes and replacement readback. A live GPT-5.5 worker then writes a random workspace marker and persists its native conversation. That worker and its proxy/network are removed. A new worker with a new proxy/network mounts the same workspace and separate authorized credential volume, resumes the thread, reads the marker with a native command and returns a conversation-only nonce without receiving it in the new prompt. Native command events, host readback and exact response content are checked. The original disk-full/recovery files remain unchanged throughout.
+
+Both authenticated workers verify ext4 capacity is above 32 MiB and no more than 64 MiB. The observed capacity remains 58,675,200 bytes inside a 67,108,864-byte backing file. The driver validates the exact generated volume name/instance label, local driver, ext4 loop-device source and `nodev,nosuid` options; worker inspection verifies only the workspace and dedicated credential mounts. Unit coverage rejects foreign identities, non-loop devices, different drivers and altered mount options.
+
+The credential/home volume remains separate and denied to native child tools. Only synthetic thread identifiers and a nonce are stored in the protected home for the replacement check; no credential values enter reports. The quota owner removes only its disposable workspace volume/backing file after both workers finish, using the existing identity checks. It preserves the authorized credential store.
+
+Evidence: `.local/m0/live-workspace.log` and the per-run records under `.local/m0/quota/` and `.local/m0/egress/`. Both live stages report `qualified: true`; the second reports `conversationPreserved: true`. Disk-full is induced by the bounded offline fixture before live inference, not by a model-controlled fill operation. This closes bounded workspace integration for the tested authenticated lifecycle, not whole-VM restart, power-loss durability or a production volume manager.
+
+Authenticated integration image: `sha256:e3b83ac30199b998515fac528cd349a4b5b6b35b9e88df190d4ed2287ae26818`. All 185 default local tests plus formatting, lint, build and documentation checks pass.
