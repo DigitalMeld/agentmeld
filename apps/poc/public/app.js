@@ -1,3 +1,4 @@
+import { browseWorkspace, fileKind, breadcrumbs, readPreferences } from './file-browser.js';
 import { chatInfo, orderedChats, outputEntries, visibleOutputs, conversationExport } from './organization.js';
 import { formatBytes, validateAttachments } from './composer.js';
 import { icon } from './icons.js';
@@ -7,7 +8,12 @@ let token=location.hash.slice(1)||sessionStorage.getItem('agentmeld-token')||'';
 if(token){sessionStorage.setItem('agentmeld-token',token);history.replaceState(null,'',location.pathname);}
 window.addEventListener('hashchange',()=>{if(location.hash.length>1){token=location.hash.slice(1);sessionStorage.setItem('agentmeld-token',token);history.replaceState(null,'',location.pathname);error();refresh();}});
 let state={tasks:[],conversations:[],active:null},selected=null,files=[],view='chat',lastRender='';
-let fileCategory='all',fileLayout='grid',fileSort='newest',fileChatOpen=false;
+let preferences;try{preferences=readPreferences(localStorage);}catch{preferences=readPreferences({getItem:()=>null});}
+let fileCategory='all',fileLayout=preferences.layouts.all||'grid',fileSort=preferences.sort,fileChatOpen=false;
+function saveFilePreferences(){try{localStorage.setItem('agentmeld-files',JSON.stringify(preferences));}catch{}}
+function rememberOpened(taskId,name){const key=JSON.stringify([taskId,name]);delete preferences.opened[key];preferences.opened[key]=Date.now();preferences.opened=Object.fromEntries(Object.entries(preferences.opened).slice(-100));saveFilePreferences();}
+let lastWorkspaceChoices='';
+let workspace=null,workspaceId='',workspacePath='',workspaceLoading=false,workspaceRequest=0;
 const categories={all:'All artifacts',documents:'Documents',web:'Web artifacts',images:'Images',videos:'Videos',audio:'Podcasts',system:'System files'};
 const categoryExtensions={documents:['md','txt','csv','json','pdf','docx'],web:['html','htm'],images:['png','jpg','jpeg','gif','webp','svg'],videos:['mp4','mov','webm'],audio:['mp3','wav','m4a','ogg']};
 let restoreSelection=true,lastHistory='',showArchived=false;
@@ -49,10 +55,11 @@ $('chatSearch').oninput=()=>render();$('fileSearch').oninput=()=>render();$('arc
 $('attach').onclick=()=>$('upload').click();
 $('newChat').onclick=newTask;$('mobileNew').onclick=newTask;
 $('chatNav').onclick=()=>{showChat();if(matchMedia('(max-width:720px)').matches)document.querySelector('.history').classList.toggle('open');};$('filesNav').onclick=()=>{view='files';document.querySelector('.history').classList.remove('open');render();};
-for(const button of document.querySelectorAll('[data-category]')){button.insertAdjacentHTML('afterbegin',icon(button.dataset.symbol));button.onclick=()=>{fileCategory=button.dataset.category;if(fileCategory==='documents')fileLayout='list';else if(fileCategory==='all')fileLayout='grid';$('fileSidebar').classList.remove('open');render();};}
+for(const button of document.querySelectorAll('[data-category]')){button.insertAdjacentHTML('afterbegin',icon(button.dataset.symbol));button.onclick=()=>{fileCategory=button.dataset.category;fileLayout=preferences.layouts[fileCategory]||(fileCategory==='documents'?'list':'grid');if(fileCategory==='system')loadWorkspace();$('fileSidebar').classList.remove('open');render();};}
+$('fileOptions').addEventListener('keydown',e=>{if(!$('fileOptions').open||!['ArrowDown','ArrowUp','Home','End'].includes(e.key))return;e.preventDefault();const buttons=[...$('fileOptions').querySelectorAll('button')];let i=buttons.indexOf(document.activeElement);i=e.key==='Home'?0:e.key==='End'?buttons.length-1:(i+(e.key==='ArrowDown'?1:-1)+buttons.length)%buttons.length;buttons[i].focus();});
 function closeFileOptions(){$('fileOptions').open=false;$('fileOptions').querySelector('summary').focus();}
-for(const button of document.querySelectorAll('[data-layout]'))button.onclick=()=>{fileLayout=button.dataset.layout;render();closeFileOptions();};
-for(const button of document.querySelectorAll('[data-sort]'))button.onclick=()=>{fileSort=button.dataset.sort;render();closeFileOptions();};
+for(const button of document.querySelectorAll('[data-layout]'))button.onclick=()=>{fileLayout=button.dataset.layout;preferences.layouts[fileCategory]=fileLayout;saveFilePreferences();render();closeFileOptions();};
+for(const button of document.querySelectorAll('[data-sort]'))button.onclick=()=>{fileSort=button.dataset.sort;preferences.sort=fileSort;saveFilePreferences();render();closeFileOptions();};
 document.addEventListener('click',e=>{if(!$('fileOptions').contains(e.target))$('fileOptions').open=false;});
 $('libraryMenu').onclick=()=>$('fileSidebar').classList.toggle('open');
 $('libraryChat').onclick=()=>{fileChatOpen=!fileChatOpen;render();if(fileChatOpen)$('prompt').focus();};
@@ -91,7 +98,7 @@ function render(){
   document.querySelector('.history').hidden=inFiles;$('fileSidebar').hidden=!inFiles;document.querySelector('.top').hidden=inFiles;$('inspector').hidden=inFiles;
   $('chatSurface').hidden=!chatVisible;$('fileChatHeader').hidden=!inFiles;
   $('libraryChat').setAttribute('aria-pressed',String(fileChatOpen));$('libraryChat').setAttribute('aria-label',fileChatOpen?'Hide chat':'Show chat');
-  $('libraryTitle').textContent=categories[fileCategory];$('systemScope').hidden=fileCategory!=='system';
+  $('libraryTitle').textContent=categories[fileCategory];$('workspaceTools').hidden=fileCategory!=='system';$('fileOptions').hidden=fileCategory==='system';
   for(const b of document.querySelectorAll('[data-category]')){b.classList.toggle('selected',b.dataset.category===fileCategory);b.setAttribute('aria-current',b.dataset.category===fileCategory?'page':'false');}
   for(const b of document.querySelectorAll('[data-sort]'))b.setAttribute('aria-pressed',String(b.dataset.sort===fileSort));
   for(const b of document.querySelectorAll('[data-layout]'))b.setAttribute('aria-pressed',String(b.dataset.layout===fileLayout));
@@ -118,11 +125,12 @@ function render(){
   renderActivity();if($('runDetails').open)renderDetails();
   $('taskFiles').innerHTML=task?.artifacts.length?task.artifacts.map(f=>fileButton(task,f)).join(''):'Finished files will appear here.';
   const fileQuery=$('fileSearch').value.trim().toLocaleLowerCase();
-  const outputs=visibleOutputs(state,fileQuery,'all',fileSort).filter(e=>!categoryExtensions[fileCategory]||categoryExtensions[fileCategory].includes(e.file.name.split('.').pop().toLowerCase()));
+  let outputs=visibleOutputs(state,fileQuery,'all',fileSort).filter(e=>!categoryExtensions[fileCategory]||categoryExtensions[fileCategory].includes(e.file.name.split('.').pop().toLowerCase()));
+  if(fileSort==='opened')outputs.sort((a,b)=>(preferences.opened[JSON.stringify([b.task.id,b.file.name])]||0)-(preferences.opened[JSON.stringify([a.task.id,a.file.name])]||0));
   $('fileSummary').textContent=outputs.length+' outputs · '+formatBytes(outputs.reduce((sum,e)=>sum+e.file.size,0));
-  const libraryContent=fileCategory==='system'?'<table><thead><tr><th>Name</th><th>Type</th><th>Created</th><th>Size</th></tr></thead><tbody>'+outputs.map(({task:t,file:f})=>'<tr><td>'+fileButton(t,f)+'</td><td>'+esc(f.name.split('.').pop().toUpperCase())+'</td><td>'+esc(new Date(t.createdAt).toLocaleDateString())+'</td><td>'+formatBytes(f.size)+'</td></tr>').join('')+'</tbody></table>'+(outputs.length?'':'<p class="muted">No retained workspace files.</p>'):outputs.map(({task:t,file:f,title,version})=>'<article class="libraryEntry"><button class="artifactThumbnail" data-task="'+t.id+'" data-file="'+esc(f.name)+'" aria-label="Preview '+esc(f.name)+'"><span class="thumbnailText" data-thumbnail-task="'+t.id+'" data-thumbnail-name="'+esc(f.name)+'">'+esc(f.name)+'</span></button>'+fileButton(t,f)+'<button class="outputOrigin" data-jump="'+t.id+'">'+esc(title)+' · Version '+version+' · '+esc(new Date(t.createdAt).toLocaleString())+'</button></article>').join('')||'<div class="libraryEmpty"><h2>'+(fileQuery?'No matching files':'Nothing created yet')+'</h2><p>Documents and other things you create will appear here.</p></div>';
+  const libraryContent=fileCategory==='system'?workspaceMarkup(fileQuery):outputs.map(({task:t,file:f,title,version})=>'<article class="libraryEntry"><button class="artifactThumbnail" data-task="'+t.id+'" data-file="'+esc(f.name)+'" aria-label="Preview '+esc(f.name)+'"><span class="thumbnailText" data-thumbnail-task="'+t.id+'" data-thumbnail-name="'+esc(f.name)+'">'+esc(f.name)+'</span></button>'+fileButton(t,f)+'<button class="outputOrigin" data-jump="'+t.id+'">'+esc(title)+' · Version '+version+' · '+esc(new Date(t.createdAt).toLocaleString())+'</button></article>').join('')||'<div class="libraryEmpty"><h2>'+(fileQuery?'No matching files':'No '+(fileCategory==='all'?'artifacts':categories[fileCategory].toLowerCase())+' yet')+'</h2><p>Files you create in this category will appear here.</p></div>';
   if(libraryContent!==lastLibrary){$('libraryFiles').innerHTML=libraryContent;lastLibrary=libraryContent;}
-  if(inFiles)loadThumbnails();
+  if(inFiles&&fileCategory!=='system')loadThumbnails();
   const stoppable=turns.find(t=>['running','cancelling','queued'].includes(t.status));
   $('stop').hidden=!stoppable;$('stop').dataset.task=stoppable?.id||'';
   const unavailable=state.conversations.find(c=>c.id===selected)?.continuation!=='ready'&&selected!==null||!!state.conversations.find(c=>c.id===selected)?.archived;
@@ -133,6 +141,47 @@ function render(){
   $('prompt').placeholder='Message';
   $('attachments').innerHTML=files.map((f,i)=>'<span class="chip">'+esc(f.name)+' <small>'+formatBytes(atob(f.data).length)+'</small><button data-remove="'+i+'" aria-label="Remove '+esc(f.name)+'" data-tooltip>×</button></span>').join('');
   updateComposer();updateLatest();
+}
+
+function updateWorkspaceChoices(){
+  const choices=state.conversations.map(c=>'<button data-workspace-id="'+esc(c.id)+'">'+esc(c.title)+'</button>').join('');
+  if(lastWorkspaceChoices!==choices){$('workspaceSelect').innerHTML=choices;lastWorkspaceChoices=choices;}
+  if(!state.conversations.some(c=>c.id===workspaceId))workspaceId=selected||state.conversations[0]?.id||'';
+  $('workspaceLabel').textContent=state.conversations.find(c=>c.id===workspaceId)?.title||'Choose workspace';
+}
+async function loadWorkspace(){
+  updateWorkspaceChoices();const id=workspaceId,request=++workspaceRequest;
+  if(!id){workspace=null;workspaceLoading=false;render();return;}
+  workspaceLoading=true;$('workspaceError').hidden=true;render();
+  try{const next=await(await api('/api/workspace?conversation='+encodeURIComponent(id),{signal:AbortSignal.timeout(8000)})).json();if(request!==workspaceRequest)return;workspace=next;
+    if(workspacePath&&!next.entries.some(e=>e.directory&&e.name===workspacePath))workspacePath='';
+  }catch(e){if(request===workspaceRequest){workspace=null;$('workspaceError').textContent='Could not load this workspace. Use Refresh to retry.';$('workspaceError').hidden=false;}}
+  finally{if(request===workspaceRequest){workspaceLoading=false;render();}}
+}
+function workspaceMarkup(query){
+  updateWorkspaceChoices();$('workspaceRefresh').disabled=workspaceLoading;
+  $('workspaceStatus').textContent=workspaceLoading?'Loading workspace…':!workspaceId?'No conversations yet.':workspace?((workspace.working?'Work is running. Showing the last saved snapshot. ':workspace.continuation==='legacy'?'This older conversation has no workspace snapshot. ':'All saved files in /workspace. ')+(workspace.capturedAt?'Saved '+new Date(workspace.capturedAt).toLocaleString():'')):'Choose a workspace or refresh to load its files.';
+  $('workspaceUp').disabled=!workspacePath;
+  const breadcrumbContent=breadcrumbs(workspacePath).map(b=>'<button data-folder="'+esc(b.path)+'">'+esc(b.name)+'</button>').join('<span aria-hidden="true"> / </span>');
+  if($('workspaceBreadcrumbs').innerHTML!==breadcrumbContent)$('workspaceBreadcrumbs').innerHTML=breadcrumbContent;
+  const entries=workspace?.conversationId===workspaceId?browseWorkspace(workspace.entries,workspacePath,query,$('showHiddenFiles').checked):[];
+  $('fileSummary').textContent=entries.length+' items · '+formatBytes(entries.reduce((sum,e)=>sum+(e.size||0),0));
+  return '<table><thead><tr><th>Name</th><th>Type</th><th>Last modified</th><th>Size</th></tr></thead><tbody>'+entries.map(e=>'<tr><td><button class="file" '+(e.directory?'data-folder="'+esc(e.name)+'"':'data-workspace-file="'+esc(e.name)+'"')+'><span class="fileIcon">'+icon(e.directory?'folder':'file')+'</span><span>'+esc(query?e.name:e.name.split('/').pop())+'</span></button></td><td>'+(e.directory?'Folder':esc(fileKind(e.name)))+'</td><td>'+(e.modifiedAt?esc(new Date(e.modifiedAt).toLocaleString()):'—')+'</td><td>'+(e.directory?'—':formatBytes(e.size))+'</td></tr>').join('')+'</tbody></table>'+(entries.length||workspaceLoading?'':'<p class="muted">'+(query?'No matching files.':'This folder is empty.')+'</p>');
+}
+document.addEventListener('click',e=>{const choice=e.target.closest('[data-workspace-id]');if(choice){workspaceId=choice.dataset.workspaceId;workspacePath='';workspace=null;$('workspacePicker').open=false;loadWorkspace();$('workspacePicker').querySelector('summary').focus();}else if(!$('workspacePicker').contains(e.target))$('workspacePicker').open=false;});
+$('workspaceRefresh').onclick=loadWorkspace;
+$('showHiddenFiles').onchange=()=>render();
+$('workspaceUp').onclick=()=>{workspacePath=workspacePath.split('/').slice(0,-1).join('/');$('fileSearch').value='';render();};
+$('copyWorkspacePath').onclick=()=>copyText('/workspace'+(workspacePath?'/'+workspacePath:''));
+$('workspaceConversation').onclick=()=>{if(workspaceId)selectConversation(workspaceId);};
+$('copyFilePath').onclick=()=>{if(previewFile)copyText('/workspace/'+previewFile.name);};
+async function openWorkspaceFile(name){
+  const id=workspaceId,request=++previewRequest;
+  try{const blob=await(await api('/api/workspace/file?conversation='+encodeURIComponent(id)+'&name='+encodeURIComponent(name),{signal:AbortSignal.timeout(8000)})).blob();
+    const text=/\.(md|txt|csv|json|log|js|mjs|ts|py|sh|toml|yaml|yml|html|css|xml|ini|cfg)$/i.test(name)||name.split('/').pop().startsWith('.')?await blob.text():undefined;
+    if(request!==previewRequest)return;
+    clearPreviewImage();previewFile={blob,name,text,conversationId:id};previewRaw=false;$('previewTitle').textContent=name;$('previewOrigin').textContent=(state.conversations.find(c=>c.id===id)?.title||'Workspace')+' · /workspace/'+name+' · '+formatBytes(blob.size);$('versionLabel').hidden=true;$('copyPreview').hidden=text===undefined;renderPreviewText();if(!$('preview').open)$('preview').showModal();
+  }catch(e){if(request===previewRequest)notice('Could not open this workspace file. Refresh the workspace and try again.');}
 }
 
 const thumbnails=new Map();let loadingThumbnails=false;
@@ -174,15 +223,17 @@ $('shortcutHelp').onclick=()=>$('shortcuts').showModal();$('closeShortcuts').onc
 document.addEventListener('keydown',e=>{
   if(e.defaultPrevented||e.isComposing||document.querySelector('dialog[open]'))return;
   if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='k'){e.preventDefault();if(view==='files'){$('fileSidebar').classList.add('open');$('fileSearch').focus();}else{document.querySelector('.history').classList.add('open');$('chatSearch').focus();}}
-  if(e.key==='Escape'){if($('fileOptions').open){closeFileOptions();}else if($('fileSidebar').classList.contains('open')){$('fileSidebar').classList.remove('open');$('libraryMenu').focus();}else if(view==='files'&&fileChatOpen){$('fileChatClose').click();}else if(document.querySelector('.history').classList.contains('open')){document.querySelector('.history').classList.remove('open');$('chatNav').focus();}else if($('inspector').classList.contains('open'))$('closeActivity').click();}
+  if(e.key==='Escape'){if($('workspacePicker').open){$('workspacePicker').open=false;$('workspacePicker').querySelector('summary').focus();}else if($('fileOptions').open){closeFileOptions();}else if($('fileSidebar').classList.contains('open')){$('fileSidebar').classList.remove('open');$('libraryMenu').focus();}else if(view==='files'&&fileChatOpen){$('fileChatClose').click();}else if(document.querySelector('.history').classList.contains('open')){document.querySelector('.history').classList.remove('open');$('chatNav').focus();}else if($('inspector').classList.contains('open'))$('closeActivity').click();}
 });
 window.addEventListener('beforeunload',e=>{if($('prompt').value||files.length||[...drafts.entries()].some(([key,d])=>d.pending||(key!==draftKey()&&(d.text||d.files?.length)))){e.preventDefault();e.returnValue='';}});
 function updateLatest(){$('latestBar').hidden=(view!=='chat'&&!fileChatOpen)||!selected||$('conversation').scrollHeight-$('conversation').scrollTop-$('conversation').clientHeight<150;}
 $('conversation').addEventListener('scroll',updateLatest);
 $('jumpLatest').onclick=()=>{$('conversation').scrollTo({top:$('conversation').scrollHeight,behavior:'instant'});updateLatest();};
-function renderPreviewText(){if(!previewFile)return;const md=/\.md$/i.test(previewFile.name);$('previewSource').hidden=!md;$('previewSource').textContent=previewRaw?'View formatted Markdown':'View raw Markdown';$('previewBody').innerHTML=previewFile.text!==undefined?(md&&!previewRaw?markdown(previewFile.text):'<pre>'+esc(previewFile.text)+'</pre>'):'This file is ready to download.';}
+let previewImageUrl=null;function clearPreviewImage(){if(previewImageUrl)URL.revokeObjectURL(previewImageUrl);previewImageUrl=null;}
+$('preview').addEventListener('close',clearPreviewImage);
+function renderPreviewText(){if(!previewFile)return;clearPreviewImage();if(/\.(png|jpe?g|gif|webp)$/i.test(previewFile.name)){const mime=/\.png$/i.test(previewFile.name)?'image/png':/\.gif$/i.test(previewFile.name)?'image/gif':/\.webp$/i.test(previewFile.name)?'image/webp':'image/jpeg';previewImageUrl=URL.createObjectURL(new Blob([previewFile.blob],{type:mime}));const img=document.createElement('img');img.src=previewImageUrl;img.alt=previewFile.name;img.className='fileImage';$('previewBody').replaceChildren(img);$('previewSource').hidden=true;return;}const md=/\.md$/i.test(previewFile.name);$('previewSource').hidden=!md;$('previewSource').textContent=previewRaw?'View formatted Markdown':'View raw Markdown';$('previewBody').innerHTML=previewFile.text!==undefined?(md&&!previewRaw?markdown(previewFile.text):'<pre>'+esc(previewFile.text)+'</pre>'):'This file is ready to download.';}
 $('previewSource').onclick=()=>{previewRaw=!previewRaw;renderPreviewText();};
-$('previewConversation').onclick=()=>{const task=state.tasks.find(t=>t.id===previewFile?.taskId);$('preview').close();if(task)jumpToTask(task);};
+$('previewConversation').onclick=()=>{if(previewFile?.conversationId){$('preview').close();selectConversation(previewFile.conversationId);return;}const task=state.tasks.find(t=>t.id===previewFile?.taskId);$('preview').close();if(task)jumpToTask(task);};
 $('previewVersion').onchange=()=>{if(previewFile){const next=$('previewVersion').value;$('previewVersion').value=previewFile.taskId;openPreview(next,previewFile.name);}};
 async function openPreview(taskId,name){
   const request=++previewRequest;
@@ -190,7 +241,7 @@ async function openPreview(taskId,name){
     const res=await api('/api/file?task='+encodeURIComponent(taskId)+'&name='+encodeURIComponent(name));const blob=await res.blob();
     const isText=/\.(md|txt|csv|json|log)$/i.test(name);const text=isText?await blob.text():undefined;
     if(request!==previewRequest)return;
-    previewFile={blob,name,text,taskId};previewRaw=false;$('previewTitle').textContent=name;
+    clearPreviewImage();rememberOpened(taskId,name);previewFile={blob,name,text,taskId};previewRaw=false;$('previewTitle').textContent=name;
     const task=state.tasks.find(t=>t.id===taskId);
     $('previewOrigin').textContent=(state.conversations.find(c=>c.id===task?.conversationId)?.title||'Conversation')+' · '+(task?new Date(task.createdAt).toLocaleString():'')+' · '+formatBytes(blob.size);
     const versions=outputEntries(state).filter(e=>e.task.conversationId===task?.conversationId&&e.file.name===name);
@@ -202,6 +253,8 @@ async function openPreview(taskId,name){
 }
 
 document.addEventListener('click',async e=>{
+  const folder=e.target.closest('[data-folder]');if(folder){workspacePath=folder.dataset.folder;$('fileSearch').value='';render();}
+  const workspaceFile=e.target.closest('[data-workspace-file]');if(workspaceFile)await openWorkspaceFile(workspaceFile.dataset.workspaceFile);
   const copy=e.target.closest('[data-copy-answer]');if(copy){const task=state.tasks.find(t=>t.id===copy.dataset.copyAnswer);if(task)await copyText(task.answer);}
   const jump=e.target.closest('[data-jump]');if(jump){const task=state.tasks.find(t=>t.id===jump.dataset.jump);if(task){jumpToTask(task);}}
   const detail=e.target.closest('[data-detail]');if(detail){detailId=detail.dataset.detail;renderDetails();$('runDetails').showModal();}

@@ -1,3 +1,4 @@
+import { workspaceView, workspaceFile } from './filesystem.mjs';
 import { recordEvent } from './events.mjs';
 import http from 'node:http';
 import { readFile } from 'node:fs/promises';
@@ -66,6 +67,16 @@ const server=http.createServer(async(req,res)=>{
         await control.stop();
         return send(res,202,{requested:true});
       }
+      if(req.method==='GET'&&url.pathname==='/api/workspace'){
+        const workspace=workspaceView(state,url.searchParams.get('conversation'));
+        return workspace?send(res,200,workspace):send(res,404,{error:'Workspace not found.'});
+      }
+      if(req.method==='GET'&&url.pathname==='/api/workspace/file'){
+        const f=workspaceFile(state,url.searchParams.get('conversation'),url.searchParams.get('name'));
+        if(!f)return send(res,404,{error:'Workspace file not found.'});
+        res.writeHead(200,{'Content-Type':'application/octet-stream','Content-Disposition':"attachment; filename*=UTF-8''"+encodeURIComponent(f.name.split('/').pop()),'Cache-Control':'no-store'});return res.end(Buffer.from(f.data,'base64'));
+      }
+
       if(req.method==='GET'&&url.pathname==='/api/file'){
         const task=state.tasks.find(t=>t.id===url.searchParams.get('task'));
         const kind=url.searchParams.get('kind')||'output';
@@ -76,7 +87,7 @@ const server=http.createServer(async(req,res)=>{
       }
       return send(res,404,{error:'Not found.'});
     }
-    const assets={'/':'index.html','/app.js':'app.js','/style.css':'style.css','/brain.svg':'brain.svg','/icons.js':'icons.js','/tooltips.js':'tooltips.js','/composer.js':'composer.js','/organization.js':'organization.js'};
+    const assets={'/':'index.html','/app.js':'app.js','/style.css':'style.css','/brain.svg':'brain.svg','/icons.js':'icons.js','/tooltips.js':'tooltips.js','/composer.js':'composer.js','/organization.js':'organization.js','/file-browser.js':'file-browser.js'};
     if(req.method!=='GET'||!assets[url.pathname])return send(res,404,{error:'Not found.'});
     const file=assets[url.pathname];res.setHeader('Content-Type',file.endsWith('.svg')?'image/svg+xml':file.endsWith('.css')?'text/css':file.endsWith('.js')?'text/javascript':'text/html');
     res.end(await readFile(new URL('./public/'+file,import.meta.url)));

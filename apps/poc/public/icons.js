@@ -1,5 +1,8 @@
 // Original outline symbols shared by navigation and file results.
 const paths={
+ refresh:'<path d="M20 7V3l-3 3a8 8 0 1 0 3 9M20 7h-5"/>',
+ up:'<path d="M12 20V4m-6 6 6-6 6 6"/>',
+
  menu:'<path d="M4 6h16M4 12h16M4 18h16"/>',
  sort:'<path d="M4 6h16M7 12h10M10 18h4"/>',
  search:'<circle cx="10" cy="10" r="6"/><path d="m15 15 5 5"/>',

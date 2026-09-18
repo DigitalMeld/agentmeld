@@ -6,7 +6,7 @@ const readFlags=fs.constants.O_RDONLY|fs.constants.O_NOFOLLOW|fs.constants.O_NON
 function visit(fd,prefix,depth){
  if(depth>8)throw Error('Workspace directory depth exceeded');
  for(const name of fs.readdirSync('/proc/self/fd/'+fd)){
-  if(!/^[a-zA-Z0-9][a-zA-Z0-9 ._-]{0,119}$/.test(name))throw Error('Unsupported workspace name');
+  if(name==='.'||name==='..'||!/^[a-zA-Z0-9.][a-zA-Z0-9 ._-]{0,119}$/.test(name))throw Error('Unsupported workspace name');
   const path=prefix+name, child=fs.openSync('/proc/self/fd/'+fd+'/'+name,readFlags);
   try{
    const stat=fs.fstatSync(child);
@@ -17,7 +17,7 @@ function visit(fd,prefix,depth){
     const b=Buffer.alloc(stat.size);let used=0,count;
     while(used<b.length&&(count=fs.readSync(child,b,used,b.length-used,null)))used+=count;
     if(used!==stat.size||fs.fstatSync(child).size!==stat.size)throw Error('Workspace changed during capture');
-    total+=used;entries.push({name:path,data:b.toString('base64')});
+    total+=used;entries.push({name:path,data:b.toString('base64'),modifiedAt:stat.mtime.toISOString()});
    }else throw Error('Unsupported workspace entry');
   }finally{fs.closeSync(child);}
  }
@@ -31,9 +31,9 @@ process.stdin.on('data',c=>{text+=c;if(text.length>24000000)process.exit(1)});
 process.stdin.on('end',()=>{
  const files=JSON.parse(text);if(!Array.isArray(files)||files.length>133)throw Error('Invalid workspace');
  for(const f of files){
-  if(typeof f.name!=='string'||!f.name.split('/').every(n=>/^[a-zA-Z0-9][a-zA-Z0-9 ._-]{0,119}$/.test(n)))throw Error('Invalid path');
+  if(typeof f.name!=='string'||!f.name.split('/').every(n=>n!=='.'&&n!=='..'&&/^[a-zA-Z0-9.][a-zA-Z0-9 ._-]{0,119}$/.test(n)))throw Error('Invalid path');
   if(f.directory)fs.mkdirSync('/workspace/'+f.name,{mode:0o700});
-  else fs.writeFileSync('/workspace/'+f.name,Buffer.from(f.data,'base64'),{flag:'wx',mode:0o600});
+  else {fs.writeFileSync('/workspace/'+f.name,Buffer.from(f.data,'base64'),{flag:'wx',mode:0o600});if(f.modifiedAt&&Number.isFinite(Date.parse(f.modifiedAt)))fs.utimesSync('/workspace/'+f.name,new Date(f.modifiedAt),new Date(f.modifiedAt));}
  }
 });
 `;

@@ -112,3 +112,7 @@ The [14-improvement usability batch](design/usability-batch.md) records the impl
 ## Conversation organization and output workflow (2026-09-18)
 
 The [24-improvement workflow batch](design/workflow-organization.md) adds persistent rename/pin/archive/restore, exports, original-input retrieval, output sorting/type filters/version navigation, and keyboard/navigation improvements. It documents the additive fields and authenticated API changes, evidence and limits. Archives preserve data and do not reclaim turn capacity.
+
+## Full saved workspace and universal file layouts
+
+The [workspace browser batch](design/workspace-browser.md) replaces the artifact-only System Files placeholder and fixes per-category Grid/List behavior. Its 25 improvements, APIs, additive metadata, validation and runtime limits are documented together. A live persistent machine filesystem outside `/workspace` remains a separate runtime capability.
