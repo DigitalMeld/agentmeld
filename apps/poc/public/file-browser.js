@@ -1,7 +1,7 @@
 // Pure browser helpers shared by the workspace tree and artifact layouts.
-export function browseWorkspace(entries,path='',query='',hidden=true){
+export function browseWorkspace(entries,path='',query='',hidden=true,sort='name',descending=false){
  const prefix=path?path+'/':'';const q=query.trim().toLocaleLowerCase();
- return entries.filter(e=>e.name.startsWith(prefix)&&(hidden||!e.name.split('/').some(p=>p.startsWith('.')))&&(q?e.name.toLocaleLowerCase().includes(q):!e.name.slice(prefix.length).includes('/'))).sort((a,b)=>Number(b.directory)-Number(a.directory)||a.name.localeCompare(b.name,undefined,{numeric:true}));
+ return entries.filter(e=>e.name.startsWith(prefix)&&(hidden||!e.name.split('/').some(p=>p.startsWith('.')))&&(q?e.name.toLocaleLowerCase().includes(q):!e.name.slice(prefix.length).includes('/'))).sort((a,b)=>Number(!!b.directory)-Number(!!a.directory)||(descending?-1:1)*((sort==='size'?(a.size||0)-(b.size||0):sort==='modified'?(Date.parse(a.modifiedAt)||0)-(Date.parse(b.modifiedAt)||0):sort==='type'?fileKind(a.name).localeCompare(fileKind(b.name)):0)||a.name.localeCompare(b.name,undefined,{numeric:true})));
 }
 export function fileKind(name){const ext=name.split('.').pop().toLowerCase();return ({md:'Markdown',txt:'Text',csv:'CSV',json:'JSON',html:'HTML',png:'Image',jpg:'Image',jpeg:'Image',gif:'Image',webp:'Image',pdf:'PDF',js:'JavaScript',mjs:'JavaScript',py:'Python',sh:'Shell'})[ext]||ext.toUpperCase();}
 export function breadcrumbs(path){let prefix='';return [{name:'workspace',path:''},...path.split('/').filter(Boolean).map(name=>({name,path:prefix=prefix?prefix+'/'+name:name}))];}

@@ -121,7 +121,7 @@ try{
  await page.locator('#fileSearch').fill('no-such-file');assert.equal(await page.locator('.libraryEntry').count(),0);
  await page.locator('#fileSearch').fill('');await page.locator('#chatNav').click();
  const firstActivity=page.locator('.activityEntry').filter({has:page.locator('strong',{hasText:'First conversation'})});
- await firstActivity.locator('.file').click();await page.locator('#preview[open]').waitFor();
+ await firstActivity.locator('.file').click();await page.locator('#preview[open][aria-busy="false"]').waitFor();
  assert.equal(await page.locator('#previewBody').innerText(),'Output for First conversation');
  assert.ok((await page.locator('#previewOrigin').innerText()).includes('First conversation'));
  await page.locator('#copyPreview').click();assert.equal(await page.evaluate(()=>window.copied.at(-1)),'Output for First conversation');
