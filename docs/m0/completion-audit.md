@@ -2,7 +2,7 @@
 
 **Priority change, 2026-09-18:** the owner directed delivery of a useful POC instead of further patch qualification. The scoped patch and remaining qualification work are deferred; they do not gate the [working local POC](../poc.md). Historical evidence below is retained, not a mandate to resume the patch.
 
-Updated: 2026-09-18. M0 is not complete. This audit maps evidence to the seven requirements in the [roadmap](../specs/roadmap.md#m0-prove-codex-subscription-execution-and-its-isolation-boundary); it does not replace the [exit checklist](exit-checklist.md) or convert experiments into product claims.
+Updated: 2026-09-18. M0 risk-reduction qualification is complete with the explicit limitations below. This is not M1 or alpha completion. This audit maps evidence to the seven requirements in the [roadmap](../specs/roadmap.md#m0-prove-codex-subscription-execution-and-its-isolation-boundary); it does not replace the [exit checklist](exit-checklist.md) or convert experiments into product claims.
 
 ## Requirement coverage
 
@@ -55,10 +55,24 @@ node scripts/probe-workspace-quota.mjs --context colima-agentmeld-m0 --subscript
 
 Raw sanitized probe output stays in ignored `.local/m0/model-gates-*.log`; inventory is checked in separately. Negative model/account checks do not send inference requests; the live execution/control/workspace commands consume subscription usage.
 
-## Next work without expanding the milestone
+## Closeout decisions
 
-1. Completed: [live browser integration](live-browser.md) verifies real native callbacks, separate browser, takeover, stale dispatch denial and fresh-observation resume.
-2. Resolve or explicitly disposition the native command-error UI notification finding before promising reliable product event delivery. The owner approved a scoped patch; see [preparation and qualification status](codex-command-event-patch.md). Preserve the failing diagnostic until the patch is qualified.
-3. Controlled dedicated-VM recovery and [isolated native session lifecycle](auth-lifecycle.md) now pass. Preserve the separate real-provider lifecycle limitation. Record viewer selection and the supported test envelope before M0 sign-off.
+The original seven roadmap requirements were reviewed against the reports above and their retained sanitized local logs on 2026-09-18. The exit is evidence of feasibility with explicit limitations, not a production-readiness certificate. Historical image IDs remain attached to their own runs; no claim is made that every probe ran against the latest rebuilt image.
 
-Production API/state management, broad client UI, remote owner access, installable packaging, final release notices and source-license application remain M1/M2 delivery work. Existing recovery, quota and browser findings remain visible here; none are silently declared complete by this boundary distinction.
+1. **Authentication and versions:** Codex 0.154.0, Playwright 1.63.0 and digest-pinned base images are selected. Live subscription recognition/inference and missing-account rejection are verified; installed licenses are inventoried. Real-provider refresh/revocation, embedded redistribution notices and AgentMeld license selection remain release/setup work. The owner session was not revoked.
+2. **Adapter cases:** streaming, native command success, model-facing exit-23 failure, allow/deny, interruption with explicit terminal cleanup, process replacement, and unavailable-model rejection are verified. The owner explicitly deferred the failed-command UI-event patch. The missing event remains a product timeline limitation, not a failed model-facing tool-error test. Do not resume patch qualification automatically or claim repaired event delivery.
+3. **Boundaries:** native tool canaries, exact mount inspection, host-owned supervisor storage and separate browser containers establish the scoped file/process boundary. Only the owned workspace and explicitly authorized provider store are attached; sibling workspaces and host application state are not mounted. This is not hostile-tenant or kernel-escape certification.
+4. **Egress and credentials:** the restricted provider gateway and protected dedicated native store are the selected approach. Live inference uses this path; tool network denial and protected credential access are verified. The trusted harness necessarily reads its own credential store. No general web/secret broker or host-execution fallback is implied.
+5. **Viewer selection:** retain maintained Playwright 1.63.0 with sandboxed Chromium for screenshot capture and input, browser-native PNG rendering, and the existing small owned HTTP/controller layer. This selects the demonstrated screenshot viewer for the next local workflow. Takeover, generation fencing, disconnect and fresh-observation resume have offline UI and live callback evidence. No video library is needed for this bounded viewer; production video, remote transport and keyboard/clipboard support remain later decisions.
+6. **Resources:** the initial native/browser measurements satisfy the measurement requirement: 51 cycles, 212.04 MiB peak charged worker memory, zero OOM kills, in the recorded 2-vCPU/4-GiB VM. This is the tested fixture envelope, not a minimum supported Mac specification. No installation sizing promise is authorized from it; broader workload/host validation is required before publishing one.
+7. **Roles and protocol:** the sole selected execution role uses GPT-5.5 through native app-server 0.154.0. Exact account/catalog/start/resume checks and rerouting rejection are verified. The browser is a controlled tool, not an independently selected model role. Additional planner/subagent models are not enabled or qualified.
+
+### Evidence readback at closeout
+
+Retained local reports inspected: `model-gates-empty-auth.log`, `model-gates-live.log`, `live-error-evidence.log`, `restored-live-control.log`, `native-file-boundary.log`, `browser-isolation.log`, `auth-store.log`, `live-browser-egress-regression.log`, `live-browser-final.log`, `auth-lifecycle-final.log`, `vm-recovery.log`, `resource-baseline.log`, and `restored-native-after.log`, under ignored `.local/m0/`. The owning linked reports describe assertions, reproduction commands and immutable images. These logs contain fixture status, not provider credentials.
+
+The current unpatched image is `sha256:12ed9904b4604148fec691c0d5a2a2e9ba6d41c4b24675c3c7d144dfc13591bc`. Native/browser regression passed before and after its controlled VM restart, and live control passed on this image. Its local inventory confirms four npm packages, 199 Debian packages with copyright files and 22 Rust resolution entries. Earlier resource and integration evidence retains earlier image bindings.
+
+The [local POC](../poc.md) additionally proves real uploaded CSV analysis, report preview/download, owned-worker Stop and saved results after a service restart. It is delivered and merged in [PR #38](https://github.com/DigitalMeld/agentmeld/pull/38). It does not complete the M1 acceptance scenario: conversational continuation, integrated browser takeover, durable production recovery and the Rust service remain work ahead.
+
+Production API/state management, broad client UI, remote owner access, installable packaging, final release notices and source-license application remain M1/M2 delivery work. Next: evaluate the working POC on representative tasks, then implement conversational follow-up and the browser/computer workflow. The patch remains deferred unless an observed product need changes that decision.
