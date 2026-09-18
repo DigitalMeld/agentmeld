@@ -56,12 +56,12 @@ Arrows denote intended data paths, not a claim that all libraries already suppor
 | Native Claude adapter, post-alpha | Small TypeScript Agent SDK bridge | Supported SDK integration with explicit permissions and streaming |
 | AgentMeld harness, post-alpha | Rust | Bounded model/tool loop, initially Ollama HTTP |
 | Browser service | Chromium and a small Playwright service | DOM tools, screenshots, protected profile, navigation and action control |
-| Desktop viewer | Existing maintained remote-viewing components | Authenticated image/input transport and takeover; select after M0 review |
+| Computer viewer | Playwright/Chromium screenshot capture, native image rendering, owned authenticated controller | Selected local viewer path from M0; production video/remote transport still requires qualification |
 | Initial database | SQLite WAL with migrations | Single-node metadata, transcripts, durable jobs, outbox, approvals and leases |
 | Optional iMessage bridge | Owner-controlled macOS transport plus scoped bridge | Receive/send messages and report delivery without hosting agent execution |
 | Initial artifact store | Local filesystem plus database metadata | Immutable artifact versions and scoped retrieval |
 
-These are proposed dependencies, not installed packages or selected versions. Pin maintained versions during M0; review their licenses and runtime distribution requirements before packaging. No custom browser engine, VMM, inference engine, or cryptography implementation. SwiftUI is the proposed Apple client direction; qualify packaging and viewer integration before implementation. Keep business rules in Rust and use the same versioned API from Swift and TypeScript. Native clients must not create a second execution architecture.
+The product component choices remain proposals except for the pinned Codex/Playwright M0 runtime and selected screenshot viewer. Review licenses and runtime distribution requirements before packaging. No custom browser engine, VMM, inference engine, or cryptography implementation. SwiftUI is the proposed Apple client direction; qualify packaging and viewer integration before implementation. Keep business rules in Rust and use the same versioned API from Swift and TypeScript. Native clients must not create a second execution architecture.
 
 Rust is most useful for long-lived supervision, concurrency, authorization, I/O, and a small distributable service. Keep native SDK bridges where the supported ecosystem requires them. Avoid a pure-Rust requirement that leads to reimplementing vendor protocols without evidence of savings.
 
@@ -129,6 +129,8 @@ Keep credential values out of client responses, logs, prompts, memory, and artif
 
 ## 7. Domain model and persistence
 
+The [data implementation blueprint](data-model.md) owns the core ERD, exact draft SQLite DDL, complete Muse relation dispositions and staged POC migration. Those are design artifacts; the running POC still uses its current JSON store.
+
 | Entity | Key semantics |
 | --- | --- |
 | Workspace, Membership, Grant | Ownership, actor capabilities, revocation version |
@@ -154,6 +156,28 @@ Provider sessions and native working files are separate from normalized events. 
 A consistent backup blocks new dispatch, settles active writes, quiesces browser/profile writers, uses SQLite's supported backup mechanism, and records a content-hash manifest for the matching file checkpoint before resuming. Never call a raw copy of a live WAL database or browser profile verified backup. An interrupted checkpoint is incomplete; retain the last verified generation, reconcile pending actions, and rebuild a fresh checkpoint.
 
 Postgres and object storage arrive when multi-node coordination or measured write contention requires them. Keep domain storage operations explicit, but do not build and maintain two database dialects at alpha. Migration is a tested milestone with export/import parity, ownership preservation, backup, and rollback.
+
+### Conversation, execution and presentation contracts
+
+The [Muse bundle review](../research/muse-documentation-review.md) strengthens the existing domain separation; it does not select Muse's PostgreSQL schema. One conversation contains many messages and runs. One user submission has a stable request/idempotency ID and may start one run; retrying admission returns the same admitted run. Provider thread IDs are private continuation references, never conversation identity or authorization.
+
+Persist `Conversation` ownership, agent/host/workspace scope and revision; ordered `Message` content and visibility; `Run` origin-message link and terminal receipt; `ProviderSession` adapter/version/configuration/grant binding; and `RunEvent` sequence. Keep an explicit mapping between them. Initially serialize model turns within a conversation; concurrent client submissions queue visibly. Across conversations, apply existing worker budgets. `/new` creates a fresh conversation/session/workspace context without deleting the prior record or stopping unrelated work. Agent identity and policy remain; no prior transcript, attachment or working files enter implicitly. Approved agent-level memory, when enabled, is a separate inspectable retrieval source, not hidden reuse of an old session.
+
+Keep a bounded durable conversation workspace so a follow-up can revise its previous output. Original uploads and immutable artifact versions remain separate from writable working files. Stage explicit references to reusable agent Library resources rather than mount another conversation's workspace. Closing a disposable worker must not destroy retained conversation data. On resume, verify host, workspace, adapter, configuration and grants before reattaching continuation. If continuation is unavailable, report it and offer an explicit reconstruction from authorized visible records; never silently call a fresh session a successful resume.
+
+Native Codex owns its internal model loop and native compaction. AgentMeld owns visible transcripts, permissions, budgets, source-linked context selection and lifecycle records. Do not build a second model loop or attempt to export private reasoning. Persist context-source IDs/revisions and visible compaction summaries where supplied. A stale summary cannot override a correction, deletion or narrower grant.
+
+Activity is a rebuildable projection of normalized events, not a second execution state machine or generated diary. Include conversation, originating message, run, optional parent run/step, status, timestamp, bounded factual summary and artifact-version references. Use stable IDs plus replay cursors, distinguish progress from completion, and retain terminal entries. The inspector lists date-grouped work across the selected authorized agent/host scope; selecting an entry opens steps and deep-links to the originating conversation. Recheck access on every event/detail/file fetch. Missing upstream tool events remain missing/unknown; do not invent complete command histories from prose.
+
+### Storage authority and agent preferences
+
+Canonical relational records and immutable output metadata live in host-owned SQLite. Retained upload/output/source bytes live in scoped filesystem storage; derived thumbnails/search/activity projections are rebuildable. Browser profiles, provider state and secrets stay in separate protected stores. File names and artifact slugs are labels, not stable identity or access grants. Preserve source material for revisions while separately recording validation of the delivered bytes.
+
+Offer versioned Identity, Persona, User Profile, Memory and Proactivity preferences through the inspector/settings, with Markdown import/export. Imported or agent-proposed text cannot replace host policy, grants or tool permissions. Memory changes retain provenance, expected revisions, supersession and tombstones; existing owner-approved memory policy stays in force. Automatic maintenance proposes changes only after separate opt-in and budget admission. No file-based preference enables a schedule or connector by itself.
+
+### Client and device capability manifests
+
+Represent client rendering support separately from device command support. A paired device declares a versioned supported command set; effective access is intersected with current owner grants and OS permissions. Every host/device invocation carries explicit target identity and capability version; reject stale, unsupported, revoked or wrong-host requests. The Mac's local browser/files and the isolated Linux browser/workspace are different tool targets. Do not transfer browser cookies or grant host access merely because a device is paired. Native clients render unsupported states honestly and use the same durable conversation/event IDs as local web.
 
 ## 8. Run lifecycle and recovery
 

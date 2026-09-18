@@ -20,7 +20,7 @@ The complete direction includes Muse-like personal assistance and outputs, multi
 - Alpha applications on macOS, local browser and iOS. The iPhone over cellular and MacBook Air on the road control enrolled Mac hosts, including the Mac mini at home. Away-from-home control is required for alpha.
 - iMessage, WhatsApp, Windows, general remote browser access and other connectivity integrations follow alpha. See the [scope decision](../decisions/2026-09-18-apple-first-alpha.md).
 
-The original specification preceded implementation. M0 experiments now exist; see the roadmap for current evidence. The 2026-09-18 architecture audit updates local planning only and does not establish new product capabilities.
+M0 qualification and the local file-analysis POC are delivered; M1 and alpha remain incomplete. The [Muse documentation review](../research/muse-documentation-review.md) refines the plan and maps full functional coverage to milestones. It adds no implemented capabilities.
 
 ## 3. Product principles
 
@@ -38,7 +38,7 @@ The original specification preceded implementation. M0 experiments now exist; se
 
 | Person or actor | Intended experience | Boundary |
 | --- | --- | --- |
-| Self-hosting owner | Install, connect a provider, create an agent, inspect and recover work | Owns the instance; local-only alpha initially |
+| Self-hosting owner | Install, connect a provider, create an agent, inspect and recover work | Owns the instance; explicitly paired remote native clients are required for alpha |
 | Workspace member | Work with permitted agents, conversations, and artifacts | Access is checked for each resource and event |
 | Invited guest | Contribute to selected conversations and ask a shared agent for bounded work | No implicit access to private memory, browser sessions, host shell, or connections |
 | Contributor | Add a harness adapter, connector, skill, runtime provider, or UI improvement | Submitted code/packages confer no runtime access |
@@ -48,9 +48,11 @@ The original specification preceded implementation. M0 experiments now exist; se
 
 ## 5. Information architecture and visual direction
 
+The [UI/UX contract](../design/ui-ux-contract.md) owns screen states, object navigation, token candidates, tooltip/focus behavior and degraded-state acceptance. Values reconstructed by Muse remain proposals, not measured design tokens.
+
 Muse is the primary design baseline, per Brad’s 2026-09-18 direction. Preserve its restrained shell, conversation/composer proportions and contextual inspector; see the [observed design reference](../design/muse-baseline.md). Add host identity now and scoped collaboration controls later. The navigation below is an AgentMeld scope proposal, not a requirement to redesign Muse’s hierarchy or display unimplemented features.
 
-Deliver native macOS and iOS clients plus a local web client over one shared service. The first internal slice may use the web client to establish the interaction and API contracts. One narrow navigation rail opens **Chat, Activity, Library, Tasks, and Settings**. Chat is the default. An agent switcher scales from one assistant to multiple named agents without turning the first-run experience into a team-management dashboard. Search uses a command palette plus contextual results.
+Deliver native macOS and iOS clients plus a local web client over one shared service. The first internal slice may use the web client to establish the interaction and API contracts. Keep a narrow Muse-inspired navigation rail: **Chat** and **Library** first, **Search** when implemented, then **Feed, Ideas, Goals** as their capabilities ship. Activity belongs in the inspector, Upcoming owns scheduled work, and Settings is secondary navigation. Avoid duplicate Activity/Tasks destinations. Chat is the default. An agent switcher scales from one assistant to multiple named agents without turning the first-run experience into a team-management dashboard. Search uses a command palette plus contextual results.
 
 The conversation has a compact agent header, readable message column, attachment-aware composer, tool summaries, and inline approval requests. An optional right panel switches among **Computer, Activity, Approvals, Upcoming, and Identity**. On small screens the panel becomes a full-screen sheet with a persistent back control. Never compress all three columns onto a phone.
 
@@ -59,9 +61,9 @@ The conversation has a compact agent header, readable message column, attachment
 │ rail │ Agent · model · run state       │ Computer / Activity / …   │
 │      │                                 │                           │
 │ Chat │ Conversation                    │ Browser or current work   │
-│ Work │ Brief action summaries          │                           │
+│ Search│ Brief action summaries          │                           │
 │ Files│ Result with source / download   │ Needs your approval       │
-│ Tasks│                                 │ Exact action and scope    │
+│      │                                 │ Exact action and scope    │
 │      │ Message…       Attach    Send   │ Allow once / Deny         │
 └──────┴─────────────────────────────────┴───────────────────────────┘
 ```
@@ -156,6 +158,20 @@ The owner uses the macOS app, local browser or paired iOS app to select an enrol
 
 **Acceptance:** verify the same task and results across all three clients; phone background/reopen, network loss, stale/replayed commands, device revocation, server restart and Mac-offline status. A failed connection cannot appear as an accepted stop or approval. Qualify interactive browser viewing/control on the phone and disclose unsupported operations. Test on a physical iPhone. Away-from-home control is an alpha gate: qualify iPhone over cellular and MacBook Air over an external network controlling the home Mac mini. Enroll a second host and test wrong-host rejection, distinct credentials/files, concurrent clients and no automatic failover. The MacBook Air must work as a client without hosting its own execution VM.
 
+### P9. Conversation continuity, fresh context and linked activity
+
+Continue a selected chat with multiple messages and multiple runs. Revise a previously created report using retained authorized inputs and working sources. `/new` creates fresh conversation context, preserving the prior chat and results. Explicit agent preferences and approved memory are separate from the cleared conversation context; prior chat transcripts/files are not silently retrieved. When memory is enabled, explain that a new chat is not a memory deletion operation.
+
+**Acceptance:** two follow-up messages remain in one sidebar conversation and use the correct prior result. Reload and service restart preserve message order, continuation and artifact links. A second conversation cannot read the first workspace without an explicit authorized resource reference. Duplicate submission creates one run; simultaneous turns are queued visibly. Stop terminates the selected run, preserving completed outputs and earlier messages. An unavailable continuation is shown honestly.
+
+Activity lists recorded work across the selected agent's authorized conversations with date groups, outcome summaries, times and links to the exact originating message/run and artifact version. Details show recorded steps, including failures and stopped work. Reconnect/restart cannot duplicate entries. Unsupported native event details are labeled unavailable instead of fabricated. Full criteria: [B01–B07](../backlog.md).
+
+### P10. Inspectable agent state and reusable Library
+
+The owner edits versioned Identity, Persona and Profile, inspects approved Memory, and sees which capabilities and proactivity settings are enabled. Editing descriptive text cannot grant access or schedule work. The Library distinguishes inputs, retained build sources, immutable deliverable versions and later static pages/interactive apps. User-visible files show producer run, source references, validation status and access scope.
+
+**Acceptance:** an edit affects the next relevant run without altering grants; conflicting edits require revision checks. A report can be revised from preserved source, with earlier versions still accessible. File deletion, memory deletion, chat deletion, disconnection and full reset each state their distinct effects, including indexes, links and backup limits. Validate those effects before claiming them. Interactive app databases and public publication remain later milestones, with separate isolation and approval.
+
 ## 8. Efficiency and reliability objectives
 
 Measure control-plane overhead separately from CLI processes, browser/desktop, provider latency, and local model weights. Rust alone cannot establish product efficiency. The initial proposed budgets below must be validated on a declared 4-vCPU/8-GiB Linux reference host with fixture providers; they are design targets, not measurements.
@@ -170,7 +186,7 @@ Measure control-plane overhead separately from CLI processes, browser/desktop, p
 | Warm browser startup | p95 under 3 seconds; separately report cold-image startup |
 | Self-host default active runs | 2, configurable; serialize browser control per computer/profile |
 
-Record p50, p95, p99, maximum, failures, resource peaks, and hardware/image/model versions. Keep idle model calls at zero when no authorized background job is due. Use bounded tool output, demand-loaded tools, scoped retrieval, incremental event streaming, and a visible context/budget meter. Establish honest usage reporting: unknown costs remain unknown, never displayed as zero.
+Record p50, p95, p99, maximum, failures, resource peaks, and hardware/image/model versions. Keep idle model calls at zero when no authorized background job is due. Automatic memory/relationship/reflection jobs are off until explicitly enabled; require changed inputs, bounded cadence, per-job usage limits and foreground priority. Do not adopt Muse's reported hourly/nightly cadence by default. Use bounded tool output, demand-loaded tools, scoped retrieval, incremental event streaming, and a visible context/budget meter. Establish honest usage reporting: unknown costs remain unknown, never displayed as zero.
 
 ## 9. Open source and hosted business
 
@@ -198,4 +214,4 @@ A future custom model should start from an explicit workload, evaluations, and a
 
 ## 11. Research basis and limits
 
-[Product references](../research/product-reference.md) covers official Muse/Grok documentation and the observed Muse UI. [Reference projects](../research/reference-projects.md) covers pinned source inspection. [Runtime integrations](../research/runtime-integrations.md) covers official integration and isolation constraints. Proposed behavior is intentionally distinct from reference claims. No runnable app, performance validation, security certification, or product-parity test exists yet.
+[Product references](../research/product-reference.md) covers official Muse/Grok documentation and the observed Muse UI. [Reference projects](../research/reference-projects.md) covers pinned source inspection. [Runtime integrations](../research/runtime-integrations.md) covers official integration and isolation constraints. Proposed behavior is intentionally distinct from reference claims. The [local POC](../poc.md) runs real subscription-backed file tasks; [M0](../m0/completion-audit.md) supplies scoped runtime evidence. Full product parity, alpha acceptance and security certification are not established. The owner-supplied [Muse bundle review](../research/muse-documentation-review.md) distinguishes reported observations, proposed requirements and estimates; it is not Meta source-code access.

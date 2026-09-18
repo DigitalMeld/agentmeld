@@ -7,16 +7,20 @@ Keep discoveries and consequential changes here as work proceeds. Update the own
 Alpha is **Codex-only using ChatGPT subscription authentication**, with macOS, local web and iOS clients, multiple Mac hosts and required away-from-home control. Claude Code, Ollama and messaging integrations are post-alpha.
 
 - [Working local POC](poc.md): chat, attached files, real subscription-backed work, results and Stop. This is the current priority.
+- [Muse documentation bundle review](research/muse-documentation-review.md): source assessment, functional coverage and concrete plan changes.
+- [Muse interactive prototype review](research/muse-prototype-review.md): simulated journeys, source conflicts and concrete acceptance additions.
 - [Product feedback backlog](backlog.md): requested conversation, icon, tooltip and activity-history improvements with acceptance criteria.
 - [Scoped Codex event patch](m0/codex-command-event-patch.md): deferred qualification; not a POC prerequisite.
 - [M0 exit checklist](m0/exit-checklist.md): current gates, evidence and next action.
 - [Codex subscription qualification](m0/codex-subscription.md): supported login direction and unresolved execution boundary.
 
+- [UI/UX implementation contract](design/ui-ux-contract.md): screen/state inventory, navigation, proposed tokens, accessibility, client recovery and source adaptations.
 - [Muse design baseline](design/muse-baseline.md): observed Mac/web and supplied iPhone patterns, required adaptations and remaining interaction checks.
 
 - [Muse mobile reference](design/muse-mobile-reference.md): inventory of 22 supplied screenshots, public App Store examples and mobile design implications.
 - [Product specification](specs/product-spec.md): requirements and acceptance journeys.
 - [Architecture](specs/architecture.md): system boundaries and proposed contracts.
+- [Data implementation blueprint](specs/data-model.md): core ERD, draft SQL, all 195 source-relation dispositions, persistence rules and POC migration.
 - [Roadmap](specs/roadmap.md): sequence and exit criteria.
 - [Apple-first alpha decision](decisions/2026-09-18-apple-first-alpha.md): macOS, local web, iOS, multiple hosts and required away-from-home control.
 
