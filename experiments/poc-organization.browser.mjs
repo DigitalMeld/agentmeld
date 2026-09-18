@@ -30,10 +30,10 @@ try{
  await page.screenshot({path:'.local/m0/organized-archive.png'});
  await page.reload();await page.locator('#restoreChat').waitFor();assert.equal(await page.locator('#archiveChats').getAttribute('aria-pressed'),'true');
  await page.locator('#restoreChat').click();await page.waitForFunction(()=>!document.querySelector('#prompt').disabled);assert.equal(await page.locator('.historyItem .chatTitle').first().innerText(),'Renamed Alpha');
- await page.locator('#filesNav').click();await page.locator('#fileOptions summary').click();await page.locator('#fileType').selectOption('md');assert.equal(await page.locator('.libraryEntry').count(),2);assert.match(await page.locator('#fileSummary').innerText(),/^2 outputs/);
- await page.locator('#fileSort').selectOption('oldest');assert.match(await page.locator('.outputOrigin').first().innerText(),/Version 1/);
- await page.locator('#fileSort').selectOption('newest');assert.match(await page.locator('.outputOrigin').first().innerText(),/Version 2/);
- await page.locator('#fileOptions summary').click();
+ await page.locator('#filesNav').click();await page.locator('[data-category="documents"]').click();await page.locator('#fileSearch').fill('report.md');assert.equal(await page.locator('.libraryEntry').count(),2);assert.match(await page.locator('#fileSummary').innerText(),/^2 outputs/);
+ await page.locator('#fileOptions summary').click();await page.locator('[data-sort="oldest"]').click();assert.match(await page.locator('.outputOrigin').first().innerText(),/Version 1/);
+ await page.locator('#fileOptions summary').click();await page.locator('[data-sort="newest"]').click();assert.match(await page.locator('.outputOrigin').first().innerText(),/Version 2/);
+ await page.locator('#fileOptions summary').click();await page.screenshot({path:'.local/m0/artifacts-options.png'});assert.equal(await page.locator('#fileOptions select').count(),0);await page.keyboard.press('Escape');assert.equal(await page.locator('#fileOptions').getAttribute('open'),null);
  await page.locator('#libraryFiles .file').first().click();await page.locator('#preview[open]').waitFor();assert.equal(await page.locator('#previewBody h1').innerText(),'Revision');
  await page.locator('#previewSource').click();assert.match(await page.locator('#previewBody pre').innerText(),/^# Revision/);
  await page.locator('#previewVersion').selectOption(alpha.id);await page.waitForFunction(()=>document.querySelector('#previewBody h1')?.textContent==='Alpha');
@@ -49,12 +49,13 @@ try{
  await page.evaluate(()=>{document.querySelector('#conversation').style.removeProperty('height');document.querySelector('#conversation').style.removeProperty('flex');});
  await page.setViewportSize({width:1440,height:900});await page.locator('#filesNav').click();
  assert.equal(await page.locator('.history').isVisible(),false);assert.equal(await page.locator('#inspector').isVisible(),false);assert.equal(await page.locator('.top').isVisible(),false);
- assert.equal(await page.locator('#library #fileSearch').count(),0);assert.equal(await page.locator('#fileSidebar #fileSearch').isVisible(),true);
- await page.locator('[data-category="all"]').click();await page.waitForFunction(()=>document.querySelector('.thumbnailText')?.textContent.includes('Original output'));
+ assert.equal(await page.locator('#createArtifact').count(),0);assert.equal(await page.locator('#library #fileSearch').count(),0);assert.equal(await page.locator('#fileSidebar #fileSearch').isVisible(),true);
+ await page.locator('#fileSearch').fill('');await page.locator('[data-category="all"]').click();await page.waitForFunction(()=>document.querySelector('.thumbnailText')?.textContent.includes('Original output'));
  await page.screenshot({path:'.local/m0/artifacts-grid.png'});
  await page.locator('[data-category="documents"]').click();assert.equal(await page.locator('#libraryFiles').getAttribute('class'),'artifactList');await page.screenshot({path:'.local/m0/artifacts-documents.png'});
  await page.locator('[data-category="system"]').click();assert.equal(await page.locator('#libraryFiles tbody tr').count(),3);assert.equal(await page.locator('#systemScope').isVisible(),true);await page.screenshot({path:'.local/m0/artifacts-system.png'});
- await page.locator('[data-category="images"]').click();assert.equal(await page.locator('.libraryEntry').count(),0);
+ for(const category of ['web','images','videos','audio']){await page.locator('[data-category="'+category+'"]').click();assert.equal(await page.locator('.libraryEntry').count(),0);assert.equal(await page.locator('.libraryEmpty svg').count(),0);assert.equal(await page.locator('.libraryEmpty h2').innerText(),'Nothing created yet');}
+ await page.screenshot({path:'.local/m0/artifacts-empty.png'});
  await page.locator('[data-category="all"]').click();await page.keyboard.press('Control+k');assert.equal(await page.locator('#fileSearch').evaluate(e=>e===document.activeElement),true);await page.keyboard.press('Escape');
  await page.locator('#libraryChat').click();assert.equal(await page.locator('#prompt').isVisible(),true);assert.equal(await page.locator('.history').isVisible(),false);
  await page.locator('#prompt').fill('Draft beside files');await page.locator('#fileChatClose').click();await page.locator('#libraryChat').click();assert.equal(await page.locator('#prompt').inputValue(),'Draft beside files');

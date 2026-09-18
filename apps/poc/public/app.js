@@ -7,7 +7,7 @@ let token=location.hash.slice(1)||sessionStorage.getItem('agentmeld-token')||'';
 if(token){sessionStorage.setItem('agentmeld-token',token);history.replaceState(null,'',location.pathname);}
 window.addEventListener('hashchange',()=>{if(location.hash.length>1){token=location.hash.slice(1);sessionStorage.setItem('agentmeld-token',token);history.replaceState(null,'',location.pathname);error();refresh();}});
 let state={tasks:[],conversations:[],active:null},selected=null,files=[],view='chat',lastRender='';
-let fileCategory='all',fileLayout='grid',fileChatOpen=false;
+let fileCategory='all',fileLayout='grid',fileSort='newest',fileChatOpen=false;
 const categories={all:'All artifacts',documents:'Documents',web:'Web artifacts',images:'Images',videos:'Videos',audio:'Podcasts',system:'System files'};
 const categoryExtensions={documents:['md','txt','csv','json','pdf','docx'],web:['html','htm'],images:['png','jpg','jpeg','gif','webp','svg'],videos:['mp4','mov','webm'],audio:['mp3','wav','m4a','ogg']};
 let restoreSelection=true,lastHistory='',showArchived=false;
@@ -45,17 +45,19 @@ const draftKey=()=>selected||'new';
 function rememberDraft(){const key=draftKey(),draft=drafts.get(key)||{};Object.assign(draft,{text:$('prompt').value,files,scroll:$('conversation').scrollTop});drafts.set(key,draft);}
 function selectConversation(id){document.querySelector('.history').classList.remove('open');rememberDraft();selected=id;showArchived=!!state.conversations.find(c=>c.id===id)?.archived;saveSelection();const d=drafts.get(draftKey());$('prompt').value=d?.text||'';files=d?.files||[];lastRender='';showChat();$('conversation').scrollTop=d?.scroll||0;error();}
 function newTask(){rememberDraft();drafts.delete('new');selected=null;showArchived=false;saveSelection();files=[];$('prompt').value='';lastRender='';document.querySelector('.history').classList.remove('open');error();showChat();$('prompt').focus();}
-$('chatSearch').oninput=()=>render();$('fileSearch').oninput=()=>render();$('archiveChats').onclick=()=>{showArchived=!showArchived;render();};$('fileType').onchange=()=>render();$('fileSort').onchange=()=>render();$('activitySearch').oninput=()=>renderActivity();
+$('chatSearch').oninput=()=>render();$('fileSearch').oninput=()=>render();$('archiveChats').onclick=()=>{showArchived=!showArchived;render();};$('activitySearch').oninput=()=>renderActivity();
 $('attach').onclick=()=>$('upload').click();
 $('newChat').onclick=newTask;$('mobileNew').onclick=newTask;
 $('chatNav').onclick=()=>{showChat();if(matchMedia('(max-width:720px)').matches)document.querySelector('.history').classList.toggle('open');};$('filesNav').onclick=()=>{view='files';document.querySelector('.history').classList.remove('open');render();};
-for(const button of document.querySelectorAll('[data-category]')){button.insertAdjacentHTML('afterbegin',icon(button.dataset.symbol));button.onclick=()=>{fileCategory=button.dataset.category;if(fileCategory==='documents')fileLayout='list';else if(fileCategory==='all')fileLayout='grid';$('fileType').value='all';$('fileSidebar').classList.remove('open');render();};}
-for(const button of document.querySelectorAll('[data-layout]'))button.onclick=()=>{fileLayout=button.dataset.layout;render();};
+for(const button of document.querySelectorAll('[data-category]')){button.insertAdjacentHTML('afterbegin',icon(button.dataset.symbol));button.onclick=()=>{fileCategory=button.dataset.category;if(fileCategory==='documents')fileLayout='list';else if(fileCategory==='all')fileLayout='grid';$('fileSidebar').classList.remove('open');render();};}
+function closeFileOptions(){$('fileOptions').open=false;$('fileOptions').querySelector('summary').focus();}
+for(const button of document.querySelectorAll('[data-layout]'))button.onclick=()=>{fileLayout=button.dataset.layout;render();closeFileOptions();};
+for(const button of document.querySelectorAll('[data-sort]'))button.onclick=()=>{fileSort=button.dataset.sort;render();closeFileOptions();};
+document.addEventListener('click',e=>{if(!$('fileOptions').contains(e.target))$('fileOptions').open=false;});
 $('libraryMenu').onclick=()=>$('fileSidebar').classList.toggle('open');
 $('libraryChat').onclick=()=>{fileChatOpen=!fileChatOpen;render();if(fileChatOpen)$('prompt').focus();};
 $('fileChatClose').onclick=()=>{fileChatOpen=false;render();$('libraryChat').focus();};
 $('fileChatNew').onclick=()=>{newTask();view='files';fileChatOpen=true;render();$('prompt').focus();};
-$('createArtifact').onclick=()=>{fileChatOpen=true;render();$('prompt').focus();};
 $('activityFilter').onchange=()=>renderActivity();
 $('closeActivity').onclick=()=>{$('inspector').classList.remove('open');$('inspector').classList.add('closed');$('details').focus();};
 $('details').onclick=()=>{const panel=$('inspector');if(matchMedia('(min-width:1001px)').matches)panel.classList.toggle('closed');else{panel.classList.remove('closed');panel.classList.toggle('open');}};
@@ -90,8 +92,8 @@ function render(){
   $('chatSurface').hidden=!chatVisible;$('fileChatHeader').hidden=!inFiles;
   $('libraryChat').setAttribute('aria-pressed',String(fileChatOpen));$('libraryChat').setAttribute('aria-label',fileChatOpen?'Hide chat':'Show chat');
   $('libraryTitle').textContent=categories[fileCategory];$('systemScope').hidden=fileCategory!=='system';
-  $('createArtifact').hidden=fileCategory==='system';
   for(const b of document.querySelectorAll('[data-category]')){b.classList.toggle('selected',b.dataset.category===fileCategory);b.setAttribute('aria-current',b.dataset.category===fileCategory?'page':'false');}
+  for(const b of document.querySelectorAll('[data-sort]'))b.setAttribute('aria-pressed',String(b.dataset.sort===fileSort));
   for(const b of document.querySelectorAll('[data-layout]'))b.setAttribute('aria-pressed',String(b.dataset.layout===fileLayout));
   $('libraryFiles').className=fileCategory==='system'?'systemTable':fileLayout==='grid'?'artifactGrid':'artifactList';
   $('chatHeading').textContent=showArchived?'Archived':'Chats';
@@ -116,9 +118,9 @@ function render(){
   renderActivity();if($('runDetails').open)renderDetails();
   $('taskFiles').innerHTML=task?.artifacts.length?task.artifacts.map(f=>fileButton(task,f)).join(''):'Finished files will appear here.';
   const fileQuery=$('fileSearch').value.trim().toLocaleLowerCase();
-  const outputs=visibleOutputs(state,fileQuery,$('fileType').value,$('fileSort').value).filter(e=>!categoryExtensions[fileCategory]||categoryExtensions[fileCategory].includes(e.file.name.split('.').pop().toLowerCase()));
+  const outputs=visibleOutputs(state,fileQuery,'all',fileSort).filter(e=>!categoryExtensions[fileCategory]||categoryExtensions[fileCategory].includes(e.file.name.split('.').pop().toLowerCase()));
   $('fileSummary').textContent=outputs.length+' outputs · '+formatBytes(outputs.reduce((sum,e)=>sum+e.file.size,0));
-  const libraryContent=fileCategory==='system'?'<table><thead><tr><th>Name</th><th>Type</th><th>Created</th><th>Size</th></tr></thead><tbody>'+outputs.map(({task:t,file:f})=>'<tr><td>'+fileButton(t,f)+'</td><td>'+esc(f.name.split('.').pop().toUpperCase())+'</td><td>'+esc(new Date(t.createdAt).toLocaleDateString())+'</td><td>'+formatBytes(f.size)+'</td></tr>').join('')+'</tbody></table>'+(outputs.length?'':'<p class="muted">No retained workspace files.</p>'):outputs.map(({task:t,file:f,title,version})=>'<article class="libraryEntry"><button class="artifactThumbnail" data-task="'+t.id+'" data-file="'+esc(f.name)+'" aria-label="Preview '+esc(f.name)+'"><span class="thumbnailText" data-thumbnail-task="'+t.id+'" data-thumbnail-name="'+esc(f.name)+'">'+esc(f.name)+'</span></button>'+fileButton(t,f)+'<button class="outputOrigin" data-jump="'+t.id+'">'+esc(title)+' · Version '+version+' · '+esc(new Date(t.createdAt).toLocaleString())+'</button></article>').join('')||'<div class="libraryEmpty">'+icon('artifacts')+'<h2>'+(fileQuery?'No matching files':'Nothing created yet')+'</h2><p>Documents and other things you create will appear here.</p></div>';
+  const libraryContent=fileCategory==='system'?'<table><thead><tr><th>Name</th><th>Type</th><th>Created</th><th>Size</th></tr></thead><tbody>'+outputs.map(({task:t,file:f})=>'<tr><td>'+fileButton(t,f)+'</td><td>'+esc(f.name.split('.').pop().toUpperCase())+'</td><td>'+esc(new Date(t.createdAt).toLocaleDateString())+'</td><td>'+formatBytes(f.size)+'</td></tr>').join('')+'</tbody></table>'+(outputs.length?'':'<p class="muted">No retained workspace files.</p>'):outputs.map(({task:t,file:f,title,version})=>'<article class="libraryEntry"><button class="artifactThumbnail" data-task="'+t.id+'" data-file="'+esc(f.name)+'" aria-label="Preview '+esc(f.name)+'"><span class="thumbnailText" data-thumbnail-task="'+t.id+'" data-thumbnail-name="'+esc(f.name)+'">'+esc(f.name)+'</span></button>'+fileButton(t,f)+'<button class="outputOrigin" data-jump="'+t.id+'">'+esc(title)+' · Version '+version+' · '+esc(new Date(t.createdAt).toLocaleString())+'</button></article>').join('')||'<div class="libraryEmpty"><h2>'+(fileQuery?'No matching files':'Nothing created yet')+'</h2><p>Documents and other things you create will appear here.</p></div>';
   if(libraryContent!==lastLibrary){$('libraryFiles').innerHTML=libraryContent;lastLibrary=libraryContent;}
   if(inFiles)loadThumbnails();
   const stoppable=turns.find(t=>['running','cancelling','queued'].includes(t.status));
@@ -172,7 +174,7 @@ $('shortcutHelp').onclick=()=>$('shortcuts').showModal();$('closeShortcuts').onc
 document.addEventListener('keydown',e=>{
   if(e.defaultPrevented||e.isComposing||document.querySelector('dialog[open]'))return;
   if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='k'){e.preventDefault();if(view==='files'){$('fileSidebar').classList.add('open');$('fileSearch').focus();}else{document.querySelector('.history').classList.add('open');$('chatSearch').focus();}}
-  if(e.key==='Escape'){if($('fileSidebar').classList.contains('open')){$('fileSidebar').classList.remove('open');$('libraryMenu').focus();}else if(view==='files'&&fileChatOpen){$('fileChatClose').click();}else if(document.querySelector('.history').classList.contains('open')){document.querySelector('.history').classList.remove('open');$('chatNav').focus();}else if($('inspector').classList.contains('open'))$('closeActivity').click();}
+  if(e.key==='Escape'){if($('fileOptions').open){closeFileOptions();}else if($('fileSidebar').classList.contains('open')){$('fileSidebar').classList.remove('open');$('libraryMenu').focus();}else if(view==='files'&&fileChatOpen){$('fileChatClose').click();}else if(document.querySelector('.history').classList.contains('open')){document.querySelector('.history').classList.remove('open');$('chatNav').focus();}else if($('inspector').classList.contains('open'))$('closeActivity').click();}
 });
 window.addEventListener('beforeunload',e=>{if($('prompt').value||files.length||[...drafts.entries()].some(([key,d])=>d.pending||(key!==draftKey()&&(d.text||d.files?.length)))){e.preventDefault();e.returnValue='';}});
 function updateLatest(){$('latestBar').hidden=(view!=='chat'&&!fileChatOpen)||!selected||$('conversation').scrollHeight-$('conversation').scrollTop-$('conversation').clientHeight<150;}
