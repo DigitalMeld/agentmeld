@@ -54,3 +54,5 @@ For a meaningful change, record the reason, affected behavior, evidence/checks, 
 - [Composer refinements](design/composer-refinements.md): clipboard attachments, removal undo, focus stability and unfinished new-chat draft recovery.
 
 - [Run details polish](design/run-details-polish.md): contextual run navigation, compact controls, focus restoration and quieter history.
+
+- [File preview recovery](design/preview-recovery.md): retry, cancellation, focus, media lifetime and workspace loading states.
