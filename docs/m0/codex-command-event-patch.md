@@ -65,7 +65,7 @@ after qualification; see [build storage](build-storage.md).
 
 Experimental image: `sha256:fdd0e186168169deb31435a37bbe11771960804a40b3193149bbe996c750bc26`.
 Stripped binary SHA-256: `cf2131e5cc8a444fea6d610d46082e600f270d8ba33a724b92adc678f9516887`.
-The last selected `agentmeld-m0:local` image was unpatched. After build cleanup and VM restart, neither baseline nor candidate is present locally; see [storage readback](build-storage.md#regression-build-cleanup-readback). The hashes below identify tested historical artifacts.
+The last selected `agentmeld-m0:local` image was unpatched. After build cleanup and VM restart both images were absent. The baseline has since been rebuilt and passes restart verification; the candidate remains absent. See [storage readback](build-storage.md#baseline-recovery-and-restart-verification). The hashes below identify tested historical artifacts.
 
 - Offline command matrix: all four exit 0/23 and feature-flag cases pass. Each
   case reports exactly one command-result item with the expected exit code and
