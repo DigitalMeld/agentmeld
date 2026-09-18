@@ -34,7 +34,7 @@ try{
  await page.locator('#fileOptions summary').click();await page.locator('[data-sort="oldest"]').click();assert.match(await page.locator('.outputOrigin').first().innerText(),/Version 1/);
  await page.locator('#fileOptions summary').click();await page.locator('[data-sort="newest"]').click();assert.match(await page.locator('.outputOrigin').first().innerText(),/Version 2/);
  await page.locator('#fileOptions summary').click();await page.screenshot({path:'.local/m0/artifacts-options.png'});assert.equal(await page.locator('#fileOptions select').count(),0);await page.keyboard.press('Escape');assert.equal(await page.locator('#fileOptions').getAttribute('open'),null);
- await page.locator('#libraryFiles .file').first().click();await page.locator('#preview[open]').waitFor();assert.equal(await page.locator('#previewBody h1').innerText(),'Revision');
+ await page.locator('#libraryFiles .file').first().click();await page.locator('#preview[open][aria-busy="false"]').waitFor();assert.equal(await page.locator('#previewBody h1').innerText(),'Revision');
  await page.locator('#previewSource').click();assert.match(await page.locator('#previewBody pre').innerText(),/^# Revision/);
  await page.locator('#previewVersion').selectOption(alpha.id);await page.waitForFunction(()=>document.querySelector('#previewBody h1')?.textContent==='Alpha');
  await page.screenshot({path:'.local/m0/organized-preview.png'});
@@ -72,7 +72,7 @@ try{
   for(const layout of ['grid','list']){await page.locator('#fileOptions summary').click();await page.locator('[data-layout="'+layout+'"]').click();assert.equal(await page.locator('#libraryFiles').getAttribute('class'),layout==='grid'?'artifactGrid':'artifactList');}
   await page.locator('#fileOptions summary').click();await page.locator('[data-layout="grid"]').click();
  }
- await page.locator('[data-category="images"]').click();await page.locator('#libraryFiles .file').first().click();await page.locator('#preview[open]').waitFor();await page.waitForFunction(()=>document.querySelector('.fileImage')?.naturalWidth===1);await page.locator('#closePreview').click();
+ await page.locator('[data-category="images"]').click();await page.locator('#libraryFiles .file').first().click();await page.locator('#preview[open][aria-busy="false"]').waitFor();await page.waitForFunction(()=>document.querySelector('.fileImage')?.naturalWidth===1);await page.locator('#closePreview').click();
  await page.locator('[data-category="all"]').click();await page.locator('#fileOptions summary').click();await page.locator('[data-sort="opened"]').click();assert.ok((await page.locator('#libraryFiles .file').first().innerText()).includes('image.gif'));
  await page.locator('[data-category="documents"]').click();assert.equal(await page.locator('#libraryFiles').getAttribute('class'),'artifactGrid');assert.equal(await page.locator('.artifactThumbnail').first().isVisible(),true);
  await page.screenshot({path:'.local/m0/documents-grid.png'});
@@ -80,7 +80,7 @@ try{
  assert.equal(await page.locator('.artifactThumbnail').first().isVisible(),false);assert.equal(await page.locator('#libraryFiles').evaluate(e=>getComputedStyle(e).display),'block');await page.screenshot({path:'.local/m0/documents-list.png'});
  await page.locator('#fileOptions summary').click();await page.locator('[data-sort="name"]').click();await page.reload();await page.locator('#filesNav').click();await page.locator('[data-category="documents"]').click();assert.equal(await page.locator('#libraryFiles').getAttribute('class'),'artifactList');assert.equal(await page.locator('[data-sort="name"]').getAttribute('aria-pressed'),'true');
  await page.locator('[data-category="system"]').click();await page.waitForFunction(()=>document.querySelector('#workspaceStatus').textContent.includes('All saved files'));
- await page.locator('[data-folder="nested"]').click();assert.equal(await page.locator('#libraryFiles tbody tr').count(),1);await page.locator('[data-workspace-file="nested/helper.js"]').click();await page.locator('#preview[open]').waitFor();assert.match(await page.locator('#previewBody').innerText(),/const helper = true/);
+ await page.locator('[data-folder="nested"]').click();assert.equal(await page.locator('#libraryFiles tbody tr').count(),1);await page.locator('[data-workspace-file="nested/helper.js"]').click();await page.locator('#preview[open][aria-busy="false"]').waitFor();assert.match(await page.locator('#previewBody').innerText(),/const helper = true/);
  const workspaceDownload=page.waitForEvent('download');await page.locator('#downloadFile').click();assert.equal(await readFile(await(await workspaceDownload).path(),'utf8'),'const helper = true;');await page.locator('#closePreview').click();
  await page.locator('#workspaceUp').click();await page.locator('#showHiddenFiles').uncheck();assert.equal(await page.locator('[data-workspace-file=".notes"]').count(),0);await page.locator('#showHiddenFiles').check();assert.equal(await page.locator('[data-workspace-file=".notes"]').count(),1);
  await page.locator('#fileSearch').fill('helper');assert.equal(await page.locator('[data-workspace-file="nested/helper.js"]').count(),1);await page.locator('#fileSearch').fill('');

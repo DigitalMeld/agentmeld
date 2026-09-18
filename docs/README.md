@@ -46,3 +46,5 @@ For a meaningful change, record the reason, affected behavior, evidence/checks, 
 - [Artifact actions and previews](design/artifact-actions.md): selection/export, latest versions and safe previews, with behavior and verification boundaries.
 
 - [Conversation discovery and activity navigation](design/conversation-navigation.md): 24 improvements to search, reply formatting, request reuse and run inspection.
+
+- [File reading and workspace navigation](design/file-reading.md): in-preview search, wrapping, load states, sortable workspace tables and keyboard navigation.

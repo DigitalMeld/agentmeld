@@ -45,3 +45,11 @@ test('workspace endpoints are authenticated, exact-scoped and durable across res
  assert.equal((await(await fetch(app.origin+path,{headers})).json()).entries.length,4);
  }finally{if(app)await app.shutdown();await rm(directory,{recursive:true,force:true});}
 });
+
+test('workspace sorts keep folders first, use numeric names and honor direction',()=>{
+ const entries=[{name:'z',directory:true},{name:'item10.txt',size:10,modifiedAt:'2026-01-02'},{name:'item2.json',size:2,modifiedAt:'2026-01-01'}];
+ assert.deepEqual(browseWorkspace(entries,'','',true,'size',true).map(e=>e.name),['z','item10.txt','item2.json']);
+ assert.deepEqual(browseWorkspace(entries,'','',true,'modified').map(e=>e.name),['z','item2.json','item10.txt']);
+ assert.deepEqual(browseWorkspace(entries,'','',true,'type').map(e=>e.name),['z','item2.json','item10.txt']);
+ assert.equal(entries[0].name,'z');
+});

@@ -124,3 +124,7 @@ The [24-improvement artifact actions batch](design/artifact-actions.md) adds sel
 ## Conversation discovery and richer activity
 
 The [24-improvement conversation navigation batch](design/conversation-navigation.md) expands local chat/result search, transcript Find, safe reply formatting, draft-preserving request reuse, activity filters and recorded run inspection/export. Native command-event history and persisted drafts remain separate work.
+
+## File reading checkpoint
+
+The [file reading batch](design/file-reading.md) adds 24 read-only usability improvements to retained output previews and the saved System Files workspace browser, including search, wrapping, reliable loading states, sort controls, persistent hidden-file visibility and workspace preview navigation. It does not expand execution or filesystem authority.
