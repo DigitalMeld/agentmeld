@@ -82,14 +82,18 @@ input[type=text]:focus{outline:none;border-color:var(--accent)}
   padding:18px 20px;margin:0 0 20px;font-size:15px}
 .err p{color:var(--muted);margin:0 0 6px}
 .err p strong{color:var(--bad)}
-.note{background:var(--panel);border:1px solid var(--border-subtle);border-left:3px solid var(--accent);
-  border-radius:0 14px 14px 0;padding:16px 20px;margin:0 0 20px;font-size:15px}
-.tag{display:inline-block;font-size:12px;color:var(--accent);background:var(--accent-wash);
-  border-radius:999px;padding:3px 12px;margin-bottom:12px;letter-spacing:.02em}
-.approval{border:1px solid var(--border);border-radius:16px;padding:20px 22px;margin:0 0 12px;background:var(--panel)}
-.approval h3{margin:0 0 4px;font-size:16px}
-.kv{font-size:14px;color:var(--faint);margin:2px 0}
-.kv b{color:var(--muted);font-weight:600}
+.note{background:var(--panel);border:1px solid var(--border-subtle);border-radius:14px;padding:16px 20px;margin:0 0 20px;font-size:15px}
+.approval{border:1px solid var(--border-subtle);border-radius:18px;margin:0 0 20px;background:var(--panel);overflow:hidden}
+.appr-head{display:flex;gap:14px;align-items:center;padding:20px 22px 16px;border-bottom:1px solid var(--border-subtle)}
+.appr-ic{width:38px;height:38px;flex:none;border-radius:50%;background:rgba(216,179,106,.12);color:var(--warn);display:flex;align-items:center;justify-content:center;font-size:16px}
+.appr-head strong{display:block;font-size:16px;letter-spacing:-.01em}
+.appr-sub{font-size:13px;color:var(--faint)}
+.appr-action{padding:18px 22px 4px;font-size:17px;color:var(--text)}
+.appr-meta{padding:10px 22px 4px}
+.appr-meta div{display:flex;gap:12px;padding:7px 0;font-size:14px}
+.appr-meta span{color:var(--faint);width:58px;flex:none}
+.appr-meta b{color:var(--muted);font-weight:500}
+.appr-btns{display:flex;justify-content:flex-end;gap:10px;padding:14px 22px 20px}
 .lab{margin-top:36px;border:1px dashed var(--border);border-radius:14px;padding:14px 18px;font-size:13.5px;color:var(--faint)}
 .lab summary{cursor:pointer;color:var(--muted);font-size:14px}
 .lab .row{margin-top:14px}
@@ -102,8 +106,13 @@ input[type=text]:focus{outline:none;border-color:var(--accent)}
 .hero-ok{text-align:center;padding:16px 0 8px}
 .hero-ok .big{font-size:46px;color:var(--good)}
 .hero-ok h1{margin-top:6px}
-.recap{background:var(--panel);border:1px solid var(--border-subtle);border-radius:16px;padding:20px 24px;margin:0 0 24px}
-.recap .kv{font-size:15px;margin:6px 0}
+.recap{list-style:none;background:var(--panel);border:1px solid var(--border-subtle);border-radius:16px;padding:8px 24px;margin:0 0 24px}
+.recap li{display:flex;gap:12px;align-items:center;padding:11px 0;border-bottom:1px solid var(--border-subtle);font-size:15px;color:var(--muted)}
+.recap li:last-child{border-bottom:none}
+.recap li strong{color:var(--text)}
+.ok{color:var(--good)}
+.warn{color:var(--warn)}
+.center{text-align:center}
 .fine{font-size:13.5px;color:var(--faint);margin-top:16px}
 .attach{font-size:13.5px;color:var(--muted);border:1px solid var(--border);border-radius:9px;padding:7px 12px}
 /* ---- app shell: chat ---- */
@@ -155,6 +164,31 @@ input[type=text]:focus{outline:none;border-color:var(--accent)}
 .hint{font-size:13px;color:var(--faint);margin-top:12px;text-align:center}
 .nextstep{margin-top:6px}
 .inmsg-actions{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+/* ---- v5 ---- */
+.devcode{border:1px solid var(--border-subtle);border-radius:18px;background:var(--panel);padding:30px 24px 24px;margin:0 0 20px;text-align:center}
+.devcode-code{display:flex;align-items:center;justify-content:center;gap:16px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:32px;letter-spacing:.14em;color:var(--text)}
+.copybtn{display:inline-flex;align-items:center;gap:8px;background:var(--panel2);border:1px solid var(--border);border-radius:10px;color:var(--muted);font-size:13.5px;padding:8px 14px;letter-spacing:0;cursor:pointer;font-family:inherit}
+.copybtn:hover{color:var(--text);border-color:#3b3b47}
+.devcode-exp{margin-top:14px;font-size:13px;color:var(--faint)}
+.agentrow{display:flex;gap:18px;align-items:center;margin:8px 0 12px}
+.avatar.big{width:58px;height:58px;font-size:22px}
+.field{flex:1;min-width:0}
+.field label{display:block;font-size:13.5px;color:var(--muted);margin:0 0 8px}
+.disclose{max-width:560px;margin:0 auto;padding:20px 0 8px;text-align:center}
+.dmark{width:64px;height:64px;margin:0 auto 28px}
+.dmark svg{width:100%;height:100%}
+.disclose h1{margin-bottom:40px}
+.dfacts{list-style:none;padding:0;margin:0 0 36px;text-align:left}
+.dfacts li{display:flex;gap:18px;padding:0 0 28px}
+.dfacts li:last-child{padding-bottom:0}
+.dic{width:28px;height:28px;flex:none;color:var(--muted);margin-top:3px}
+.dic svg{width:100%;height:100%}
+.dfacts strong{display:block;font-size:17px;margin-bottom:6px;letter-spacing:-.01em;color:var(--text)}
+.dfacts p{font-size:15px;margin:0}
+.dterms{font-size:13.5px;color:var(--faint);margin:0 0 28px;line-height:1.7}
+.dterms a{color:var(--accent);text-decoration:none}
+.dterms a:hover{text-decoration:underline}
+button.big{width:100%;padding:15px;font-size:16px;border-radius:14px}
 </style>
 </head>
 <body>
@@ -215,9 +249,9 @@ input[type=text]:focus{outline:none;border-color:var(--accent)}
   <section class="screen" data-stage="2" id="s-deviceflow">
     <h1>Sign in to ChatGPT</h1>
     <p class="lede">Enter this code on the ChatGPT device page in your browser, then come back here.</p>
-    <div class="code"><span id="dev-code">KQRT-4821</span>
-      <div class="copyrow"><button class="small ghost" id="dev-copy">Copy code</button></div>
-      <small>Expires in <span id="dev-count">09:59</span></small>
+    <div class="devcode">
+      <div class="devcode-code"><span id="dev-code">KQRT-4821</span><button class="copybtn" id="dev-copy"><span aria-hidden="true">&#10697;</span><span id="dev-copy-label">Copy</span></button></div>
+      <div class="devcode-exp">Expires in <span id="dev-count">09:59</span></div>
     </div>
     <p class="statusline" id="dev-status"><span class="spin"></span>&nbsp; Waiting for you to sign in…</p>
     <div class="row">
@@ -279,18 +313,20 @@ input[type=text]:focus{outline:none;border-color:var(--accent)}
       <li><span class="mk">3</span><span>You approve each action as it comes: <strong>allow once</strong>, set a standing rule for a specific action, or deny. Every decision is recorded and revocable in Settings.</span></li>
     </ul>
     <div class="approval">
-      <span class="tag">Example — nothing will run</span>
-      <h3>Approval needed</h3>
-      <dl class="kv">
-        <dt>Agent · host</dt><dd><strong>Assistant</strong> · this Mac</dd>
-        <dt>Action</dt><dd>Save <strong>report.md</strong> to Downloads</dd>
-        <dt>Scope</dt><dd>This file only, this once</dd>
-      </dl>
-      <div class="row left" style="margin-top:6px">
-        <button class="small" id="ex-deny">Deny</button>
-        <button class="small primary" id="ex-allow">Allow once</button>
+      <div class="appr-head">
+        <div class="appr-ic">&#9679;</div>
+        <div><strong>Approval needed</strong><span class="appr-sub">Example &mdash; nothing will run</span></div>
       </div>
-      <p id="ex-result" class="hint"></p>
+      <div class="appr-action">Save <strong>report.md</strong> to Downloads</div>
+      <div class="appr-meta">
+        <div><span>Agent</span><b>Assistant &middot; this Mac</b></div>
+        <div><span>Scope</span><b>This file only, this once</b></div>
+      </div>
+      <div class="appr-btns">
+        <button class="ghost" id="ex-deny">Deny</button>
+        <button class="primary" id="ex-allow">Allow once</button>
+      </div>
+      <p id="ex-result" class="hint" style="padding:0 22px 18px"></p>
     </div>
     <div class="row"><button class="primary" data-go="s-agent">Continue</button></div>
   </section>
@@ -299,10 +335,30 @@ input[type=text]:focus{outline:none;border-color:var(--accent)}
   <section class="screen" data-stage="4" id="s-agent">
     <h1>Name your agent</h1>
     <p class="lede">This is the agent you'll talk to. You can rename it and edit how it describes itself later in Settings.</p>
-    <label for="agent-name">Agent name</label>
-    <input type="text" id="agent-name" value="Assistant" maxlength="60" autocomplete="off">
+    <div class="agentrow">
+      <div class="avatar big" id="agent-avatar">A</div>
+      <div class="field">
+        <label for="agent-name">Agent name</label>
+        <input type="text" id="agent-name" value="Assistant" maxlength="60" autocomplete="off">
+      </div>
+    </div>
     <p class="hint">Pick anything — a name, a role, a joke only you get.</p>
     <div class="row"><button class="primary" id="agent-create">Create agent</button></div>
+  </section>
+
+  <!-- 5b · Disclosures -->
+  <section class="screen" data-stage="5" id="s-disclosures">
+    <div class="disclose">
+      <div class="dmark"><svg viewBox="0 0 64 64" aria-hidden="true"><rect x="6" y="6" width="52" height="52" rx="16" fill="rgba(154,143,240,.12)"/><path d="M20 40l7-14 6 9 5-6 6 11" fill="none" stroke="#9a8ff0" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      <h1>A few things to know</h1>
+      <ul class="dfacts">
+        <li><span class="dic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 3l7 3v5c0 4.5-3 7.6-7 9-4-1.4-7-4.5-7-9V6l7-3z"/><path d="M9 11.5l2.2 2.2 4.3-4.7"/></svg></span><div><strong>Can take actions for you</strong><p>With your approval, your agent can send messages, make purchases, and take actions in apps you've connected. It can make mistakes or take unexpected actions, so review its work.</p></div></li>
+        <li><span class="dic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg></span><div><strong>Keeps working when you leave</strong><p>Your agent can keep working even after you've closed the app. Check in to keep it on track, and step in any time.</p></div></li>
+        <li><span class="dic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="5.5" y="10.5" width="13" height="9.5" rx="2.5"/><path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5"/></svg></span><div><strong>Stays in your control</strong><p>Choose which apps to connect, what your agent may access, and which actions need your approval — all in Settings.</p></div></li>
+      </ul>
+      <p class="dterms">By continuing, you agree to the <a href="#" class="dead">AgentMeld Terms</a> and <a href="#" class="dead">AgentMeld AI Terms</a>, which include important information about your rights and responsibilities. Learn more about our approach to privacy in the <a href="#" class="dead">AgentMeld Privacy Policy</a>.</p>
+      <button class="primary big" id="disclose-go">Get started</button>
+    </div>
   </section>
 
   <!-- 6 · Chat: first task pre-filled -->
@@ -358,7 +414,10 @@ input[type=text]:focus{outline:none;border-color:var(--accent)}
   <section class="screen" data-stage="6" id="s-paircode">
     <h1>Pairing your iPhone</h1>
     <p class="lede">Enter this code in the AgentMeld app on your iPhone:</p>
-    <div class="code">731 942<small>Expires in <span id="pair-count">04:59</span></small></div>
+    <div class="devcode">
+      <div class="devcode-code"><span>731 942</span></div>
+      <div class="devcode-exp">Expires in <span id="pair-count">04:59</span></div>
+    </div>
     <div class="row">
       <button class="ghost" data-go="s-pair">Cancel</button>
       <button class="primary" id="pair-done-btn">Simulate: phone paired</button>
@@ -382,9 +441,9 @@ input[type=text]:focus{outline:none;border-color:var(--accent)}
 
   <!-- 8 · Done -->
   <section class="screen" data-stage="7" id="s-done">
-    <div class="hero-ok">✓</div>
-    <h1>You're all set</h1>
-    <p class="lede"><strong id="done-agent">Assistant</strong> is ready. Here's where things stand:</p>
+    <div class="hero-ok"><div class="big">✓</div></div>
+    <h1 class="center">You're all set</h1>
+    <p class="lede center"><strong id="done-agent">Assistant</strong> is ready. Here's where things stand:</p>
     <ul class="recap" id="done-recap"></ul>
     <p class="hint" id="done-time"></p>
     <div class="note">Next, when it's ready: iMessage setup is a separate, best-effort step — it never blocks anything here.</div>
@@ -398,7 +457,7 @@ input[type=text]:focus{outline:none;border-color:var(--accent)}
     <div class="row"><button class="primary" id="restart2">Restart prototype</button></div>
   </section>
 
-  <p class="fine">P0 onboarding prototype · v2 — polish pass · nothing here is production code</p>
+  <p class="fine">P0 onboarding prototype · v5 · nothing here is production code</p>
 </div>
 
 <script>
@@ -511,8 +570,8 @@ input[type=text]:focus{outline:none;border-color:var(--accent)}
   });
   document.getElementById("dev-copy").addEventListener("click",function(){
     var code = document.getElementById("dev-code").textContent.trim();
-    var btn = document.getElementById("dev-copy");
-    function done(){ btn.textContent="Copied ✓"; setTimeout(function(){ btn.textContent="Copy code"; },1600); }
+    var label = document.getElementById("dev-copy-label");
+    function done(){ label.textContent="Copied ✓"; setTimeout(function(){ label.textContent="Copy"; },1600); }
     if(navigator.clipboard && navigator.clipboard.writeText){
       navigator.clipboard.writeText(code).then(done, done);
     } else { done(); }
@@ -529,10 +588,19 @@ input[type=text]:focus{outline:none;border-color:var(--accent)}
       "In the real app, “Deny” rejects this action only. The agent would report the limitation or try another permitted path.";
   });
 
+  document.getElementById("disclose-go").addEventListener("click",function(){ go("s-chat"); });
+  document.querySelectorAll("a.dead").forEach(function(a){
+    a.addEventListener("click",function(e){ e.preventDefault(); });
+  });
+
   /* ---- agent ---- */
+  document.getElementById("agent-name").addEventListener("input",function(e){
+    var v=e.target.value.trim();
+    document.getElementById("agent-avatar").textContent=(v.charAt(0)||"A").toUpperCase();
+  });
   document.getElementById("agent-create").addEventListener("click",function(){
     var v=document.getElementById("agent-name").value.trim()||"Assistant";
-    state.agent=v; go("s-chat");
+    state.agent=v; go("s-disclosures");
   });
 
   /* ---- chat: first task pre-filled ---- */

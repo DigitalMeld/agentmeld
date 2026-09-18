@@ -188,6 +188,19 @@ The owner's click-through of v3: the flow is fine, but the UI doesn't look as po
 
 Verification for v4: inline JS passes `node --check`; `scripts/check-docs.py` passes; all `getElementById`/`data-go` targets resolve. Headless screenshots remain impossible in the Linux build environment, so visual review is pending on the owner's Mac — treat v4 as proposed until clicked through.
 
+## 14. Prototype v5: click-through fixes + disclosures screen (2026-09-18)
+
+Owner clicked through v4 on their Mac. Verdict: the flow is fine and the chat screen (Step 6) is awesome; the visuals elsewhere weren't up to the Muse bar. Itemized fixes, presentation only — journey and states unchanged:
+
+- **New "A few things to know" disclosures screen** between agent naming and chat (same "First task" step, so the step count doesn't grow). Mirrors the Muse consent screen's composition — centered product mark, three icon-led rows (can take actions for you / keeps working when you leave / stays in control), terms-and-privacy line, full-width **Get started** — then jumps straight into the chat UI. Copy is AgentMeld's own.
+- **Device-flow code block redesigned.** The code now sits large and centered in a quiet panel with the copy control beside it and the expiry below — no more awkward copy row. The iPhone pairing code uses the same pattern.
+- **Approval example redesigned.** Icon-led header ("Approval needed" + "Example — nothing will run"), the action as the prominent line, quiet label/value meta rows, right-aligned Deny (ghost) / Allow once (primary). The old `dl`-based layout is gone.
+- **Agent name screen.** Live avatar preview beside the input (updates as you type) and a properly spaced field label — the bare label/input gap is fixed.
+- **Left-edge highlight removed everywhere.** The `.note` callout's accent edge bar is gone from the UI entirely; the two remaining asides (local-network pairing note, iMessage note) are quiet panels.
+- **"You're all set" rebuilt.** The recap `ul` was rendering default bullets alongside the ✓/○ status glyphs — now `list-style:none` with aligned rows; the header is centered to match the success hero; the iMessage aside uses the quiet panel.
+
+Verification for v5: inline JS passes `node --check`; `scripts/check-docs.py` passes; all `getElementById`/`data-go` targets resolve; no `border-left` remains in the prototype. Visual review still pending on the owner's Mac.
+
 ---
 
 ## 10. Open questions for the owner
