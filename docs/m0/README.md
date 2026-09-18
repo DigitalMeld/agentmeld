@@ -4,6 +4,8 @@ This milestone has begun. The Rust crate contains experimental contracts and tes
 
 ## What exists
 
+- [Separate browser isolation](browser-isolation.md), synthetic private login and native harness/profile boundary evidence.
+
 - [Runtime distribution inventory](distribution-inventory.md), installed package versions and notice-file evidence with explicit release gaps.
 
 - [Offline resource baseline](resource-baseline.md), 150-second native/browser workload with verified command writes and cgroup measurements.
