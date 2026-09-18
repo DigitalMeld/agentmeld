@@ -88,3 +88,48 @@ test('queued callback cannot begin after protocol failure', async () => {
     assert.equal(client.failed, true); assert.equal(calls, 0);
   } finally { await client.close(); }
 });
+test('missing subscription prevents model selection and turn startup', async () => {
+  const { client, send } = fixture();
+  try {
+    const result = client.qualifyModel('gpt-5.5');
+    send({ id: 1, result: { account: null, requiresOpenaiAuth: true } });
+    await assert.rejects(result, /subscription required/);
+    assert.equal(client.sequence, 1); assert.equal(client.pending.size, 0);
+  } finally { await client.close(); }
+});
+test('unavailable configured model rejects without fallback or turn startup', async () => {
+  const { client, send } = fixture();
+  try {
+    const result = client.qualifyModel('unavailable-model');
+    send({ id: 1, result: { account: { type: 'chatgpt' } } }); await Promise.resolve();
+    send({ id: 2, result: { data: [{ model: 'gpt-5.5' }] } });
+    await assert.rejects(result, /unavailable/); assert.equal(client.sequence, 2);
+  } finally { await client.close(); }
+});
+test('catalog admission requires an exact available model', async () => {
+  const { client, send } = fixture();
+  try {
+    const result = client.qualifyModel('gpt-5.5');
+    send({ id: 1, result: { account: { type: 'chatgpt' } } }); await Promise.resolve();
+    send({ id: 2, result: { data: [{ model: 'gpt-5.5' }] } });
+    assert.deepEqual(await result, { subscription: true, model: 'gpt-5.5' });
+  } finally { await client.close(); }
+});
+test('native thread creation and resume cannot silently substitute a model', async () => {
+  for (const method of ['thread/start', 'thread/resume']) {
+    const { client, send } = fixture();
+    try {
+      const result = client.request(method, { model: 'gpt-5.5' });
+      send({ id: 1, result: { model: 'other' } });
+      await assert.rejects(result, /model mismatch/);
+    } finally { await client.close(); }
+  }
+});
+test('native model rerouting terminates the probe and rejects pending work', async () => {
+  const { client, send } = fixture();
+  try {
+    const result = client.request('turn/start', {});
+    send({ method: 'model/rerouted', params: { fromModel: 'gpt-5.5', toModel: 'other' } });
+    await assert.rejects(result, /unavailable/); assert.equal(client.failed, true);
+  } finally { await client.close(); }
+});

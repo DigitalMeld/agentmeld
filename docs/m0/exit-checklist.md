@@ -6,11 +6,13 @@ Updated: 2026-09-18. M0 remains incomplete. This is the current task checkpoint;
 
 Codex-only alpha using supported ChatGPT subscription login. Claude Code, Ollama, iMessage and WhatsApp are deferred. macOS, local browser, iOS, multiple Mac hosts and away-from-home control remain alpha requirements; full client delivery is M1/M2, not evidence already supplied by M0.
 
+The [completion audit](completion-audit.md) maps these entries to the roadmap and separates qualification gaps from later product/release work.
+
 ## Current work order
 
 | Requirement | Evidence now | Next action |
 | --- | --- | --- |
-| Local baseline | 185 tests plus formatting, lint, build and docs checks passed on 2026-09-18 after implementation edits | Run relevant checks after changes |
+| Local baseline | 190 tests plus formatting, lint, build and docs checks passed on 2026-09-18 after implementation edits | Run relevant checks after changes |
 | Codex subscription authentication | Dedicated store/import verified; subscription recognized; native device challenge/cancel and live GPT-5.5 streaming pass | Qualify refresh/session lifecycle without revoking the shared owner session |
 | Real native execution | Live streamed answer, command success and conversation continuation after native process replacement pass; live tool error is verified by correlated native history; its UI command-result event remains missing | Live mediated allow/deny and both pending/running cancellation pass; resolve remaining native UI error-event delivery |
 | Process/file/network boundary | Command read/write, native patch/image canaries, provider TLS gateway and standalone tool network denial pass | Expand live native-tool coverage and session lifecycle checks |
@@ -27,7 +29,7 @@ The current [dedicated-store qualification](codex-auth-store.md) passes using sy
 
 Native file-tool probes select pinned GPT-5.5 configuration with synthetic responses. Newer code-mode configurations remain unqualified; no product default has changed. The original egress probe qualified TLS and standalone sandbox network denial; the subscription follow-up now verifies native authentication transport and a live streamed answer. Its corrected host-bridge result supersedes the initial invalid input.
 
-Next: finish authenticated browser integration and remaining recovery evidence; retain the native UI error-event finding. Live mediated approval and cancellation now pass. Independently finish workspace integration, alpha packaging and the recovery/browser gates above. Preserve the full checklist; fixture success does not close authenticated gates.
+Next: finish authenticated browser integration and remaining recovery evidence; retain the native UI error-event finding. Live mediated approval and cancellation now pass. Authenticated bounded workspace integration now passes. Preserve the remaining recovery/browser qualification work; production volume management and alpha packaging remain later delivery obligations. Preserve the full checklist; fixture success does not close authenticated gates.
 
 The [workspace disk-limit experiment](workspace-disk-limit.md) passes with a fixed-size 64 MiB ext4 fixture, preserved files after disk-full, recovered writes and replacement-container readback. The normal bind launcher remains unbounded; production quota integration is not claimed. The [offline resource baseline](resource-baseline.md) passed 51 verified native/browser cycles with zero OOM kills and 212.04 MiB peak charged memory; authenticated workload sizing remains open.
 
@@ -44,3 +46,5 @@ The [native command-error follow-up](codex-subscription.md#native-command-error-
 The [live control qualification](live-control.md) verifies real subscription-backed approval allow/deny, cancellation with an outstanding approval, and interruption of a running native parent/child process tree. Owner-facing and remote approval UI are not claimed.
 
 The [authenticated workspace integration](workspace-disk-limit.md#authenticated-worker-integration) verifies live native commands and conversation/file preservation across replacement workers using the bounded volume after disk-full recovery. Production volume management and whole-VM recovery are not claimed.
+
+Model admission now checks the native subscription account and exact catalog entry before live turns, verifies thread start/resume model responses, and rejects native rerouting. Empty-account and unavailable-model negative probes pass; see the [audit evidence](completion-audit.md#model-admission-verification).

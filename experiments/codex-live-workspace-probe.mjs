@@ -33,7 +33,7 @@ try {
   assert.equal(await readFile('/workspace/retained.txt', 'utf8'), 'retained-' + instance);
   assert.equal(await readFile('/workspace/recovered.txt', 'utf8'), 'writes recovered');
   client = start(); await client.initialize();
-  assert.equal((await client.request('account/read', { refreshToken: false })).account?.type, 'chatgpt');
+  await client.qualifyModel('gpt-5.5');
   if (mode === 'write') {
     stage = 'write';
     const nonce = randomUUID();
