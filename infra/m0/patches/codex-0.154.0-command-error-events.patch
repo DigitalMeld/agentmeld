@@ -1,0 +1,104 @@
+diff --git a/codex-rs/core/src/unified_exec/process_manager.rs b/codex-rs/core/src/unified_exec/process_manager.rs
+index f19147f..96a8bc6 100644
+--- a/codex-rs/core/src/unified_exec/process_manager.rs
++++ b/codex-rs/core/src/unified_exec/process_manager.rs
+@@ -32,6 +32,7 @@ use crate::tools::ApprovalContext;
+ use crate::tools::context::ExecCommandToolOutput;
+ use crate::tools::events::ToolEmitter;
+ use crate::tools::events::ToolEventCtx;
++use crate::tools::events::ToolEventFailure;
+ use crate::tools::events::ToolEventStage;
+ use crate::tools::network_approval::DeferredNetworkApproval;
+ use crate::tools::network_approval::finish_deferred_network_approval;
+@@ -507,6 +508,30 @@ impl UnifiedExecProcessManager {
+         let (attempt, mut deferred_network_approval) = match process {
+             Ok((attempt, deferred_network_approval)) => (attempt, deferred_network_approval),
+             Err(err) => {
++                // A sandboxed process can exit before session startup returns. Its
++                // output still reaches the model, so emit the matching lifecycle.
++                if let UnifiedExecError::SandboxDenied { output, .. } = &err {
++                    let emitter = ToolEmitter::unified_exec(
++                        &request.command,
++                        cwd.clone(),
++                        ExecCommandSource::UnifiedExecStartup,
++                        Some(request.process_id.to_string()),
++                        /*plugin_attribution*/ None,
++                    );
++                    let event_ctx = ToolEventCtx::new(
++                        context.session.as_ref(),
++                        context.step_context.turn.as_ref(),
++                        &context.call_id,
++                        /*turn_diff_tracker*/ None,
++                    );
++                    emitter.emit(event_ctx, ToolEventStage::Begin).await;
++                    emitter
++                        .emit(
++                            event_ctx,
++                            ToolEventStage::Failure(ToolEventFailure::Output(output.clone())),
++                        )
++                        .await;
++                }
+                 self.release_process_id(request.process_id).await;
+                 return Err(err);
+             }
+diff --git a/codex-rs/core/tests/suite/unified_exec.rs b/codex-rs/core/tests/suite/unified_exec.rs
+index ad3f248..5eb2b7c 100644
+--- a/codex-rs/core/tests/suite/unified_exec.rs
++++ b/codex-rs/core/tests/suite/unified_exec.rs
+@@ -4041,3 +4041,56 @@ fn assert_command(command: &[String], expected_args: &str, expected_cmd: &str) {
+     assert_eq!(command[1], expected_args);
+     assert_eq!(command[2], expected_cmd);
+ }
++
++#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
++async fn sandboxed_fast_failure_emits_complete_command_lifecycle() -> Result<()> {
++    skip_if_target_windows!(Ok(()), "uses a POSIX-only command fixture");
++    skip_if_no_network!(Ok(()));
++    skip_if_sandbox!(Ok(()));
++    let server = start_mock_server().await;
++    let mut builder = test_codex();
++    let test = builder.build_with_auto_env(&server).await?;
++    let call_id = "uexec-fast-failure";
++    let args = json!({ "cmd": "exit 23", "yield_time_ms": 1000 });
++    let responses = vec![
++        sse(vec![
++            ev_response_created("resp-1"),
++            ev_function_call(call_id, "exec_command", &serde_json::to_string(&args)?),
++            ev_completed("resp-1"),
++        ]),
++        sse(vec![
++            ev_assistant_message("msg-1", "done"),
++            ev_completed("resp-2"),
++        ]),
++    ];
++    let request_log = mount_sse_sequence(&server, responses).await;
++    submit_unified_exec_turn(&test, "run failing command", PermissionProfile::read_only()).await?;
++    let mut lifecycle = Vec::new();
++    loop {
++        let event = wait_for_event_match(&test.codex, |event| Some(event.clone())).await;
++        match event {
++            EventMsg::ExecCommandBegin(event) if event.call_id == call_id => {
++                lifecycle.push(("begin", None));
++            }
++            EventMsg::ExecCommandEnd(event) if event.call_id == call_id => {
++                lifecycle.push(("end", Some(event.exit_code)));
++            }
++            EventMsg::TurnComplete(_) => break,
++            _ => {}
++        }
++    }
++    assert_eq!(lifecycle, vec![("begin", None), ("end", Some(23))]);
++    let bodies = request_log
++        .requests()
++        .into_iter()
++        .map(|request| request.body_json())
++        .collect::<Vec<_>>();
++    assert_eq!(
++        collect_tool_outputs(&bodies)?
++            .get(call_id)
++            .expect("tool output")
++            .exit_code,
++        Some(23)
++    );
++    Ok(())
++}

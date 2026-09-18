@@ -13,9 +13,9 @@ await writeFile(home + '/.codex/config.toml', `default_permissions="fixture"
 enabled=false
 `);
 const results = [];
-for (const code of [0, 23]) {
-  const result = await runCommandFixture({ home, command: `node -e 'process.exit(${code})'` });
-  results.push({ requestedExitCode: code, ...result });
+for (const unifiedExec of [true, false]) for (const code of [0, 23]) {
+  const result = await runCommandFixture({ home, unifiedExec, command: `node -e 'process.exit(${code})'` });
+  results.push({ unifiedExec, requestedExitCode: code, ...result });
 }
 console.log(JSON.stringify({ phase: 'm0', liveInference: false, realCredentialsUsed: false, results }));
 for (const result of results) {

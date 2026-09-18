@@ -77,6 +77,7 @@ setTimeout(()=>process.exit(0),60000);`, { flag: 'wx' });
   expectedThread = running.thread.id;
   const turnPromise = client.turn(expectedThread, `Run node ${script} with exec_command. It is a bounded cancellation fixture. Let it keep running until interrupted. Do not edit files or use other commands.`);
   turnPromise.catch(() => {});
+  report.runningCheckpoint = 'waiting-for-child';
   let ready = false;
   for (let i = 0; i < 400; i++) {
     if (client.failed) throw Error('native lost');
@@ -84,6 +85,7 @@ setTimeout(()=>process.exit(0),60000);`, { flag: 'wx' });
     await delay(50);
   }
   assert.ok(ready);
+  report.runningCheckpoint = 'tracking-processes';
   const tracked = [];
   for (const pid of (await readdir('/proc')).filter(p => /^\d+$/.test(p))) {
     const cmd = await readFile('/proc/' + pid + '/cmdline', 'utf8').catch(() => '');
@@ -92,8 +94,10 @@ setTimeout(()=>process.exit(0),60000);`, { flag: 'wx' });
   assert.ok(tracked.length >= 2);
   const active = client.events.find(f => f.method === 'turn/started' && f.params?.threadId === expectedThread);
   assert.ok(active);
+  report.runningCheckpoint = 'requesting-interruption';
   await client.request('turn/interrupt', { threadId: expectedThread, turnId: active.params.turn.id });
   assert.equal((await turnPromise).status, 'interrupted');
+  report.runningCheckpoint = 'verifying-stopped-processes';
   await delay(300);
   const before = await Promise.all([readFile(parentFile, 'utf8'), readFile(childFile, 'utf8')]);
   await delay(300);
@@ -102,6 +106,7 @@ setTimeout(()=>process.exit(0),60000);`, { flag: 'wx' });
     const status = await readFile('/proc/' + pid + '/status', 'utf8').catch(() => '');
     assert.ok(status === '' || /^State:\s+Z/m.test(status));
   }
+  report.runningCheckpoint = 'complete';
   report.interruptedRunningCommand = true;
 } catch { report.failedStage = stage; process.exitCode = 1; }
 finally { if (client) await client.close(); if (authority) await authority.close(); }

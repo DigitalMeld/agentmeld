@@ -56,7 +56,7 @@ Raw sanitized probe output stays in ignored `.local/m0/model-gates-*.log`; inven
 ## Next work without expanding the milestone
 
 1. Completed: [live browser integration](live-browser.md) verifies real native callbacks, separate browser, takeover, stale dispatch denial and fresh-observation resume.
-2. Resolve or explicitly disposition the native command-error UI notification finding before promising reliable product event delivery. Preserve the failing standalone diagnostic and do not patch the dependency without discussing ownership.
+2. Resolve or explicitly disposition the native command-error UI notification finding before promising reliable product event delivery. The owner approved a scoped patch; see [preparation and qualification status](codex-command-event-patch.md). Preserve the failing diagnostic until the patch is qualified.
 3. Controlled dedicated-VM recovery and [isolated native session lifecycle](auth-lifecycle.md) now pass. Preserve the separate real-provider lifecycle limitation. Record viewer selection and the supported test envelope before M0 sign-off.
 
 Production API/state management, broad client UI, remote owner access, installable packaging, final release notices and source-license application remain M1/M2 delivery work. Existing recovery, quota and browser findings remain visible here; none are silently declared complete by this boundary distinction.
