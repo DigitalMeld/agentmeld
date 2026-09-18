@@ -1,5 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';
-import {chatSearch,activityTasks,duration,elapsedLabel,runExport,renderMarkdown,literalMatches} from '../apps/poc/public/conversation-tools.js';
+import {countLabel,showTurnStatus,dayLabel,chatSearch,activityTasks,duration,elapsedLabel,runExport,renderMarkdown,literalMatches} from '../apps/poc/public/conversation-tools.js';
 const task={id:'t',conversationId:'c',createdAt:'2026-09-18T10:00:00Z',prompt:'A request',answer:'Result with needle',status:'completed',activity:'Finished',inputs:[],artifacts:[{name:'report.csv',size:7}],events:[{kind:'started',at:'2026-09-18T10:00:01Z'},{kind:'completed',at:'2026-09-18T10:01:05Z'}],secret:'excluded'};const conversation={id:'c',title:'Example'};const state={conversations:[conversation],tasks:[task]};
 test('chat search includes answers and output names without crossing conversations',()=>{assert.match(chatSearch(state,conversation,'NEEDLE'),/needle/);assert.equal(chatSearch(state,conversation,'report.csv'),'report.csv');assert.equal(chatSearch(state,{id:'other',title:'Other'},'needle'),null);assert.equal(chatSearch(state,conversation,'no match'),null);});
 test('activity combines filters, results, scope and order',()=>{assert.equal(activityTasks(state,{query:'needle',outputs:true}).length,1);assert.equal(activityTasks(state,{conversationId:'other'}).length,0);assert.equal(activityTasks(state,{filter:'active'}).length,0);assert.equal(activityTasks(state,{query:'report.csv'}).length,1);const older={...task,id:'old',createdAt:'2025-01-01'};assert.equal(activityTasks({...state,tasks:[older,task]},{oldest:true})[0].id,'old');});
@@ -7,3 +7,13 @@ test('duration uses recorded endpoints only and export excludes internals',()=>{
 test('Markdown escapes active content and preserves fenced code and tables',()=>{const html=renderMarkdown('# Heading\n- First\n- Second\n\n```js\n<img onerror=evil()>\n```\n> Quote\n| A | B |\n|---|---|\n| 1 | 2 |\n<script>bad()</script>');assert.match(html,/<ul><li>First/);assert.match(html,/class="copyCode"/);assert.match(html,/&lt;img onerror=evil\(\)&gt;/);assert.match(html,/<table>/);assert.ok(!html.includes('<script>'));assert.ok(!html.includes('<img '));assert.match(renderMarkdown('```\nunclosed'),/unclosed<\/code>/);});
 
 test('literal search preserves Unicode indices and treats regex punctuation literally',()=>{assert.deepEqual(literalMatches('İ alpha ALPHA','alpha'),[{index:2,length:5},{index:8,length:5}]);assert.deepEqual(literalMatches('[a] a.* [a]','[a]'),[{index:0,length:3},{index:8,length:3}]);assert.deepEqual(literalMatches('hello','.*'),[]);});
+
+test('only older successful replies suppress status; unfinished and exceptional turns remain visible',()=>{
+ assert.equal(showTurnStatus(task,false),false);assert.equal(showTurnStatus(task,true),true);
+ for(const status of ['queued','running','cancelling','failed','cancelled','interrupted'])assert.equal(showTurnStatus({...task,status},false),true);
+ assert.equal(showTurnStatus({...task,error:'Failure'},false),true);assert.equal(showTurnStatus({...task,answer:''},false),true);
+});
+test('day headings handle month and year boundaries in local time',()=>{
+ const now=new Date(2026,0,1,12);assert.equal(dayLabel(new Date(2026,0,1,1),now),'Today');assert.equal(dayLabel(new Date(2025,11,31,23),now),'Yesterday');assert.match(dayLabel(new Date(2025,11,29),now),/2025/);
+ assert.equal(countLabel(1,'turn'),'1 turn');assert.equal(countLabel(0,'matching chat'),'0 matching chats');
+});
