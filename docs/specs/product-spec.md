@@ -6,11 +6,12 @@ Updated: 2026-09-18. Status: proposed, for review. Owner: Digital Meld. Intended
 
 Give an individual or team a persistent agent they can message, equip with tools, watch work in an isolated computer, and trust to pause at a defined boundary. Alpha uses Codex with the owner’s ChatGPT subscription. Claude Code, Ollama and other providers are post-alpha integrations. Useful results remain accessible as files, artifacts, conversations, and explicit memory. Work continues when the client closes, provided the self-hosted server remains awake.
 
-The complete direction includes Muse-like personal assistance and outputs, multiple agents, and later invited collaborators working with scoped agents. The first public alpha must deliver a coherent core with the Codex subscription integration. It is not a promise to deliver every Muse feature at alpha.
+The complete direction is the best of both worlds: the assistant bundle's behavioral architecture and personality (see the [Muse documentation review](../research/muse-documentation-review.md)), Muse's product breadth and restraint, and Grok Bot's collaboration model — including Muse-like personal assistance and outputs, multiple agents, and later invited collaborators working with scoped agents. The first public alpha must deliver a coherent core with the Codex subscription integration. It is not a promise to deliver every Muse feature at alpha.
 
 ## 2. Requirements supplied by Brad
 
-- Open source and free to self-host, with a future paid hosted offering.
+- Open source and free to self-host, with a future paid hosted offering. (License selection is deferred; see the [Apple-first alpha decision](../decisions/2026-09-18-apple-first-alpha.md).)
+- Local-first: the infrastructure and data are yours and self-hosted; the best models run in the cloud through your own subscriptions; local models are a roadmap item, not an alpha requirement.
 - Agent execution in a container or virtual machine.
 - Muse-inspired simplicity, visual restraint, and feature breadth.
 - Codex subscription authentication for alpha; Claude Code and Ollama on the roadmap. Prefer supported subscription authentication where available, without promising universal subscription compatibility.
@@ -18,7 +19,7 @@ The complete direction includes Muse-like personal assistance and outputs, multi
 - A path to outside contributors and access to agents, inspired by Buzz.
 - A custom-trained model on the hosted-service roadmap.
 - Alpha applications on macOS, local browser and iOS. The iPhone over cellular and MacBook Air on the road control enrolled Mac hosts, including the Mac mini at home. Away-from-home control is required for alpha.
-- iMessage, WhatsApp, Windows, general remote browser access and other connectivity integrations follow alpha. See the [scope decision](../decisions/2026-09-18-apple-first-alpha.md).
+- iMessage is an alpha stretch goal; WhatsApp, Windows, general remote browser access and other connectivity integrations follow alpha. See the [scope decision](../decisions/2026-09-18-apple-first-alpha.md).
 
 M0 qualification and the local file-analysis POC are delivered; M1 and alpha remain incomplete. The [Muse documentation review](../research/muse-documentation-review.md) refines the plan and maps full functional coverage to milestones. It adds no implemented capabilities.
 
@@ -70,7 +71,7 @@ The conversation has a compact agent header, readable message column, attachment
 
 This is a structural wireframe, not a rendered or approved UI design. Use dark neutral backgrounds, restrained accents, thin borders, deliberate typography, and limited decorative containers. Roboto is the proposed default. Provide light/system modes, clear contrast, accessible labels for icon buttons, visible keyboard focus, reduced motion, and usable keyboard navigation. Validate a first rendered conversation and computer panel before expanding screens. Muse's visual inspection informs hierarchy; do not copy its logos, illustrations, wording, or proprietary assets.
 
-Library groups documents, web artifacts, media, and workspace files. Each artifact shows its producing run, version, source references when relevant, preview, and download. Feed, Ideas, and Goals arrive as useful later views of persisted work, rather than empty launch navigation.
+Library groups documents, web artifacts, media, and workspace files. Each artifact shows its producing run, version, source references when relevant, preview, and download. Ideas and Goals arrive as useful later views of persisted work, rather than empty launch navigation. Feed is a configurable generative surface produced within a strict background budget, distinct from Activity; its design is an M4 milestone, not an alpha requirement.
 
 ## 6. Feature coverage and sequencing
 
@@ -88,7 +89,7 @@ Milestones are defined in [the roadmap](roadmap.md). M1 is an internal slice; M2
 | Scheduling | One-time and recurring tasks; timezone, next run, history, pause, cancel; change-only notifications | Event triggers, calendar-based scheduling, device/location reminders |
 | Skills | Reviewed built-in and user-authored instructions, versioning, declared requirements | Community packages, teach-by-demonstration, discovery catalog |
 | Goals and monitoring | Basic task objective, status, next action, explicit completion condition | Durable multi-task goals, progress timelines, personalized feed and ideas |
-| Messaging | No external messaging requirement | iMessage, WhatsApp, transport selection and group routing after identity tests |
+| Messaging | iMessage is an alpha stretch goal; no other external messaging at alpha | WhatsApp, transport selection and group routing after identity tests |
 | Applications and devices | macOS app, local browser and iOS app controlling explicitly selected Mac hosts | Windows, general remote browser, voice and additional connectivity |
 | Phone connectivity | Explicit pairing, secured cross-network iPhone/Mac access, host selection, revocation and reconnect | Additional network providers and managed relay options |
 | External access | Single owner and explicitly paired devices; no guest access at alpha | Invites, member/guest roles, shared agents, quotas, audit and revocation |
@@ -142,7 +143,7 @@ An owner creates a shared agent context, invites a guest to a selected conversat
 
 **Acceptance:** test as the guest, not just the administrator. Guessing resource IDs, replaying event cursors, mentioning private agents, downloading another workspace's files, or prompting for private memory must fail. An owner cannot safely expose a private long-lived agent session by merely hiding its transcript; sharing provisions a new scoped session/computer with reviewed context.
 
-### P7. Message the agent through iMessage, post-alpha
+### P7. Message the agent through iMessage (alpha stretch goal)
 
 Completed work and its notification have separate visible states. A failed notification can be recovered without repeating the completed task; a submitted message is not shown as delivered without transport evidence.
 

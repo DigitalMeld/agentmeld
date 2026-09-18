@@ -1,6 +1,6 @@
 # Provider egress qualification
 
-Updated: 2026-09-18. Status: isolated transport experiment passes; native subscription authentication and inference remain unqualified.
+Updated: 2026-09-18. Status: isolated transport experiment passes. Live subscription authentication and inference were qualified separately (see [codex-subscription.md](codex-subscription.md) and [completion-audit.md](completion-audit.md)); this probe covers only the egress transport boundary.
 
 ## Boundary
 

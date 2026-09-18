@@ -4,7 +4,7 @@ Keep discoveries and consequential changes here as work proceeds. Update the own
 
 ## Current direction
 
-Alpha is **Codex-only using ChatGPT subscription authentication**, with macOS, local web and iOS clients, multiple Mac hosts and required away-from-home control. Claude Code, Ollama and messaging integrations are post-alpha.
+Alpha is **Codex-only using ChatGPT subscription authentication**, with macOS, local web and iOS clients, multiple Mac hosts and required away-from-home control. iMessage is an alpha stretch goal. Claude Code, Ollama, WhatsApp and other messaging integrations are post-alpha.
 
 - [Conversation organization and output workflow](design/workflow-organization.md): implemented chat management, exports, file/version navigation and keyboard behavior.
 - [Working local POC](poc.md): chat, attached files, real subscription-backed work, results and Stop. This is the current priority.
@@ -24,6 +24,9 @@ Alpha is **Codex-only using ChatGPT subscription authentication**, with macOS, l
 - [Data implementation blueprint](specs/data-model.md): core ERD, draft SQL, all 195 source-relation dispositions, persistence rules and POC migration.
 - [Roadmap](specs/roadmap.md): sequence and exit criteria.
 - [Apple-first alpha decision](decisions/2026-09-18-apple-first-alpha.md): macOS, local web, iOS, multiple hosts and required away-from-home control.
+- [Comprehensive audit 2026-09-18](audit/2026-09-18-comprehensive-audit.md): findings, owner decisions, contradiction remediations and course of action.
+- [Agent handoff 2026-09-18](audit/2026-09-18-agent-handoff.md): ordered follow-up tasks, constraints and open questions for the next agent.
+- [Goal prompt for Astra 2026-09-18](audit/2026-09-18-astra-goal-prompt.md): paste-ready prompt to hand the audit follow-through to MVP to the next agent session.
 
 ## Evidence and history
 
@@ -33,7 +36,7 @@ Alpha is **Codex-only using ChatGPT subscription authentication**, with macOS, l
 - [OpenInstinct audit](research/openinstinct-audit.md): pinned-source findings and architectural lessons.
 - [Runtime research](research/runtime-integrations.md) and [reference projects](research/reference-projects.md).
 - [Nostr/Buzz connectivity assessment](research/nostr-buzz-connectivity.md): remote transport options and alpha qualification gates.
-- [Deferred iMessage research](research/imessage.md): retained evidence for post-alpha decisions.
+- [Deferred iMessage research](research/imessage.md): retained evidence; iMessage is now an alpha stretch goal.
 
 ## Documentation practice
 
