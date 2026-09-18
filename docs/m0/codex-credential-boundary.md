@@ -49,6 +49,17 @@ colima stop agentmeld-m0
 
 ## Remaining gates
 
-This is a bounded credential-read canary experiment, not an escape audit or proof for every built-in tool. Native file tools, credential modification/exfiltration paths, persistent login storage, token refresh/logout, login/inference egress and subscription-backed execution remain open. The command result proves workspace writes, not credential write protection. Do not introduce real credentials until the remaining access paths and storage design are qualified.
+This is a bounded credential-read canary experiment, not an escape audit or proof for every built-in tool. Native file tools, credential modification/exfiltration paths, persistent login storage, token refresh/logout, login/inference egress and subscription-backed execution remain open. The initial command result proved workspace writes only; the follow-up below adds credential write attempts. Do not introduce real credentials until the remaining access paths and storage design are qualified.
 
 Next work: expand native-tool access tests, then implement the dedicated storage and bounded network path. Keep owner login as a separate explicit step and redact authentication material from all retained evidence. The [exit checklist](exit-checklist.md) remains the authoritative M0 status.
+
+
+## Native file-tool extension
+
+The follow-up probe adds command write attempts on the same four protected paths, native `apply_patch` creation/deletion and native `view_image` reads. Workspace patch creation and workspace image delivery must succeed as positive controls. Direct and symlinked protected canaries remain unchanged after deletion attempts, and protected direct/symlink image reads produce no image in the next model request. No approval or escalation was granted.
+
+This probe now explicitly selects the pinned GPT-5.5 model configuration with a synthetic local Responses stream. The old unknown `fixture-model` configuration did not advertise `apply_patch`. The pinned GPT-6-Astra configuration instead selects code-mode-only/Responses Lite; the current synthetic stream does not implement that protocol. Neither result is evidence of an isolation failure. GPT-6/5.6 code-mode qualification remains open; selecting a test configuration does not change the product's default model or establish live availability.
+
+Source evidence: [pinned model catalogue](https://github.com/openai/codex/blob/rust-v0.154.0/codex-rs/models-manager/models.json), [native image handler](https://github.com/openai/codex/blob/rust-v0.154.0/codex-rs/core/src/tools/handlers/view_image.rs). The image handler passes its sandbox context to filesystem metadata/read operations; runtime canaries test this behavior rather than relying solely on source.
+
+Latest image: `sha256:4843faf326a11899ca90b69738811f1cda962385f3fa59da6bc19612764aa692`. Report: ignored `.local/m0/native-file-boundary.log`. Command read/write, patch and image cases pass. This extends the earlier image evidence only for this probe. Credential persistence, protected configuration mutation through other operations, code mode, egress and live subscription behavior remain unqualified.

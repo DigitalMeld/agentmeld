@@ -7,7 +7,7 @@ Date: 2026-09-18. Status: **started, not complete**. These are experimental cont
 | Check | Result | Limit |
 | --- | --- | --- |
 | Rust conformance and archive | 18 tests passed | Synthetic protocol/policy/channel inputs and trusted-owner archive fixtures |
-| Python policy integrity | 2 tests passed | Rejects unverified upstream bytes and locally modified policy |
+| Python policy integrity | 6 tests passed | Rejects unverified upstream bytes and locally modified policy |
 | Ollama readiness and loop | 13 tests passed: preflight, streaming budgets, stalled HTTP, interruption, durable approvals and CLI workflow | Injected and loopback synthetic HTTP; no real local inference |
 | Browser control and viewer HTTP | 7 tests passed | In-process queue and local HTTP authentication; no native harness mediation |
 | Durable Rust subprocess integration | 10 tests passed, including private-screen restart and capture fencing: replacement, exclusive lock, SIGKILL with unfinished action, corruption, fencing, cancellation, payload binding and one-time dispatch | Trusted host caller/storage; production identity remains open |
@@ -94,3 +94,5 @@ On 2026-09-18 the local suite passed 153 tests (18 Rust, 133 Node, 2 Python), fo
 
 
 The [native credential boundary batch](codex-credential-boundary.md) passes standalone sandbox and app-server `exec_command` canary checks on Codex 0.154.0. The isolated profile retains enforced AppArmor, deny-default seccomp, zero outer capabilities and no-new-privileges. The current image and policy hashes are recorded in that report; this does not requalify unrelated probes on the new image. All 157 default tests, formatting, Clippy, build and documentation checks pass. No subscription login, real credentials or live inference occurred.
+
+The [native file-tool extension](codex-credential-boundary.md#native-file-tool-extension) adds command-write, patch and image canaries with positive workspace controls. All pass offline under the pinned GPT-5.5 tool configuration. Code-mode model configurations and live subscription access remain separate gates.
