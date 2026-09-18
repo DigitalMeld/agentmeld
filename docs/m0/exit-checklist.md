@@ -10,11 +10,11 @@ Codex-only alpha using supported ChatGPT subscription login. Claude Code, Ollama
 
 | Requirement | Evidence now | Next action |
 | --- | --- | --- |
-| Local baseline | 172 tests plus formatting, lint, build and docs checks passed on 2026-09-18 after implementation edits | Run relevant checks after changes |
+| Local baseline | 177 tests plus formatting, lint, build and docs checks passed on 2026-09-18 after implementation edits | Run relevant checks after changes |
 | Codex subscription authentication | Dedicated store/import verified; subscription recognized; native device challenge/cancel and live GPT-5.5 streaming pass | Qualify refresh/session lifecycle without revoking the shared owner session |
-| Real native execution | Live streamed answer passes; dynamic callbacks and file boundaries have synthetic evidence | Run subscription-backed tools, tool error, allow/deny, cancellation and continuation |
+| Real native execution | Live streamed answer, command success and conversation continuation after native process replacement pass; failure fixture executes but its command-result event is missing | Resolve the missing native error event; run subscription-backed allow/deny and cancellation |
 | Process/file/network boundary | Command read/write, native patch/image canaries, provider TLS gateway and standalone tool network denial pass | Expand live native-tool coverage and session lifecycle checks |
-| Recovery | Durable journals, unsettled output review, worker termination and fresh-process engine-bound assessment pass | Live transport reattachment, whole-machine restart and production recovery remain unqualified |
+| Recovery | Durable journals, unsettled output review, worker termination and fresh-process engine-bound assessment pass | Native process replacement and persisted nonce continuation pass; whole-machine restart and production recovery remain unqualified |
 | Storage and resources | Bounded temporary filesystem/archive; fixed-size persistent workspace passes disk-full/replacement tests; 150-second offline resource baseline passes | Integrate bounded storage with authenticated workers; qualify live workloads and longer soaks |
 | Browser workflow | Fixture viewer, takeover, resume and cancellation pass; [separate-browser private login fixture](browser-isolation.md) passes | Recheck in the authenticated harness workflow; real owner credential-entry transport remains unqualified |
 | Versions and licenses | [Installed runtime inventory](distribution-inventory.md) verified: 4 npm / 199 Debian packages and local Rust resolution | Codex-only image verified; finish embedded notices and resolve source license before release |
@@ -36,3 +36,5 @@ The active qualification image now installs only Codex and Playwright npm packag
 The browser-isolation probe qualifies separate browser/harness containers and synthetic private-mode entry with session preservation. It does not add an owner login endpoint or complete the authenticated browser gate.
 
 Live subscription streaming and managed device challenge/cancel now pass after adding the missing system CA bundle. See the [live checkpoint](codex-subscription.md#verified-live-subscription-checkpoint) for exact evidence, authorization and remaining gates.
+
+Latest execution evidence: [live execution follow-up](codex-subscription.md#live-execution-follow-up). This batch does not close M0: the intentional failure has no native command-result event despite verified execution. The probe exits nonzero and the finding stays open; approval/cancellation checks are next after isolating the event gap.

@@ -68,3 +68,26 @@ node scripts/probe-provider-egress.mjs --context colima-agentmeld-m0 --device-lo
 Each mode uses the same isolated network, explicit proxy, disabled upstream DNS and enforced native sandbox. The subscription worker mounts only the verified auth volume and uses a bounded temporary workspace. Cleanup removes its worker/proxy/network and preserves the dedicated credential volume. Ordinary default checks use neither mode.
 
 This closes the first live subscription stream and native login-egress gaps. Tool success/error, allow/deny, interruption, continuation after process replacement, refresh/logout behavior and recovery remain open. The imported token is not proof of independently issued login sessions. No logout test may revoke the owner's shared session without explicit authorization.
+
+## Live execution follow-up
+
+The explicit `--execution` probe uses the authorized store and isolated gateway. It checks a native command event plus an independent workspace file readback, an intentional exit-23 fixture plus its execution marker, and persisted conversation recovery after replacing the native app-server process. Reports contain only bounded status fields; synthetic native conversation history remains in the protected dedicated home. No account content, token values or raw provider errors are copied into reports.
+
+The protocol client binds events to both thread and turn identifiers, accepts completion arriving before the RPC response, denies server callbacks and bounds output and execution time. Offline tests cover cross-thread/stale-turn exclusion, unexpected approval callbacks, malformed output and process loss. This probe does not qualify approval grants or interruption.
+
+Initial live observations: thread creation needs the pinned protocol's experimental capability negotiation for its explicit permission-profile parameters. With that negotiation enabled, the workspace command succeeds. Asking the model to run bare `exit 23` completed without a native command item, so it did not qualify tool failure. The real fixture script writes an independent execution marker and exits 23. Its marker exists, but the native stream still has no command item, including in a fresh conversation. No approval callbacks were requested. The probe does not treat the model mentioning exit 23 as native exit-code evidence.
+
+
+Image `sha256:234693db10bda5e3c547ab3c644d4f47ebb117670b6f93f195618954e7589d5349223` verified:
+
+- Subscription recognition and actual workspace command success (native exit 0 plus random marker readback).
+- Full native process shutdown/replacement, persisted thread resume by ID, and a streamed exact conversation-only nonce without supplying it again or requesting tools.
+- The failure fixture's execution marker, but **not** its native error event. The failure turn completed with user/agent message items only; both streamed command items and the completed turn's command items were absent. Therefore `commandFailure: false` and `qualified: false`; the explicit command exits nonzero.
+
+Evidence: `.local/m0/live-execution.log`, with immutable-image metadata and sanitized diagnostics in `.local/m0/egress/`. Five new offline client tests bring the default suite to 177 tests. The probe preserves synthetic history in the protected dedicated home; it does not prove whole-container/machine recovery or perform session logout. No native error-event workaround or upstream dependency patch was applied.
+
+```sh
+node scripts/probe-provider-egress.mjs --context colima-agentmeld-m0 --execution
+```
+
+Next: reproduce the missing command-result lifecycle with an offline native stream, inspect pinned native history/event handling, and qualify live error reporting before calling this matrix complete. Approval allow/deny and interruption remain separate gates. Persisted-thread nonce recovery is verified even though the error gate remains open.
