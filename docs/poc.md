@@ -150,3 +150,7 @@ The chat list now filters by title; Files filters by filename or originating con
 The selected conversation ID survives refresh in the same browser tab through session storage. It is validated against the authenticated conversation list before restoration. New chat and `/new` clear the saved selection; a stale ID falls back to the welcome screen. Draft text, attachments and scroll are still memory-only across chat switches and do not survive reload. This is navigation restoration, not a new provider session or credential storage path.
 
 Browser verification covers trimmed/case-insensitive searches, no results, clearing filters, retained transcript selection, unchanged-poll focus, file provenance and selected-conversation restoration after reload.
+
+## Composer, files and status usability (2026-09-18)
+
+The [14-improvement usability batch](design/usability-batch.md) records the implemented composer, attachment, copy/preview, Activity-filter and connection-recovery behavior, including exact limits and verification boundaries. It adds no provider calls or dependencies and does not change alpha scope.
