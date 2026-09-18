@@ -1,0 +1,13 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>AgentMeld</title><link rel="stylesheet" href="/style.css"></head>
+<body>
+<nav class="rail" aria-label="Main navigation"><div class="brand" aria-label="AgentMeld"><img src="/brain.svg" alt="" aria-hidden="true"></div><button id="chatNav" class="nav active" aria-label="Chat" title="Chat">◯</button><button id="filesNav" class="nav" aria-label="Files" title="Files">▤</button><span class="railFoot">POC</span></nav>
+<aside class="history"><header><span>Chats</span><button id="newChat" class="icon" aria-label="New task">＋</button></header><div id="history"></div><div class="host"><span class="dot"></span><div>This Mac<small>Local workspace</small></div></div></aside>
+<main><header class="top"><button id="mobileNew" class="icon" aria-label="New task">＋</button><div class="identity"><span class="avatar"><img src="/brain.svg" alt="" aria-hidden="true"></span><div><strong>AgentMeld</strong><small>Your personal agent</small></div></div><button id="details" class="icon" aria-label="Toggle task details" title="Task details">☷</button></header>
+<section id="conversation" aria-label="Conversation" aria-live="polite"></section>
+<section id="library" hidden><h1>Files</h1><p class="muted">The things we’ve made together.</p><div id="libraryFiles"></div></section>
+<div class="composeWrap" id="composeWrap"><div id="attachments"></div><form id="composer"><label class="attach" for="upload" title="Attach files">＋<span class="sr">Attach files</span></label><input type="file" id="upload" multiple hidden><textarea id="prompt" rows="1" maxlength="16000" placeholder="Message AgentMeld" aria-label="Message AgentMeld"></textarea><button id="send" type="submit" aria-label="Send message">↑</button><button id="stop" type="button" hidden>Stop</button></form><div class="composerNote">Codex subscription · Isolated workspace · Local POC</div><div id="error" role="alert"></div></div>
+</main>
+<aside id="inspector" class="inspector"><h2>Activity</h2><div id="activity" class="muted">Ready when you are.</div><h2>Files</h2><div id="taskFiles" class="muted">Finished files will appear here.</div><div class="scope">This POC works with files you attach. Web browsing and remote devices come later.</div></aside>
+<dialog id="preview"><header><strong id="previewTitle"></strong><button id="closePreview" class="icon" aria-label="Close preview">×</button></header><div id="previewBody"></div><footer><button id="downloadFile">Download file ↓</button></footer></dialog>
+<script type="module" src="/app.js"></script></body></html>

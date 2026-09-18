@@ -1,9 +1,9 @@
 # AgentMeld
 
-Current alpha: Codex with ChatGPT subscription authentication; macOS, local browser and iOS; multiple Mac hosts and away-from-home control. Claude Code, Ollama and messaging are post-alpha. See the [M0 exit checklist](docs/m0/exit-checklist.md).
+Alpha target: Codex with ChatGPT subscription authentication; macOS, local browser and iOS; multiple Mac hosts and away-from-home control. Claude Code, Ollama and messaging are post-alpha. See the [working POC](docs/poc.md) and [qualification history](docs/m0/exit-checklist.md).
 An open-source workspace for persistent AI agents that work in isolated computers, using the models and agent harnesses you choose.
 
-**Status: M0 local experiments in progress.** The repository contains a Rust conformance harness, fixture tool loop, and offline container probes. It is not yet an installable agent application. See [M0 setup](docs/m0/README.md) and [verified results and limitations](docs/m0/results.md).
+**Status: working local POC.** Run `npm run poc` in the prepared development environment and open the private local link it prints. Attach a CSV or try the sample, ask for a report, inspect the streamed work, open/download the results, and stop a running task. It uses the existing Codex subscription inside the qualified container. See [POC setup and limits](docs/poc.md). Native apps and remote access remain planned.
 
 The alpha targets macOS, a local browser, and iOS clients controlling explicitly selected Mac-hosted agents, with observable isolated execution, durable files and memory, scheduled tasks, and explicit permissions. Self-hosting will be free; inference and infrastructure can still have costs. iMessage, WhatsApp, Windows, general remote browser access, managed hosting and a custom model are on the roadmap. Away-from-home iPhone and Mac-to-Mac control are alpha requirements; the secure connection path is being evaluated.
 

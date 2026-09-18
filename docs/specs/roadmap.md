@@ -2,6 +2,15 @@
 
 Updated: 2026-09-18. Status: proposed sequence, not a schedule or effort estimate. M0 experiments have started; see [current evidence](../m0/results.md). The [product specification](product-spec.md) owns intended behavior; [architecture](architecture.md) owns the proposed design.
 
+## Immediate priority: prove product value
+
+The owner explicitly redirected work on 2026-09-18: deliver a usable POC now.
+The [local POC](../poc.md) uses the working unpatched Codex subscription runtime.
+The failed-command event patch and expanded qualification are deferred. The
+proof is a visible user workflow: attach data, ask for work, receive a useful
+report, open/download it, and stop a running task. This precedes further M0
+hardening. It does not claim the full alpha or all historical M0 gates passed.
+
 ## M0. Prove Codex subscription execution and its isolation boundary
 
 **Outcome:** reduce the risks that could force a rewrite before building broad UI.
