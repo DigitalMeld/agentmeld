@@ -58,3 +58,5 @@ Disposable unit/browser fixtures cover search isolation and filters, excerpts, e
 ## Request-action refinement
 
 Owner feedback supersedes items 9–10 above: Copy request and Run details now use compact original outline icons with hover/focus tooltips and accessible names. The redundant Use request action and its draft-appending handler have been removed. Copy request continues to copy the original prompt; reusing that text can be done explicitly by pasting into the composer.
+
+Bubble placement refinement: request copy sits immediately left of the user bubble. Reply copy and run details sit immediately right of the response bubble, vertically centered. Both copy actions use the same 14px glyph with separate accessible names/tooltips and 28px controls (32px on coarse pointers). Turns without a reply keep run details beside their status. No detached action row or Copy reply text button remains. Desktop and narrow layouts retain these associations.

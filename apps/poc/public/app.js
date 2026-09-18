@@ -99,6 +99,18 @@ function renderActivity(){
  }).join('')||'<p class="muted">No matching activity.</p>';
  if(content!==lastActivity){$('activity').innerHTML=content;lastActivity=content;}
 }
+function messageAction(attribute,id,label,symbol,extra=''){
+ return '<button class="icon '+extra+'" '+attribute+'="'+id+'" aria-label="'+label+'" data-tooltip>'+icon(symbol)+'</button>';
+}
+function renderTurn(task){
+ const inputs=task.inputs.length?'<div class="messageLabel">'+task.inputs.map(f=>'<button class="inputFile" data-input="'+task.id+'" data-name="'+esc(f.name)+'" aria-label="Download original '+esc(f.name)+'">'+esc(f.name)+' ↓</button>').join(' ')+'</div>':'';
+ const details=messageAction('data-detail',task.id,'Run details','activity');
+ const request='<div class="messageRow requestRow"><div class="messageActions">'+messageAction('data-copy-request',task.id,'Copy request','copy')+'</div><div class="message user">'+esc(task.prompt)+inputs+'</div></div>';
+ const reply=task.answer?'<div class="messageRow replyRow"><div class="message assistant">'+markdown(task.answer)+'</div><div class="messageActions">'+messageAction('data-copy-answer',task.id,'Copy reply','copy','copyReply')+details+'</div></div>':'';
+ const active=['queued','running','cancelling'].includes(task.status);
+ const status='<div class="runStatus"><div class="pending">'+(active?'<span class="pulse"></span>':'')+esc(task.error||task.activity)+'</div>'+(!task.answer?'<div class="messageActions">'+details+'</div>':'')+'</div>';
+ return '<div class="time">'+esc(new Date(task.createdAt).toLocaleString([], {month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}))+'</div><div class="turn" id="turn-'+task.id+'" tabindex="-1">'+request+reply+status+task.artifacts.map(f=>fileButton(task,f)).join('')+'</div>';
+}
 function render(){
   const inFiles=view==='files',chatVisible=!inFiles||fileChatOpen;
   document.body.classList.toggle('filesView',inFiles);document.body.classList.toggle('fileChatOpen',inFiles&&fileChatOpen);
@@ -128,7 +140,7 @@ function render(){
   $('restoreChat').hidden=!current?.archived;
   const turns=state.tasks.filter(t=>t.conversationId===selected);
   const task=turns.at(-1);
-  const content=turns.length?turns.map(task=>'<div class="time">'+esc(new Date(task.createdAt).toLocaleString([], {month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}))+'</div><div class="turn" id="turn-'+task.id+'" tabindex="-1"><div class="message user">'+esc(task.prompt)+(task.inputs.length?'<div class="messageLabel">'+task.inputs.map(f=>'<button class="inputFile" data-input="'+task.id+'" data-name="'+esc(f.name)+'" aria-label="Download original '+esc(f.name)+'">'+esc(f.name)+' ↓</button>').join(' ')+'</div>':'')+'</div>'+(task.answer?'<div class="message assistant">'+markdown(task.answer)+'</div><button class="copyReply" data-copy-answer="'+task.id+'">Copy reply</button>':'')+(['queued','running','cancelling'].includes(task.status)?'<div class="pending"><span class="pulse"></span>'+esc(task.activity)+'</div>':'<div class="pending">'+esc(task.error||task.activity)+'</div>')+'<div class="requestActions"><button class="icon" data-copy-request="'+task.id+'" aria-label="Copy request" data-tooltip>'+icon('copy')+'</button><button class="icon" data-detail="'+task.id+'" aria-label="Run details" data-tooltip>'+icon('activity')+'</button></div>'+task.artifacts.map(f=>fileButton(task,f)).join('')+'</div>').join(''):'<div class="welcome"><span class="avatar large"><img src="/brain.svg" alt="" aria-hidden="true"></span><h1>What would you like to get done?</h1><p>Bring a file and a question.<br>I’ll do the work and bring back the result.</p><button class="suggestion" id="sample">Find the story in my sales data<small>Try a sample CSV and get a real report ↗</small></button></div>';
+  const content=turns.length?turns.map(renderTurn).join(''):'<div class="welcome"><span class="avatar large"><img src="/brain.svg" alt="" aria-hidden="true"></span><h1>What would you like to get done?</h1><p>Bring a file and a question.<br>I’ll do the work and bring back the result.</p><button class="suggestion" id="sample">Find the story in my sales data<small>Try a sample CSV and get a real report ↗</small></button></div>';
   if(content!==lastRender){const nearBottom=$('conversation').scrollHeight-$('conversation').scrollTop-$('conversation').clientHeight<100; $('conversation').innerHTML=content;lastRender=content;highlightConversation();if(nearBottom)$('conversation').scrollTop=$('conversation').scrollHeight;}
   renderActivity();if($('runDetails').open)renderDetails();
   $('taskFiles').innerHTML=task?.artifacts.length?task.artifacts.map(f=>fileButton(task,f)).join(''):'Finished files will appear here.';
