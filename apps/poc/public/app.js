@@ -1,3 +1,5 @@
+import { icon } from './icons.js';
+import './tooltips.js';
 const $=id=>document.getElementById(id);
 let token=location.hash.slice(1)||sessionStorage.getItem('agentmeld-token')||'';
 if(token){sessionStorage.setItem('agentmeld-token',token);history.replaceState(null,'',location.pathname);}
@@ -17,10 +19,11 @@ const draftKey=()=>selected||'new';
 function rememberDraft(){drafts.set(draftKey(),{text:$('prompt').value,files,scroll:$('conversation').scrollTop,pending:drafts.get(draftKey())?.pending});}
 function selectConversation(id){document.querySelector('.history').classList.remove('open');rememberDraft();selected=id;const d=drafts.get(draftKey());$('prompt').value=d?.text||'';files=d?.files||[];lastRender='';showChat();$('conversation').scrollTop=d?.scroll||0;error();}
 function newTask(){rememberDraft();drafts.delete('new');selected=null;files=[];$('prompt').value='';lastRender='';document.querySelector('.history').classList.remove('open');error();showChat();$('prompt').focus();}
+$('attach').onclick=()=>$('upload').click();
 $('newChat').onclick=newTask;$('mobileNew').onclick=newTask;
 $('chatNav').onclick=()=>{showChat();if(matchMedia('(max-width:720px)').matches)document.querySelector('.history').classList.toggle('open');};$('filesNav').onclick=()=>{view='files';render();};
 $('details').onclick=()=>{$('inspector').classList.toggle(matchMedia('(min-width:1001px)').matches?'closed':'open');};
-function fileButton(task,f){return '<button class="file" data-task="'+task.id+'" data-file="'+esc(f.name)+'"><span class="fileIcon">▤</span><span>'+esc(f.name)+'<small>'+Math.max(1,Math.round(f.size/1024))+' KB · Open</small></span></button>';}
+function fileButton(task,f){return '<button class="file" aria-label="Open '+esc(f.name)+'" data-tooltip data-task="'+task.id+'" data-file="'+esc(f.name)+'"><span class="fileIcon">'+icon('file')+'</span><span>'+esc(f.name)+'<small>'+Math.max(1,Math.round(f.size/1024))+' KB · Open</small></span></button>';}
 function render(){
   $('chatNav').classList.toggle('active',view==='chat');$('filesNav').classList.toggle('active',view==='files');
   $('conversation').hidden=view!=='chat';$('library').hidden=view!=='files';$('composeWrap').hidden=view!=='chat';
@@ -37,10 +40,10 @@ function render(){
   const unavailable=state.conversations.find(c=>c.id===selected)?.continuation!=='ready'&&selected!==null;
   const pending=drafts.get(draftKey())?.pending;
   $('send').hidden=false;$('send').disabled=submitting||unavailable;
-  $('send').textContent=pending?'Retry':'↑';$('send').setAttribute('aria-label',pending?'Retry pending message':'Send message');
-  $('prompt').disabled=submitting||!!pending||unavailable;$('upload').disabled=submitting||!!pending||unavailable;
+  $('send').innerHTML=pending?'Retry':icon('send');$('send').setAttribute('aria-label',pending?'Retry pending message':'Send message');
+  $('prompt').disabled=submitting||!!pending||unavailable;$('upload').disabled=submitting||!!pending||unavailable;$('attach').disabled=$('upload').disabled;
   $('prompt').placeholder=unavailable?'Start a new chat to continue':'Message AgentMeld · /new for a fresh chat';
-  $('attachments').innerHTML=files.map((f,i)=>'<span class="chip">'+esc(f.name)+'<button data-remove="'+i+'" aria-label="Remove '+esc(f.name)+'">×</button></span>').join('');
+  $('attachments').innerHTML=files.map((f,i)=>'<span class="chip">'+esc(f.name)+'<button data-remove="'+i+'" aria-label="Remove '+esc(f.name)+'" data-tooltip>×</button></span>').join('');
 }
 document.addEventListener('click',async e=>{
   const choose=e.target.closest('[data-select]');if(choose){selectConversation(choose.dataset.select);}

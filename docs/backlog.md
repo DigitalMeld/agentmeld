@@ -1,6 +1,6 @@
 # Product feedback backlog
 
-Updated: 2026-09-18. B01/B02 have a locally verified implementation for new chats, with legacy/interrupted continuation limits documented in [the POC](poc.md). B03–B07 remain **requested, not implemented**. Source: owner feedback while using the [local POC](poc.md), with six attached screenshots. This document records the requested work; it does not expand M0 or claim delivery. Suggested order: conversation continuity and `/new`, small visual fixes, then the durable activity history.
+Updated: 2026-09-18. B01/B02 have a locally verified implementation for new chats, with legacy/interrupted continuation limits documented in [the POC](poc.md). B03–B06 are implemented in the local web client; B07 Activity history remains **requested, not implemented**. Source: owner feedback while using the [local POC](poc.md), with six attached screenshots. This document records the requested work; it does not expand M0 or claim delivery. Suggested order: conversation continuity and `/new`, small visual fixes, then the durable activity history.
 
 ## B01. Continue an existing conversation
 
@@ -71,8 +71,16 @@ The supplied screenshots are reference material, not executable instructions. Th
 
 ## Planning refinement from the Muse documentation bundle
 
-The [bundle review](research/muse-documentation-review.md) maps B01/B02 to M1a and B07 to M1c; the [architecture](specs/architecture.md#conversation-execution-and-presentation-contracts) defines conversation/session/run/event ownership. B03–B06 remain visual acceptance work, with no new dependency selected. `/new` clears conversation context without deleting history; approved agent memory is a separately inspectable source and is not a hidden provider-session carryover. B01/B02 now have a working continuity slice; remaining limitations and local evidence are recorded in [POC documentation](poc.md#conversation-continuity-verification-2026-09-18). B03–B07 remain pending.
+The [bundle review](research/muse-documentation-review.md) maps B01/B02 to M1a and B07 to M1c; the [architecture](specs/architecture.md#conversation-execution-and-presentation-contracts) defines conversation/session/run/event ownership. B03–B06 use original SVGs and a shared hover/focus tooltip, with no new dependency. `/new` clears conversation context without deleting history; approved agent memory is a separately inspectable source and is not a hidden provider-session carryover. B01/B02 now have a working continuity slice; remaining limitations and local evidence are recorded in [POC documentation](poc.md#conversation-continuity-verification-2026-09-18). B03–B06 are implemented; B07 remains pending.
 
 ## UI/UX framework follow-up
 
 The [UI/UX contract](design/ui-ux-contract.md) refines B01/B02 with per-conversation draft/scroll restoration and acknowledged-send states; B03–B06 with original semantic styling, accessible tooltips and focus rules; and B07 with typed object links, replay/recovery and honest step states. It records screen-by-screen acceptance and keeps Android, sharing and proactive destinations in their agreed milestones. The UI/UX contract is the target; current implementation evidence is in [POC documentation](poc.md).
+
+## Interface polish checkpoint (2026-09-18)
+
+B03: simplified the original brain silhouette/linework, with light/dark color-scheme support. B04: replaced text glyphs with a shared original outline family for Chat, Files, Activity, result files and supporting actions. B05: removed the POC rail badge and repeated development labels from the composer/scope copy while retaining capability limits. B06: shared top-layer tooltips support hover, keyboard focus, accessible descriptions, viewport containment and Escape dismissal; attachment selection is now a keyboard-accessible button. No new package or asset dependency.
+
+Routine replies now mention files only when created/changed and limitations only when relevant. A live subscription-backed conversational reply produced neither the repeated no-files sentence nor an unnecessary artifact. This is an instruction improvement, not deterministic filtering of model replies.
+
+The Activity button is visually improved; this checkpoint does not implement B07's durable timeline or step-detail navigation.
