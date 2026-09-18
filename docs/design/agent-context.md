@@ -19,4 +19,16 @@ Removing memory excludes it from future context but does not scrub the original 
 - `experiments/poc-profile.test.mjs`: validation, stale/concurrent edits, deletion, authenticated endpoints, restart persistence, provider-context replacement with workspace retention, and active-run rejection.
 - `experiments/poc-profile.browser.mjs`: owner editing, remember/forget, draft preservation, reload/readback and narrow-layout rendering with disposable state.
 - Node suite: 207 tests. Browser fixture uses no provider, container or user data. JavaScript syntax/docs checks accompany the change.
-- Live provider use of newly edited context is not yet qualified; the injected execution fixture proves orchestration and the runtime builds the native turn prompt from that context. Full P5/P10 require live acceptance, explicit memory edits/provenance navigation and the broader versioned agent-state design.
+- `experiments/poc-profile-live.mjs` passed against the configured Codex subscription in a disposable store: the first turn used a synthetic approved measurement preference and marker and created a file; after memory deletion and service restart, a second turn reported the marker unknown, used a different provider session, and read the retained file. Both turns completed. No owner profile, chats or files were modified. Workers/proxies were removed by runtime cleanup.
+- Full local verification now passes with the existing Rust 1.95 toolchain added to this shell's PATH: formatting, Clippy, build, 18 Rust tests, 207 Node tests, six seccomp tests and docs. This corrects the earlier shell-only tooling limitation; no installation was needed.
+- Full P5/P10 still require explicit memory edits/provenance navigation and the broader versioned agent-state design. The probe does not establish deletion from provider-side storage or historical transcripts.
+
+## Reproduce live acceptance
+
+This command intentionally invokes the configured subscription and creates disposable isolated workers. It is excluded from default tests:
+
+```sh
+node experiments/poc-profile-live.mjs
+```
+
+The probe asserts results and prints booleans only. Its temporary canonical store is removed afterward; native provider session retention follows the existing configured runtime policy.
