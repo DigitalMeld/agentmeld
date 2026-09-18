@@ -4,6 +4,9 @@ This milestone has begun. The Rust crate contains experimental contracts and tes
 
 ## What exists
 
+- [Offline resource baseline](resource-baseline.md), 150-second native/browser workload with verified command writes and cgroup measurements.
+
+- [Workspace disk limit](workspace-disk-limit.md), fixed-size persistent filesystem, disk-full recovery and container-replacement evidence.
 - [Dedicated subscription store](codex-auth-store.md), synthetic persistence and tool-denial evidence; real storage/login require owner authorization.
 - [Provider egress](provider-egress.md), an isolated CONNECT gateway with public TLS and denied-destination checks; native login remains open.
 - [Current exit checklist](exit-checklist.md), Codex subscription scope and explicit remaining gates.

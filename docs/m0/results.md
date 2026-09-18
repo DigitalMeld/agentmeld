@@ -100,3 +100,7 @@ The [native file-tool extension](codex-credential-boundary.md#native-file-tool-e
 The [provider-egress experiment](provider-egress.md) adds eight deterministic local tests and an explicit unauthenticated public TLS probe from an isolated container network. It does not qualify native authentication or inference.
 
 The [dedicated auth-store experiment](codex-auth-store.md) adds three local checks and qualifies synthetic volume persistence across two replacement containers with protected configuration/canary read-write denials. Real owner storage and login are not yet created. The default suite now has 168 tests.
+
+The [workspace disk-limit experiment](workspace-disk-limit.md) enforces a 64 MiB backing-file ceiling, verifies `ENOSPC` without loss of existing fixture data, recovers writes and preserves results across container replacement. It is not yet integrated into the default bind-mounted worker launcher.
+
+The [sustained offline resource baseline](resource-baseline.md) passed 51 verified native command/browser cycles over idle, active and cooldown phases, with zero OOM kills and 212.04 MiB peak charged memory. These synthetic measurements do not establish live inference performance or minimum host sizing.
