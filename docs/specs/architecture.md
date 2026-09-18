@@ -129,7 +129,7 @@ Keep credential values out of client responses, logs, prompts, memory, and artif
 
 ## 7. Domain model and persistence
 
-The [data implementation blueprint](data-model.md) owns the core ERD, exact draft SQLite DDL, complete Muse relation dispositions and staged POC migration. Those are design artifacts; the running POC still uses its current JSON store.
+The [data implementation blueprint](data-model.md) owns the core ERD, exact draft SQLite DDL, complete Muse relation dispositions and staged POC migration. Those are design artifacts; the running POC uses its versioned JSON store; the [continuity slice](../poc.md) implements conversations and native mappings before the planned SQLite cutover.
 
 | Entity | Key semantics |
 | --- | --- |

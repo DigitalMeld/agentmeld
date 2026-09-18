@@ -43,6 +43,8 @@ Build only the first conversation screen, inline approval, artifact preview, and
 
 ### M1 delivery slices after the POC
 
+2026-09-18 implementation checkpoint: the existing Node POC now supports stable conversations, queued native follow-ups, bounded working-file retention, `/new` and an exact-backup format-2 migration. [Local evidence and limits](../poc.md#conversation-continuity-verification-2026-09-18) cover real continuation/restart and browser fixtures. Legacy and interrupted chats remain read-only; Rust/SQLite migration, general recovery and the remaining M1 slices are not complete.
+
 Apply the [UI/UX contract](../design/ui-ux-contract.md) to each slice: preserve draft/navigation state, use object deep links, expose authoritative statuses, and verify keyboard/focus and narrow layouts. Improve the existing POC; the source document's separate all-platform mock prototype is not a prerequisite.
 
 Use the [data implementation blueprint](data-model.md) and [staged migration plan](data/migration-plan.md) for schema ownership and cutover. The SQL draft is validated only with synthetic in-memory data; no production migration has run.

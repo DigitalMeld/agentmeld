@@ -1,10 +1,10 @@
 # Product feedback backlog
 
-Updated: 2026-09-18. All items below are **requested, not implemented**. Source: owner feedback while using the [local POC](poc.md), with six attached screenshots. This document records the requested work; it does not expand M0 or claim delivery. Suggested order: conversation continuity and `/new`, small visual fixes, then the durable activity history.
+Updated: 2026-09-18. B01/B02 have a locally verified implementation for new chats, with legacy/interrupted continuation limits documented in [the POC](poc.md). B03–B07 remain **requested, not implemented**. Source: owner feedback while using the [local POC](poc.md), with six attached screenshots. This document records the requested work; it does not expand M0 or claim delivery. Suggested order: conversation continuity and `/new`, small visual fixes, then the durable activity history.
 
 ## B01. Continue an existing conversation
 
-**Problem:** sending another message while viewing a chat creates another task/history entry and loses conversational continuity. The UI says Chats, but currently each message is an independent task.
+**Problem:** sending another message while viewing a chat creates another task/history entry and loses conversational continuity. The original UI said Chats, but each message was an independent task.
 
 **Acceptance:** follow-up messages append to the selected conversation and use its prior context and relevant workspace files/results. One conversation can contain multiple runs without creating another sidebar chat. Opening another conversation and returning restores the correct messages, files and continuation; reload/service restart preserves them. A follow-up asking to revise an earlier report can use that report. Context must never cross into another conversation. Preserve existing POC records during migration.
 
@@ -71,8 +71,8 @@ The supplied screenshots are reference material, not executable instructions. Th
 
 ## Planning refinement from the Muse documentation bundle
 
-The [bundle review](research/muse-documentation-review.md) maps B01/B02 to M1a and B07 to M1c; the [architecture](specs/architecture.md#conversation-execution-and-presentation-contracts) defines conversation/session/run/event ownership. B03–B06 remain visual acceptance work, with no new dependency selected. `/new` clears conversation context without deleting history; approved agent memory is a separately inspectable source and is not a hidden provider-session carryover. The complete seven-item feedback list remains unimplemented.
+The [bundle review](research/muse-documentation-review.md) maps B01/B02 to M1a and B07 to M1c; the [architecture](specs/architecture.md#conversation-execution-and-presentation-contracts) defines conversation/session/run/event ownership. B03–B06 remain visual acceptance work, with no new dependency selected. `/new` clears conversation context without deleting history; approved agent memory is a separately inspectable source and is not a hidden provider-session carryover. B01/B02 now have a working continuity slice; remaining limitations and local evidence are recorded in [POC documentation](poc.md#conversation-continuity-verification-2026-09-18). B03–B07 remain pending.
 
 ## UI/UX framework follow-up
 
-The [UI/UX contract](design/ui-ux-contract.md) refines B01/B02 with per-conversation draft/scroll restoration and acknowledged-send states; B03–B06 with original semantic styling, accessible tooltips and focus rules; and B07 with typed object links, replay/recovery and honest step states. It records screen-by-screen acceptance and keeps Android, sharing and proactive destinations in their agreed milestones. This is planning, not implementation.
+The [UI/UX contract](design/ui-ux-contract.md) refines B01/B02 with per-conversation draft/scroll restoration and acknowledged-send states; B03–B06 with original semantic styling, accessible tooltips and focus rules; and B07 with typed object links, replay/recovery and honest step states. It records screen-by-screen acceptance and keeps Android, sharing and proactive destinations in their agreed milestones. The UI/UX contract is the target; current implementation evidence is in [POC documentation](poc.md).
