@@ -1,5 +1,5 @@
 import { installPreviewReader, textMetrics } from './preview-reader.js';
-import { countLabel, showTurnStatus, dayLabel, chatSearch, activityTasks, duration, elapsedLabel, runExport, renderMarkdown, literalMatches } from './conversation-tools.js';
+import { statusLabel, queueWait, activityExport, countLabel, showTurnStatus, dayLabel, chatSearch, activityTasks, duration, elapsedLabel, runExport, renderMarkdown, literalMatches } from './conversation-tools.js';
 import { artifactKey, latestVersions, textFile, csvRows, manifest, zipFiles } from './artifact-tools.js';
 import { browseWorkspace, fileKind, breadcrumbs, readPreferences } from './file-browser.js';
 import { chatInfo, orderedChats, outputEntries, visibleOutputs, conversationExport } from './organization.js';
@@ -76,10 +76,17 @@ $('libraryMenu').onclick=()=>$('fileSidebar').classList.toggle('open');
 $('libraryChat').onclick=()=>{fileChatOpen=!fileChatOpen;render();if(fileChatOpen)$('prompt').focus();};
 $('fileChatClose').onclick=()=>{fileChatOpen=false;render();$('libraryChat').focus();};
 $('fileChatNew').onclick=()=>{newTask();view='files';fileChatOpen=true;render();$('prompt').focus();};
-let activityFilter='all',activityOldest=false;
-for(const b of document.querySelectorAll('[data-activity-filter]'))b.onclick=()=>{activityFilter=b.dataset.activityFilter;renderActivity();};
-$('activityCurrent').onchange=$('activityOutputs').onchange=()=>renderActivity();
-$('activityOrder').onclick=()=>{activityOldest=!activityOldest;renderActivity();};
+let activityFilter='all',activityOldest=false,activityPeriod='all';
+try{const p=JSON.parse(localStorage.getItem('agentmeld-activity')||'{}');if(['all','active','attention','completed','failed','stopped'].includes(p.filter))activityFilter=p.filter;if(['all','today','week'].includes(p.period))activityPeriod=p.period;activityOldest=p.oldest===true;for(const [id,key] of [['activityCurrent','current'],['activityOutputs','outputs'],['activityInputs','inputs']])$(id).checked=p[key]===true;}catch{}
+function saveActivityPreferences(){try{localStorage.setItem('agentmeld-activity',JSON.stringify({filter:activityFilter,period:activityPeriod,oldest:activityOldest,current:$('activityCurrent').checked,outputs:$('activityOutputs').checked,inputs:$('activityInputs').checked}));}catch{}}
+for(const b of document.querySelectorAll('[data-period]'))b.onclick=()=>{activityPeriod=b.dataset.period;saveActivityPreferences();renderActivity();};
+$('clearActivitySearch').onclick=()=>{$('activitySearch').value='';renderActivity();$('activitySearch').focus();};
+$('resetActivity').onclick=()=>{activityFilter='all';activityPeriod='all';activityOldest=false;for(const id of ['activityCurrent','activityOutputs','activityInputs'])$(id).checked=false;$('activitySearch').value='';saveActivityPreferences();renderActivity();$('activitySearch').focus();};
+for(const [id,format] of [['exportActivityJson','json'],['exportActivityMd','md']])$(id).onclick=()=>downloadBlob(new Blob([activityExport(currentActivity(),state,format)],{type:format==='json'?'application/json':'text/markdown'}),'agentmeld-activity.'+format);
+
+for(const b of document.querySelectorAll('[data-activity-filter]'))b.onclick=()=>{activityFilter=b.dataset.activityFilter;saveActivityPreferences();renderActivity();};
+$('activityCurrent').onchange=$('activityOutputs').onchange=$('activityInputs').onchange=()=>{saveActivityPreferences();renderActivity();};
+$('activityOrder').onclick=()=>{activityOldest=!activityOldest;saveActivityPreferences();renderActivity();};
 $('closeActivity').onclick=()=>{$('inspector').classList.remove('open');$('inspector').classList.add('closed');$('details').focus();};
 $('details').onclick=()=>{const panel=$('inspector');if(matchMedia('(min-width:1001px)').matches)panel.classList.toggle('closed');else{panel.classList.remove('closed');panel.classList.toggle('open');}};
 function fileButton(task,f){return '<button class="file" aria-label="Open '+esc(f.name)+'" data-tooltip data-task="'+task.id+'" data-file="'+esc(f.name)+'"><span class="fileIcon">'+icon('file')+'</span><span>'+esc(f.name)+'<small>'+formatBytes(f.size)+' · Open</small></span></button>';}
@@ -90,21 +97,26 @@ $('runConversation').onclick=()=>{const task=state.tasks.find(t=>t.id===detailId
 function renderDetails(){
  const task=state.tasks.find(t=>t.id===detailId);if(!task)return;
  const title=state.conversations.find(c=>c.id===task.conversationId)?.title||'Conversation';
- const content='<p class="muted">'+esc(title)+' · '+esc(new Date(task.createdAt).toLocaleString())+' · Duration: '+elapsedLabel(duration(task))+'</p><p class="runPrompt">'+esc(task.prompt)+'</p><p>'+esc(task.status)+' · '+esc(task.error||task.activity)+'</p><h3>Recorded milestones</h3>'+((task.events||[]).length?'<ol class="milestones">'+task.events.map((e,i)=>'<li><strong>'+esc(e.label)+'</strong><time>'+esc(new Date(e.at).toLocaleString())+(i?' · '+elapsedLabel(Date.parse(e.at)-Date.parse(task.events[i-1].at))+' since previous':'')+'</time></li>').join('')+'</ol>':'<p class="muted">Milestones were not recorded for this older turn.</p>')+'<p class="muted">These are run milestones, not a complete command history.</p>'+(task.inputs.length?'<h3>Inputs</h3>'+task.inputs.map(f=>'<button class="inputFile" data-input="'+task.id+'" data-name="'+esc(f.name)+'">'+esc(f.name)+' · '+formatBytes(f.size||0)+'</button>').join(''):'')+(task.artifacts.length?'<h3>Outputs</h3>'+task.artifacts.map(f=>fileButton(task,f)).join(''):'')+(task.answer?'<details class="runAnswer"><summary>Reply</summary>'+markdown(task.answer)+'</details>':'');
+ const content='<div class="runFacts"><span class="statusBadge" data-status="'+esc(task.status)+'">'+esc(statusLabel(task.status))+'</span><span>Queue wait: '+elapsedLabel(queueWait(task))+'</span><span>'+countLabel(task.inputs.length,'input')+' · '+countLabel(task.artifacts.length,'output')+' · '+formatBytes(task.artifacts.reduce((n,f)=>n+f.size,0))+'</span></div><p class="muted">'+esc(title)+' · '+esc(new Date(task.createdAt).toLocaleString())+' · Duration: '+elapsedLabel(duration(task))+'</p><p class="runPrompt">'+esc(task.prompt)+'</p>'+((task.error||!['Finished','Completed','Done'].includes(task.activity))?'<p>'+esc(task.error||task.activity)+'</p>':'')+'<h3>Recorded milestones ('+(task.events||[]).length+')</h3>'+((task.events||[]).length?'<ol class="milestones">'+task.events.map((e,i)=>'<li><strong>'+esc(e.label)+'</strong><time>'+esc(new Date(e.at).toLocaleString())+(i?' · '+elapsedLabel(Date.parse(e.at)-Date.parse(task.events[i-1].at))+' since previous':'')+'</time></li>').join('')+'</ol>':'<p class="muted">Milestones were not recorded for this older turn.</p>')+'<p class="muted">These are run milestones, not a complete command history.</p>'+(task.inputs.length?'<h3>Inputs</h3>'+task.inputs.map(f=>'<button class="inputFile" data-input="'+task.id+'" data-name="'+esc(f.name)+'">'+esc(f.name)+' · '+formatBytes(f.size||0)+'</button>').join(''):'')+(task.artifacts.length?'<h3>Outputs</h3>'+task.artifacts.map(f=>fileButton(task,f)).join(''):'')+(task.answer?'<details class="runAnswer"><summary>Reply</summary>'+markdown(task.answer)+'</details>':'');
  if(content!==lastDetail){const expanded=$('runBody').querySelector('.runAnswer')?.open;$('runBody').innerHTML=content;if(expanded&&$('runBody').querySelector('.runAnswer'))$('runBody').querySelector('.runAnswer').open=true;lastDetail=content;}
+ $('copyRunReply').disabled=!task.answer;$('copyMilestones').disabled=!task.events?.length;
  const tasks=currentActivity(),index=tasks.findIndex(t=>t.id===detailId);$('previousRun').disabled=index<=0;$('nextRun').disabled=index<0||index>=tasks.length-1;$('runPosition').textContent=index<0?'':(index+1)+' / '+tasks.length;
 }
 let lastActivity='',lastLibrary='';
-function currentActivity(){return activityTasks(state,{filter:activityFilter,query:$('activitySearch').value,conversationId:$('activityCurrent').checked?selected:null,outputs:$('activityOutputs').checked,oldest:activityOldest});}
+function currentActivity(filter=activityFilter){if($('activityCurrent').checked&&!selected)return [];return activityTasks(state,{filter,query:$('activitySearch').value,conversationId:$('activityCurrent').checked?selected:null,outputs:$('activityOutputs').checked,inputs:$('activityInputs').checked,period:activityPeriod,oldest:activityOldest});}
 function renderActivity(){
- let day='';const tasks=$('activityCurrent').checked&&!selected?[]:currentActivity();
- $('activityCount').textContent=countLabel(tasks.length,'run');$('activityOrder').textContent=activityOldest?'Oldest first':'Newest first';$('activityOrder').setAttribute('aria-pressed',String(activityOldest));
- for(const b of document.querySelectorAll('[data-activity-filter]'))b.setAttribute('aria-pressed',String(b.dataset.activityFilter===activityFilter));
+ let day='';const tasks=currentActivity();
+ $('clearActivitySearch').hidden=!$('activitySearch').value;$('resetActivity').hidden=activityFilter==='all'&&activityPeriod==='all'&&!activityOldest&&!$('activityCurrent').checked&&!$('activityOutputs').checked&&!$('activityInputs').checked&&!$('activitySearch').value;
+ $('exportActivityJson').disabled=$('exportActivityMd').disabled=!tasks.length;
+ for(const b of document.querySelectorAll('[data-period]'))b.setAttribute('aria-pressed',String(b.dataset.period===activityPeriod));
+
+ $('activityCount').textContent=countLabel(tasks.length,'run')+' · '+($('activityCurrent').checked?'This chat':'All chats');$('activityOrder').textContent=activityOldest?'Oldest first':'Newest first';$('activityOrder').setAttribute('aria-pressed',String(activityOldest));
+ for(const b of document.querySelectorAll('[data-activity-filter]')){b.setAttribute('aria-pressed',String(b.dataset.activityFilter===activityFilter));const label=({all:'All',active:'Active',attention:'Attention',completed:'Done',failed:'Failed',stopped:'Stopped'})[b.dataset.activityFilter];b.textContent=label+' '+currentActivity(b.dataset.activityFilter).length;}
  const content=tasks.map(task=>{
  const date=new Date(task.createdAt),key=date.toLocaleDateString(),heading=key!==day?'<h3>'+esc(date.toLocaleDateString([], {month:'short',day:'numeric',year:'numeric'}))+'</h3>':'';day=key;
  const title=state.conversations.find(c=>c.id===task.conversationId)?.title||'Conversation';
- return heading+'<article class="activityEntry"><button class="activityLink" data-jump="'+task.id+'" aria-label="Open conversation: '+esc(task.prompt)+'"><strong>'+esc(task.prompt)+'</strong><span class="activityMeta">'+esc(task.status)+' · '+esc(date.toLocaleTimeString([], {hour:'numeric',minute:'2-digit'}))+(duration(task)!==null?' · '+elapsedLabel(duration(task)):'')+'</span><span class="activityChat">'+esc(title)+'</span><span class="activitySummary">'+esc(task.error||task.activity)+'</span></button><button class="detailLink" data-detail="'+task.id+'">View details</button>'+task.artifacts.map(f=>fileButton(task,f)).join('')+'</article>';
- }).join('')||'<p class="muted">No matching activity.</p>';
+ return heading+'<article class="activityEntry"><button class="activityLink" data-jump="'+task.id+'" aria-label="Open conversation: '+esc(task.prompt)+'"><strong>'+esc(task.prompt)+'</strong><span class="activityMeta">'+'<span class="statusBadge" data-status="'+esc(task.status)+'">'+esc(statusLabel(task.status))+'</span> · '+esc(date.toLocaleTimeString([], {hour:'numeric',minute:'2-digit'}))+(duration(task)!==null?' · '+elapsedLabel(duration(task)):'')+'</span><span class="activityChat">'+esc(title)+'</span>'+((task.error||!['Finished','Completed','Done'].includes(task.activity))?'<span class="activitySummary">'+esc(task.error||task.activity)+'</span>':'')+'<span class="activityFileCount">'+countLabel(task.inputs.length,'input')+' · '+countLabel(task.artifacts.length,'output')+'</span></button><button class="detailLink" data-detail="'+task.id+'">View details</button>'+task.artifacts.map(f=>fileButton(task,f)).join('')+'</article>';
+ }).join('')||'<p class="muted">'+($('activityCurrent').checked&&!selected?'Open a chat to see its activity.':state.tasks.length?'No runs match these filters. Reset filters to see all activity.':'No activity yet. Send a message to start.')+'</p>';
  if(content!==lastActivity){$('activity').innerHTML=content;lastActivity=content;}
 }
 function messageAction(attribute,id,label,symbol,extra=''){
@@ -428,6 +440,10 @@ document.addEventListener('click',async e=>{
 const selectedRun=()=>state.tasks.find(t=>t.id===detailId);
 $('exportRun').onclick=()=>{const t=selectedRun();if(t)downloadBlob(new Blob([JSON.stringify(runExport(t,state.conversations.find(c=>c.id===t.conversationId)?.title||'Conversation'),null,2)],{type:'application/json'}),'run-'+t.id+'.json');};
 $('copyRun').onclick=()=>{const t=selectedRun();if(t)copyText(t.prompt+'\n'+t.status+' · '+(t.error||t.activity)+'\nDuration: '+elapsedLabel(duration(t)));};
-function moveRun(delta){const list=currentActivity(),index=list.findIndex(t=>t.id===detailId);if(index>=0&&list[index+delta]){detailId=list[index+delta].id;renderDetails();$('runBody').scrollTop=0;}}
+function moveRun(delta){const list=currentActivity(),index=list.findIndex(t=>t.id===detailId);if(index>=0&&list[index+delta]){detailId=list[index+delta].id;renderDetails();$('runBody').scrollTop=0;if(document.activeElement===document.body)$('runBody').focus({preventScroll:true});}}
+$('copyRunRequest').onclick=()=>{const t=selectedRun();if(t)copyText(t.prompt);};
+$('copyRunReply').onclick=()=>{const t=selectedRun();if(t?.answer)copyText(t.answer);};
+$('copyMilestones').onclick=()=>{const t=selectedRun();if(t)copyText((t.events||[]).map(e=>e.at+' · '+e.label).join('\n'));};
+$('runDetails').addEventListener('keydown',e=>{if(e.target.matches('input,textarea,select')||e.ctrlKey||e.metaKey||e.altKey||e.shiftKey)return;if(['ArrowLeft','ArrowRight'].includes(e.key)){e.preventDefault();moveRun(e.key==='ArrowLeft'?-1:1);}});
 $('previousRun').onclick=()=>moveRun(-1);$('nextRun').onclick=()=>moveRun(1);
 render();await refresh();setInterval(refresh,1000);

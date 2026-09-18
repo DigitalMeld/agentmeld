@@ -48,3 +48,5 @@ For a meaningful change, record the reason, affected behavior, evidence/checks, 
 - [Conversation discovery and activity navigation](design/conversation-navigation.md): 24 improvements to search, reply formatting, request reuse and run inspection.
 
 - [File reading and workspace navigation](design/file-reading.md): in-preview search, wrapping, load states, sortable workspace tables and keyboard navigation.
+
+- [Activity inspection](design/activity-inspection.md): outcome/date filters, recorded timing, filtered exports and run navigation.
