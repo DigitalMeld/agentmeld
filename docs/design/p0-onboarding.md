@@ -201,6 +201,18 @@ Owner clicked through v4 on their Mac. Verdict: the flow is fine and the chat sc
 
 Verification for v5: inline JS passes `node --check`; `scripts/check-docs.py` passes; all `getElementById`/`data-go` targets resolve; no `border-left` remains in the prototype. Visual review still pending on the owner's Mac.
 
+## 15. Prototype v6: restyle around the working prototype (2026-09-18)
+
+Owner's correction on v5: they already have a working prototype (`apps/poc/public`), and the standalone onboarding shouldn't invent its own design language. v6 adopts that product's tokens and patterns, presentation only — flow, disclosures, and the approved chat interaction are unchanged:
+
+- **Tokens:** system font stack (`-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`); surfaces `#101011` / `#161617` / `#232325`; dividers `#2b2b2e`; text `#eeeef0`, muted `#96969f`; accent `#496edb`; links `#adc2ff`. The invented Roboto/purple treatment is gone.
+- **Chat shell matches the real app:** 64px nav rail (`#141415`, 42px nav buttons, brain mark on top) with the same outline icons; centered identity header with the circular avatar and presence line; assistant bubbles `#222224` (`22px 22px 22px 6px`); user bubbles `#303a56` (`24px 24px 6px 24px`); the real composer — `#242426`, `1px solid #36363a`, 28px radius, `+` attach control on the left, removable attachment chip above, circular light send button.
+- **Primary buttons go light** (`#dddde5` on dark text, 20px radius) to match the app's prominent download control; secondary buttons stay ghost.
+- **Agent-name label fixed per owner:** label is now 15px semibold — same size as the input text — and indented to align with the input's text (16px), not just the input border.
+- **Disclosures mark** uses the real brain logo instead of the invented tile glyph. The three disclosures, terms line, and full-width Get started are unchanged.
+
+Verification for v6: inline JS passes `node --check`; `scripts/check-docs.py` passes; all `getElementById`/`data-go` targets resolve; no `border-left` remains. Visual review still pending on the owner's Mac.
+
 ---
 
 ## 10. Open questions for the owner
