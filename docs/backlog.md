@@ -136,3 +136,7 @@ The [25-improvement Activity inspection batch](design/activity-inspection.md) ad
 ## Simplified agent sidebar
 
 Owner feedback supersedes the Activity filter-heavy design: retain search and history; use an expandable failure/interruption alert rather than status filters; add Activity, Approvals and Schedule icon tabs; remove the capability footer. Approvals and Schedule currently show explicit unavailable states pending service integration. See [current sidebar behavior](design/activity-inspection.md#current-sidebar-revision).
+
+## Composer refinements
+
+The [13-change composer batch](design/composer-refinements.md) removes the header subtitle, improves attachment input and recovery, and protects unfinished drafts from navigation and sample replacement. Drafts remain memory-only; `/new` still explicitly clears the composer.

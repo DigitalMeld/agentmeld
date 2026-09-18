@@ -50,3 +50,5 @@ For a meaningful change, record the reason, affected behavior, evidence/checks, 
 - [File reading and workspace navigation](design/file-reading.md): in-preview search, wrapping, load states, sortable workspace tables and keyboard navigation.
 
 - [Activity inspection](design/activity-inspection.md): search, run alerts, Activity/Approvals/Schedule tabs and recorded run navigation.
+
+- [Composer refinements](design/composer-refinements.md): clipboard attachments, removal undo, focus stability and unfinished new-chat draft recovery.

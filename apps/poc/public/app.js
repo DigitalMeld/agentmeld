@@ -37,7 +37,8 @@ async function copyText(text,button){try{
  if(button){clearTimeout(copyTimers.get(button));button.innerHTML=icon('check');button.classList.add('copied');copyTimers.set(button,setTimeout(()=>{button.innerHTML=icon('copy');button.classList.remove('copied');},1600));}
 }catch{notice('Could not copy. Select the text and copy it manually.');}}
 $('copyPreview').onclick=()=>{if(previewFile?.text!==undefined)copyText(previewFile.text);};
-let composerValue=null,composerWidth=0;
+let composerValue=null,composerWidth=0,lastAttachments='';
+const removedAttachments=new Map();
 function resizeComposer(){const el=$('prompt');if(el.value===composerValue&&el.clientWidth===composerWidth)return;composerValue=el.value;composerWidth=el.clientWidth;el.style.height='auto';el.style.height=Math.min(140,el.scrollHeight)+'px';el.style.overflowY=el.scrollHeight>140?'auto':'hidden';}
 function updateComposer(){
   const count=$('prompt').value.length;
@@ -61,7 +62,7 @@ const drafts=new Map();let submitting=false;
 const draftKey=()=>selected||'new';
 function rememberDraft(){const key=draftKey(),draft=drafts.get(key)||{};Object.assign(draft,{text:$('prompt').value,files,scroll:$('conversation').scrollTop});drafts.set(key,draft);}
 function selectConversation(id){closeConversationFind();document.querySelector('.history').classList.remove('open');rememberDraft();selected=id;showArchived=!!state.conversations.find(c=>c.id===id)?.archived;saveSelection();const d=drafts.get(draftKey());$('prompt').value=d?.text||'';files=d?.files||[];lastRender='';showChat();$('conversation').scrollTo({top:d?.scroll??$('conversation').scrollHeight,behavior:'instant'});updateLatest();error();}
-function newTask(){closeConversationFind();rememberDraft();drafts.delete('new');selected=null;showArchived=false;saveSelection();files=[];$('prompt').value='';lastRender='';document.querySelector('.history').classList.remove('open');error();showChat();$('prompt').focus();}
+function newTask(){closeConversationFind();rememberDraft();selected=null;showArchived=false;saveSelection();const saved=drafts.get('new');files=saved?.files||[];$('prompt').value=saved?.text||'';lastRender='';document.querySelector('.history').classList.remove('open');error();showChat();$('prompt').focus();}
 $('chatSearch').oninput=()=>render();$('fileSearch').oninput=()=>render();$('archiveChats').onclick=()=>{showArchived=!showArchived;render();};$('activitySearch').oninput=()=>renderActivity();
 $('attach').onclick=()=>$('upload').click();
 $('newChat').onclick=newTask;$('mobileNew').onclick=newTask;
@@ -174,7 +175,15 @@ function render(){
   $('send').innerHTML=pending?'Retry':icon('send');$('send').setAttribute('aria-label',pending?'Retry pending message':'Send message');
   $('prompt').disabled=submitting||!!pending||unavailable;$('upload').disabled=submitting||uploading||!!pending||unavailable;$('attach').disabled=$('upload').disabled;
   $('prompt').placeholder='Message';
-  $('attachments').innerHTML=files.map((f,i)=>'<span class="chip">'+esc(f.name)+' <small>'+formatBytes(atob(f.data).length)+'</small><button data-remove="'+i+'" aria-label="Remove '+esc(f.name)+'" data-tooltip>×</button></span>').join('');
+  const attachmentMarkup=files.map((f,i)=>'<span class="chip"><span class="attachmentName" title="'+esc(f.name)+'">'+esc(f.name)+'</span> <small>'+formatBytes(atob(f.data).length)+'</small><button data-remove="'+i+'" aria-label="Remove '+esc(f.name)+'" data-tooltip '+(submitting||uploading||pending||unavailable?'disabled':'')+'>×</button></span>').join('');
+  if(lastAttachments!==attachmentMarkup){$('attachments').innerHTML=attachmentMarkup;lastAttachments=attachmentMarkup;}
+  const canUndo=removedAttachments.has(draftKey());
+  $('attachmentTools').hidden=!files.length&&!canUndo;
+  $('attachmentSummary').textContent=countLabel(files.length,'file')+' · '+formatBytes(files.reduce((n,f)=>n+atob(f.data).length,0));
+  $('removeAttachments').hidden=!files.length;$('undoAttachments').hidden=!canUndo;
+  $('removeAttachments').disabled=$('undoAttachments').disabled=submitting||uploading||!!pending||unavailable;
+  $('attachmentHint').hidden=!files.length;$('attachmentLoading').hidden=!uploading;
+  $('composer').setAttribute('aria-busy',String(submitting||uploading));
   updateComposer();updateLatest();
 }
 
@@ -317,20 +326,21 @@ document.addEventListener('click',async e=>{
   const jump=e.target.closest('[data-jump]');if(jump){const task=state.tasks.find(t=>t.id===jump.dataset.jump);if(task){jumpToTask(task);}}
   const detail=e.target.closest('[data-detail]');if(detail){detailId=detail.dataset.detail;renderDetails();$('runDetails').showModal();}
   const choose=e.target.closest('[data-select]');if(choose){selectConversation(choose.dataset.select);}
-  const remove=e.target.closest('[data-remove]');if(remove&&!submitting&&!uploading&&!drafts.get(draftKey())?.pending){files.splice(Number(remove.dataset.remove),1);render();}
+  const remove=e.target.closest('[data-remove]');if(remove&&!remove.disabled){const index=Number(remove.dataset.remove);removedAttachments.set(draftKey(),[...files]);files.splice(index,1);rememberDraft();render();notice('Attachment removed. Undo is available.');($('attachments').querySelector('[data-remove="'+Math.min(index,files.length-1)+'"]')||$('attach')).focus();}
   const input=e.target.closest('[data-input]');if(input){try{const res=await api('/api/file?kind=input&task='+encodeURIComponent(input.dataset.input)+'&name='+encodeURIComponent(input.dataset.name));downloadBlob(await res.blob(),input.dataset.name);}catch(e){notice(e.message);}}
   const file=e.target.closest('[data-file]');if(file){previewSequence=(file.closest('#libraryFiles')?visibleArtifacts:outputEntries(state).filter(x=>x.task.conversationId===state.tasks.find(t=>t.id===file.dataset.task)?.conversationId)).map(x=>({taskId:x.task.id,name:x.file.name}));await openPreview(file.dataset.task,file.dataset.file);}
   const exp=e.target.closest('[data-export]');if(exp&&selected){try{const format=exp.dataset.export;downloadBlob(new Blob([conversationExport(state,selected,format)],{type:format==='json'?'application/json':'text/markdown'}),'agentmeld-'+selected+'.'+format);}catch(e){notice(e.message);}}
 
   if(e.target.closest('#sample')&&!submitting&&!uploading&&!drafts.get(draftKey())?.pending){
     const csv='month,product,revenue,cost\nJanuary,Studio,12000,5000\nJanuary,Team,18000,8000\nFebruary,Studio,15000,6000\nFebruary,Team,22000,9000\nMarch,Studio,14000,5800\nMarch,Team,29000,11000\n';
+    if($('prompt').value.trim()||files.length){notice('Finish or clear this draft before using the sample.');$('prompt').focus();return;}
     files=[{name:'sample-sales.csv',data:btoa(csv)}];
     $('prompt').value='Analyze this sales CSV. Calculate total revenue and profit, compare products and monthly trends, and write a concise report.md with three useful recommendations. Include a summary.csv with your calculations.';
     render();$('prompt').focus();
   }
 });
 async function attachFiles(chosen){
-  if(uploading||$('upload').disabled)return;
+  if(!chosen.length||uploading||$('upload').disabled)return;
   rememberDraft();const key=draftKey(),draft=drafts.get(key);
   uploading=true;render();error();
   try{
@@ -340,9 +350,14 @@ async function attachFiles(chosen){
     if(draft.pending)throw Error('Wait for this message to finish submitting before attaching files.');
     if(drafts.get(key)!==draft)throw Error('The original draft was cleared. Attach these files again in the new chat.');
     validateAttachments(draft.files,added);draft.files.push(...added);
+    removedAttachments.delete(key);
     if(draftKey()===key)files=draft.files;
+    notice(countLabel(added.length,'file')+' attached.');
   }catch(e){notice(e.message);}finally{uploading=false;$('upload').value='';render();}
 }
+$('removeAttachments').onclick=()=>{removedAttachments.set(draftKey(),[...files]);files=[];rememberDraft();render();$('undoAttachments').focus();notice('Attachments removed. Undo is available.');};
+$('undoAttachments').onclick=()=>{const previous=removedAttachments.get(draftKey());if(!previous)return;files=[...previous];removedAttachments.delete(draftKey());rememberDraft();render();$('attach').focus();notice('Attachments restored.');};
+$('prompt').addEventListener('paste',e=>{const incoming=[...(e.clipboardData?.files||[])];if(!incoming.length)return;e.preventDefault();if($('upload').disabled){notice('Attachments cannot be added right now.');return;}attachFiles(incoming);});
 $('upload').onchange=()=>attachFiles([...$('upload').files]);
 let dragDepth=0;
 const fileDrag=e=>!!e.dataTransfer&&[...e.dataTransfer.types].includes('Files');
@@ -353,14 +368,14 @@ document.addEventListener('drop',e=>{if(fileDrag(e)){e.preventDefault();dragDept
 window.addEventListener('blur',()=>{dragDepth=0;$('dropHint').hidden=true;});
 $('composer').onsubmit=async e=>{
   e.preventDefault();error();const prompt=$('prompt').value.trim();if(!prompt||submitting||uploading||!connected||$('send').disabled)return;
-  if(prompt==='/new'){$('prompt').value='';files=[];newTask();return;}
+  if(prompt==='/new'){$('prompt').value='';files=[];rememberDraft();drafts.delete('new');removedAttachments.delete('new');newTask();return;}
   rememberDraft();const key=draftKey(),draft=drafts.get(key);
   draft.pending??={prompt,files:[...files],conversationId:selected,requestKey:crypto.randomUUID()};
   const restoreFocus=document.activeElement===$('prompt')||document.activeElement===$('send');let sentConversation=null;
   submitting=true;render();
   try{
     const res=await api('/api/tasks',{method:'POST',body:JSON.stringify(draft.pending)});const task=await res.json();
-    drafts.delete(key);
+    drafts.delete(key);removedAttachments.delete(key);
     if(draftKey()===key){selected=task.conversationId;sentConversation=selected;saveSelection();files=[];$('prompt').value='';}
     await refresh();
   }catch(e){if(e.status&&e.status<500){draft.pending=null;error(e.message);}else error(e.message+' Retry sends the same message once.');}
