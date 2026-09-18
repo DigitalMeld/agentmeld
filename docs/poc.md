@@ -134,3 +134,11 @@ The local web client uses a refined original brain and consistent outline icons,
 The Activity panel lists all retained turns by local date, with the original request, actual stored status, latest activity/error summary and request creation time. Rows navigate to the exact turn and preserve conversation drafts. File links resolve through the originating task ID, so identically named outputs from different turns retain their own contents. The existing store provides persistence; no new event schema or inferred tool steps are introduced.
 
 The explicit browser fixture verifies three entries across two conversations after reload, original output contents, exact-turn focus retained through an unchanged poll, and mobile panel dismissal on navigation. Detailed tool-step history remains backlog B07 work. Composer placeholder: “Message.”
+
+### Recorded milestones and output origins
+
+New turns persist an additive `events` array in the existing version-2 task store. Each event has a stable task/kind ID, application-owned kind and observation timestamp. API projection adds a fixed display label and excludes arbitrary fields. Terminal milestones are recorded after executor cleanup; interrupted running turns receive an interruption event during recovery. Older records remain readable without backfilled event claims.
+
+The Activity details dialog displays these milestones and the current result/status, with a link to the exact conversation turn. It refreshes while open. File-library entries identify their originating conversation and turn time. These are local authenticated navigation actions, not publicly shareable links. Detailed command execution remains deferred; this implementation does not reactivate the Codex dependency patch.
+
+Validation includes event deduplication/projection, restart persistence, failure and queued cancellation without fabricated completion, and browser checks for details navigation and file provenance. No live model invocation is required for these checks.

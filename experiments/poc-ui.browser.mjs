@@ -47,6 +47,16 @@ try{
  await page.locator('.welcome').waitFor();assert.equal(await page.locator('.historyItem').count(),2);assert.equal(await page.locator('#prompt').inputValue(),'');
  await page.reload();await page.locator('.historyItem').first().waitFor();assert.equal(await page.locator('.historyItem').count(),2);
  assert.equal(await page.locator('.activityEntry').count(),3);
+ await page.locator('[data-detail]').first().click();
+ await page.locator('#runDetails[open]').waitFor();
+ assert.deepEqual(await page.locator('.milestones strong').allTextContents(),['Queued','Started','Completed']);
+ await page.screenshot({path:'.local/m0/activity-details.png'});
+ await page.locator('#runConversation').click();
+ assert.equal(await page.locator('.turn:focus .message.user').innerText(),'Second conversation');
+ await page.locator('#filesNav').click();
+ assert.equal(await page.locator('.outputOrigin').count(),3);
+ await page.locator('.outputOrigin').first().click();
+ assert.equal(await page.locator('.turn:focus .message.user').innerText(),'First conversation');
  const firstActivity=page.locator('.activityEntry').filter({has:page.locator('strong',{hasText:'First conversation'})});
  await firstActivity.locator('.file').click();await page.locator('#preview[open]').waitFor();
  assert.equal(await page.locator('#previewBody').innerText(),'Output for First conversation');

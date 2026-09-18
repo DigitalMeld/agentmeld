@@ -61,7 +61,7 @@ test('stop targets a queued turn without cancelling the active turn',async t=>{
  const first=await f.call('tasks',request('Working'));const next=await f.call('tasks',request('Queued',first.data.conversationId));
  assert.equal((await f.call('stop',{taskId:randomUUID()})).status,404);
  assert.equal((await f.call('stop',{taskId:next.data.id})).status,200);
- let s=(await f.call('state')).data;assert.equal(s.tasks[0].status,'running');assert.equal(s.tasks[1].status,'cancelled');
+ let s=(await f.call('state')).data;assert.equal(s.tasks[0].status,'running');assert.equal(s.tasks[1].status,'cancelled');assert.deepEqual(s.tasks[1].events.map(e=>e.kind),['queued','cancelled']);
  release();await settled(f.call);
 });
 test('store API and files preserve local authentication and omit private continuation',async t=>{
@@ -75,4 +75,13 @@ test('store API and files preserve local authentication and omit private continu
  await delay(30);
  const state=await (await fetch(app.origin+'/api/state',{headers})).text();assert.ok(!state.includes('private-reference'));assert.ok(!state.includes('c2F2ZWQ='));
  const file=await fetch(app.origin+'/api/file?task='+task.id+'&name=result.txt',{headers});assert.equal(await file.text(),'saved');
+});
+
+test('failed execution records failure and never invents completion',async t=>{
+ const f=await fixture(t,async()=>{throw Error('private provider detail');});
+ await f.call('tasks',request('Failure fixture'));
+ const s=await settled(f.call);
+ assert.deepEqual(s.tasks[0].events.map(e=>e.kind),['queued','started','failed']);
+ assert.ok(!JSON.stringify(s).includes('private provider detail'));
+ await f.restart();assert.deepEqual((await settled(f.call)).tasks[0].events.map(e=>e.kind),['queued','started','failed']);
 });
