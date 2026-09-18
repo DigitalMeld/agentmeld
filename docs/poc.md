@@ -158,3 +158,7 @@ The [14-improvement usability batch](design/usability-batch.md) records the impl
 ## Conversation organization and output workflow (2026-09-18)
 
 The [24-improvement workflow batch](design/workflow-organization.md) adds persistent rename/pin/archive/restore, exports, original-input retrieval, output sorting/type filters/version navigation, and keyboard/navigation improvements. It documents the additive fields and authenticated API changes, evidence and limits. Archives preserve data and do not reclaim turn capacity.
+
+### Local connection recovery
+
+The local access token is regenerated when the server restarts. Existing browser tabs must reopen the current authenticated app link printed by that server. A 401 now displays “Local session expired” rather than reporting a network interruption. Saved conversations remain in the local store; reconnecting does not delete them. Connection banners and the disconnected indicator use muted blue-gray.

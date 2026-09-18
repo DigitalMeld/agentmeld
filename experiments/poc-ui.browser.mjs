@@ -43,6 +43,14 @@ try{
  await page.unroute('**/api/state');await page.locator('#retryBanner').click();
  await page.waitForFunction(()=>document.querySelector('#connectionStatus').textContent==='Connected');
  assert.equal(await page.locator('#prompt').inputValue(),'offline draft');await page.locator('#prompt').fill('');
+ await page.route('**/api/state',route=>route.fulfill({status:401,contentType:'application/json',body:JSON.stringify({error:'Session expired'})}));
+ await page.waitForFunction(()=>document.querySelector('#connectionStatus').textContent==='Session expired');
+ assert.match(await page.locator('#connectionMessage').innerText(),/Reopen the current app link/);
+ assert.equal(await page.locator('#connectionBanner').evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(36, 46, 64)');
+ await page.screenshot({path:'.local/m0/connection-session.png'});
+ await page.unroute('**/api/state');await page.locator('#retryBanner').click();
+ await page.waitForFunction(()=>document.querySelector('#connectionStatus').textContent==='Connected');
+ assert.equal(await page.locator('#connectionBanner').isVisible(),false);
  assert.equal(await page.locator('#prompt').getAttribute('placeholder'),'Message');
  assert.equal(await page.locator('.railFoot').count(),0);
  assert.ok(!(await page.locator('body').innerText()).includes('POC'));
