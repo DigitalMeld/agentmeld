@@ -4,7 +4,7 @@ Updated: 2026-09-18. This records the local qualification image, not an approved
 
 ## Verified scope
 
-[Machine-readable inventory](runtime-inventory.json) records image `sha256:60f4a11cbde1f63ad82536df6ec91a80e2026e742c93c5c300cb431a7e8790f9`, Linux ARM64, installed package versions, declared npm licenses and available notice-file SHA-256 hashes. The image's package lock matches the local lock byte-for-byte. Dockerfile and Cargo lock hashes describe the checkout; they are not an attestation of embedded build provenance.
+[Machine-readable inventory](runtime-inventory.json) records image `sha256:5935ec3e3ede08620649e9aad2c657699f729233e3ce7d0c6b4149e47d03d754`, Linux ARM64, installed package versions, declared npm licenses and available notice-file SHA-256 hashes. The image's package lock matches the local lock byte-for-byte. Dockerfile and Cargo lock hashes describe the checkout; they are not an attestation of embedded build provenance.
 
 | Surface | Observed inventory | Evidence boundary |
 | --- | --- | --- |
@@ -59,3 +59,5 @@ The latest image adds the authenticated bounded-workspace probe. Runtime package
 The model-qualification refresh preserves package versions/counts and adds exact native model checks. See [model admission evidence](completion-audit.md#model-admission-verification). Earlier workload measurements remain tied to their recorded images.
 
 The authenticated browser integration refresh preserves all package versions/counts. The [live browser report](live-browser.md) records real subscription-backed takeover/resume on this image; the restricted egress regression also passes.
+
+The controlled VM-recovery image preserves package versions/counts. [Restart qualification](workspace-disk-limit.md#controlled-vm-restart) verifies native subscription continuation and bounded workspace identity across a new VM boot.

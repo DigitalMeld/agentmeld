@@ -12,11 +12,11 @@ The [completion audit](completion-audit.md) maps these entries to the roadmap an
 
 | Requirement | Evidence now | Next action |
 | --- | --- | --- |
-| Local baseline | 193 tests plus formatting, lint, build and docs checks passed on 2026-09-18 after implementation edits | Run relevant checks after changes |
+| Local baseline | 194 tests plus formatting, lint, build and docs checks passed on 2026-09-18 after implementation edits | Run relevant checks after changes |
 | Codex subscription authentication | Dedicated store/import verified; subscription recognized; native device challenge/cancel and live GPT-5.5 streaming pass | Qualify refresh/session lifecycle without revoking the shared owner session |
 | Real native execution | Live streamed answer, command success and conversation continuation after native process replacement pass; live tool error is verified by correlated native history; its UI command-result event remains missing | Live mediated allow/deny and both pending/running cancellation pass; resolve remaining native UI error-event delivery |
 | Process/file/network boundary | Command read/write, native patch/image canaries, provider TLS gateway and standalone tool network denial pass | Expand live native-tool coverage and session lifecycle checks |
-| Recovery | Durable journals, unsettled output review, worker termination and fresh-process engine-bound assessment pass | Native process replacement and persisted nonce continuation pass; whole-machine restart and production recovery remain unqualified |
+| Recovery | Durable journals, unsettled output review, worker termination and fresh-process engine-bound assessment pass | Native process replacement and persisted nonce continuation pass; [Controlled dedicated-VM restart](workspace-disk-limit.md#controlled-vm-restart) now passes; sudden power loss and production recovery remain unqualified |
 | Storage and resources | Bounded temporary filesystem/archive; fixed-size persistent workspace passes disk-full/replacement tests; 150-second offline resource baseline passes | Authenticated bounded workspace and replacement-worker continuation pass; qualify broader live workloads and longer soaks |
 | Browser workflow | Fixture viewer, takeover, resume and cancellation pass; [separate-browser private login fixture](browser-isolation.md) passes | Authenticated native callback integration now passes; real owner credential-entry transport remains unqualified |
 | Versions and licenses | [Installed runtime inventory](distribution-inventory.md) verified: 4 npm / 199 Debian packages and local Rust resolution | Codex-only image verified; finish embedded notices and resolve source license before release |
@@ -45,8 +45,10 @@ The [native command-error follow-up](codex-subscription.md#native-command-error-
 
 The [live control qualification](live-control.md) verifies real subscription-backed approval allow/deny, cancellation with an outstanding approval, and interruption of a running native parent/child process tree. Owner-facing and remote approval UI are not claimed.
 
-The [authenticated workspace integration](workspace-disk-limit.md#authenticated-worker-integration) verifies live native commands and conversation/file preservation across replacement workers using the bounded volume after disk-full recovery. Production volume management and whole-VM recovery are not claimed.
+The [authenticated workspace integration](workspace-disk-limit.md#authenticated-worker-integration) verifies live native commands and conversation/file preservation across replacement workers using the bounded volume after disk-full recovery. Production volume management remains unqualified. Controlled dedicated-VM restart now passes as documented below.
 
 Model admission now checks the native subscription account and exact catalog entry before live turns, verifies thread start/resume model responses, and rejects native rerouting. Empty-account and unavailable-model negative probes pass; see the [audit evidence](completion-audit.md#model-admission-verification).
 
 The [live browser integration](live-browser.md) closes the authenticated browser-fixture gate with real subscription-backed callbacks, protected host authority, viewer HTTP takeover/resume and separate browser containment. Remote viewer delivery and real browser credential entry remain unqualified.
+
+The [controlled VM-restart probe](workspace-disk-limit.md#controlled-vm-restart) preserves filesystem identity/bounds, native subscription availability, conversation nonce and workspace files across a new boot with explicit reattachment. Next: session lifecycle qualification and native command-error event disposition, then final M0 audit.
