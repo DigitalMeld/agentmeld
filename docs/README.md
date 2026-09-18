@@ -7,6 +7,7 @@ Keep discoveries and consequential changes here as work proceeds. Update the own
 Alpha is **Codex-only using ChatGPT subscription authentication**, with macOS, local web and iOS clients, multiple Mac hosts and required away-from-home control. Claude Code, Ollama and messaging integrations are post-alpha.
 
 - [Working local POC](poc.md): chat, attached files, real subscription-backed work, results and Stop. This is the current priority.
+- [Product feedback backlog](backlog.md): requested conversation, icon, tooltip and activity-history improvements with acceptance criteria.
 - [Scoped Codex event patch](m0/codex-command-event-patch.md): deferred qualification; not a POC prerequisite.
 - [M0 exit checklist](m0/exit-checklist.md): current gates, evidence and next action.
 - [Codex subscription qualification](m0/codex-subscription.md): supported login direction and unresolved execution boundary.

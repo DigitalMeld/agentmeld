@@ -75,6 +75,8 @@ artifact HTML or scripts. Credentials stay in the existing dedicated volume.
 
 ## Next product work
 
+Track owner feedback and acceptance criteria in the [product backlog](backlog.md).
+
 Use the POC for representative real tasks and identify what is useful or missing.
 Then add conversational follow-up and browser/computer interaction, followed by
 the native clients and cross-host access already required for alpha. Resume a
