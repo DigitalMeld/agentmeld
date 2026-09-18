@@ -7,18 +7,34 @@ import assert from 'node:assert/strict';
 const { chromium }=await import(process.env.PLAYWRIGHT_MODULE||'playwright');
 const directory=await mkdtemp(tmpdir()+'/agentmeld-ui-');
 const app=await createPocServer({directory,port:0,execute:async(task,changed,control,c)=>{
- await delay(100);task.answer='Fixture result for '+task.prompt;task.status='completed';task.activity='Finished';await changed();
+ await delay(100);task.artifacts=[{name:'report.txt',data:'Zml4dHVyZQ=='}];task.answer='Fixture result for '+task.prompt;task.status='completed';task.activity='Finished';await changed();
 }});
 let browser;
 try{
  browser=await chromium.launch({channel:'chrome',chromiumSandbox:true});
  const page=await browser.newPage({viewport:{width:1440,height:900}});const errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.goto(app.origin+'/#'+app.token);
+ assert.equal(await page.locator('.railFoot').count(),0);
+ assert.ok(!(await page.locator('body').innerText()).includes('POC'));
+ await page.locator('#filesNav').hover();await page.waitForFunction(()=>document.querySelector('#tooltip').matches(':popover-open'));
+ assert.equal(await page.locator('#tooltip').innerText(),'Files');
+ await page.screenshot({path:'.local/m0/interface-tooltip.png'});
+ await page.locator('#filesNav').click();assert.equal(await page.locator('#library').isVisible(),true);
+ await page.locator('#chatNav').click();
+ await page.locator('#attach').focus();await page.waitForFunction(()=>document.querySelector('#tooltip').matches(':popover-open'));
+ assert.equal(await page.locator('#tooltip').innerText(),'Attach files');
+ await page.keyboard.press('Escape');assert.equal(await page.locator('#tooltip').evaluate(e=>e.matches(':popover-open')),false);
+ const chooser=page.waitForEvent('filechooser');await page.keyboard.press('Enter');await (await chooser).setFiles([]);
  await page.locator('#prompt').fill('First conversation');await page.locator('#send').click();
  await page.locator('.message.assistant').waitFor();
  await page.locator('#prompt').fill('Follow-up');await page.locator('#send').click();
  await page.waitForFunction(()=>document.querySelectorAll('.message.assistant').length===2);
  assert.equal(await page.locator('.historyItem').count(),1);
+ await page.locator('#conversation .file').first().click();await page.locator('#closePreview').focus();
+ await page.waitForFunction(()=>document.querySelector('#tooltip').matches(':popover-open'));
+ assert.equal(await page.locator('#tooltip').innerText(),'Close preview');
+ await page.keyboard.press('Escape');assert.equal(await page.locator('#preview').evaluate(e=>e.open),true);
+ await page.keyboard.press('Escape');assert.equal(await page.locator('#preview').evaluate(e=>e.open),false);
  await page.locator('#prompt').fill('Retained draft');await page.locator('#newChat').click();
  await page.locator('#prompt').fill('Second conversation');await page.locator('#send').click();
  await page.locator('.message.assistant').waitFor();
@@ -34,5 +50,10 @@ try{
  assert.equal(await page.locator('.message.assistant').count(),2);
  assert.equal(await page.locator('.history').isVisible(),false);
  await page.screenshot({path:'.local/m0/continuity-ui/mobile.png'});
+ await page.locator('#details').focus();await page.waitForFunction(()=>document.querySelector('#tooltip').matches(':popover-open'));
+ const bounds=await page.locator('#tooltip').boundingBox();assert.ok(bounds.x>=0&&bounds.x+bounds.width<=390);
+ await page.keyboard.press('Escape');
+ await page.evaluate(()=>{document.documentElement.style.colorScheme='light';document.querySelector('.brand').style.background='#ffffff';});
+ await page.locator('.brand').screenshot({path:'.local/m0/brain-light.png'});
  assert.deepEqual(errors,[]);console.log('Browser fixture passed: threaded transcript, draft switching, /new, reload, mobile history; no page errors');
 }finally{if(browser)await browser.close();await app.shutdown();await rm(directory,{recursive:true,force:true});}

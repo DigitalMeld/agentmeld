@@ -124,3 +124,7 @@ dependency patch only when a demonstrated product need warrants it.
 - The explicit container snapshot probe passed nested capture, file/directory symlink rejection and oversized-file rejection. It mounts no credentials and uses no provider.
 
 Reproduce ordinary fixtures with `node --test experiments/poc-conversations.test.mjs`. Run the explicit browser fixture with `node experiments/poc-ui.browser.mjs` using the installed Playwright package (or `PLAYWRIGHT_MODULE` pointing to an existing installation). Run `node experiments/poc-workspace-probe.mjs` only against the prepared disposable VM runtime. Live subscription checks remain separate from the default test suite. No image or dependency patch rebuild is required.
+
+## Interface polish
+
+The local web client uses a refined original brain and consistent outline icons, with no POC badge in navigation or development label in the composer. Hover/focus tooltips name icon controls, stay within the viewport and dismiss with Escape before a preview dialog closes. Attach files works by keyboard as well as pointer. The runtime requests direct conversational replies without repeating that no files were necessary. Durable Activity history remains the next functional backlog item; the Activity icon does not imply that timeline is implemented.
