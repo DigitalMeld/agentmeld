@@ -52,11 +52,11 @@ Exact JavaScript resolution is recorded in `package-lock.json`; Rust resolution 
 
 ## Next M0 work, in order
 
+Current scope: Codex-only with ChatGPT subscription authentication. Claude, Ollama and messaging qualification are deferred; their existing results above are retained as historical experiments.
+
 1. Extend the [qualified Codex dynamic-tool adapter](native-tools.md) beyond its verified local worker identity and tool grants to remote authentication and broader native tool coverage; extend private-screen suppression to secure credential entry and qualify worker recovery. Keep the renderer sandbox and control-ordering checks as regression gates.
-2. Define scoped provider credentials and mediated egress. Run actual Claude/Codex streamed answers, native tools, allow/deny, cancellation and process-replacement continuation. Do not import personal host auth directories.
-3. Select/install a local Ollama tool model and use the [qualification runner](ollama-qualification.md) for real inference, denied tools and caller-stream cancellation. The current cloud aliases are explicitly rejected.
-4. Extend the qualified reconnect ledger and whole-container stop probe and integrated HTTP cancellation to production recovery, workspace quotas and sustained resource measurements.
-5. Configure an explicitly designated iMessage test identity and paired Mac bridge; qualify real correlation, attachments, reconnect and uncertain delivery.
+2. Qualify dedicated Codex subscription login and mediated egress. Run actual Codex streamed answers, native tools, allow/deny, cancellation and process-replacement continuation. Do not import personal host auth directories.
+3. Extend the qualified reconnect ledger and whole-container stop probe and integrated HTTP cancellation to production recovery, workspace quotas and sustained resource measurements.
 
 M1 remains gated on these integration results. Only an experimental fixture viewer UI exists; no application control plane, hosted service, training pipeline or production deployment has been created.
 
@@ -87,3 +87,10 @@ Journal format 5 now commits result references with settlement. The [archive rep
 [Fresh termination evidence](worker-lifecycle.md#fresh-termination-evidence) now feeds recovery report version 2. The extended cancellation probe verifies worker absence after Rust supervisor replacement while saved but unsettled output still requires outcome review. Cached stop results cannot bypass fresh inventory.
 
 [Durable reviewed recovery](reviewed-recovery.md) now records accepted output or an explicitly closed unknown outcome separately from normal settlement. Journal format 6 is qualified on the rebuilt image through seven selected container probes. Reviewed output survives restart with provenance; cancelled controllers stay cancelled. This supersedes the earlier runtime image for current journal experiments.
+
+## Current Codex-only batch
+
+On 2026-09-18 the local suite passed 153 tests (18 Rust, 133 Node, 2 Python), formatting, Clippy, build and documentation checks. [Fresh-process worker recovery](recovery-worker.md) adds engine-bound read-only reconstruction and passes the real-container cancellation probe. The [Codex subscription protocol probe](codex-subscription.md) confirms managed login schemas and an isolated logged-out native app-server. Neither probe performs authenticated inference. The rebuilt image is recorded in those reports. Alpha gates are maintained in the [exit checklist](exit-checklist.md), which supersedes earlier three-provider and messaging requirements.
+
+
+The [native credential boundary batch](codex-credential-boundary.md) passes standalone sandbox and app-server `exec_command` canary checks on Codex 0.154.0. The isolated profile retains enforced AppArmor, deny-default seccomp, zero outer capabilities and no-new-privileges. The current image and policy hashes are recorded in that report; this does not requalify unrelated probes on the new image. All 157 default tests, formatting, Clippy, build and documentation checks pass. No subscription login, real credentials or live inference occurred.

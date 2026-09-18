@@ -1,5 +1,6 @@
 # M0 local Ollama readiness and qualification runner
 
+Current scope: Codex subscription alpha only. Earlier Claude/Ollama/messaging next steps below are historical and deferred. The [M0 exit checklist](exit-checklist.md) owns current gates.
 Date: 2026-09-17. Scope: read-only local-model preflight, bounded streaming, durable Rust fixture execution and a reproducible opt-in inference runner. No real local model has been qualified in this batch. The installed Ollama 0.34.1 service currently exposes only `glm-5.2:cloud` and `kimi-k2.7-code:cloud`; neither is accepted as a local model.
 
 ## Readiness before inference

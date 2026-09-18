@@ -1,12 +1,16 @@
 # iMessage channel research
 
-Date: 2026-09-17. Status: proposed design, supported by official Apple/BlueBubbles documentation and read-only source inspection. No messages sent, software installed, accounts changed, or host permissions modified. No end-to-end transport test has been performed.
+Current scope note (2026-09-18): alpha is Codex-only with ChatGPT subscription authentication. Claude Code, Ollama and messaging research below is retained for post-alpha; it does not impose an M0 exit gate. See the [current checklist](../m0/exit-checklist.md).
+
+Scope update: [Apple-first alpha decision](../decisions/2026-09-18-apple-first-alpha.md) defers messaging and transport selection until after alpha. Earlier M0/M2 channel recommendations below are retained as research history, not current release gates.
+
+Updated: 2026-09-18. Status: proposed design, supported by official Apple/BlueBubbles documentation and read-only source inspection. No messages sent, software installed, accounts changed, or host permissions modified. No end-to-end transport test has been performed.
 
 ## Recommendation
 
 Support iMessage as an **optional communication channel through an owner-controlled Mac bridge**. Keep the agent's execution in its Linux container/VM. The Mac bridge receives approved conversations, forwards normalized messages to AgentMeld, and delivers replies. It does not execute model-generated commands or grant access to the Mac desktop.
 
-Evaluate BlueBubbles in SIP-enabled mode for the first implementation: direct text messages, small supported attachments, status/completion notifications, and links to AgentMeld for consequential approvals. Group participation requires a separate qualification milestone. Do not make disabling System Integrity Protection part of normal installation.
+Compare BlueBubbles and [imsg](https://github.com/openclaw/imsg) in SIP-enabled mode before selecting the first implementation: direct text messages, small supported attachments, status/completion notifications, and links to AgentMeld for consequential approvals. Group participation requires a separate qualification milestone. Do not make disabling System Integrity Protection part of normal installation.
 
 ## What the primary sources establish
 
@@ -83,10 +87,18 @@ BlueBubbles REST documentation uses password/token query parameters. Isolate tha
 
 ## Qualification and rollout
 
-**Channel spike:** choose a supported current macOS + pinned BlueBubbles build; prove SIP-enabled text, inbound/outbound attachment, sender/chat identity, recovery, and documented permissions. Also establish whether the API-only setup can omit Android-specific Firebase notifications; the normal BlueBubbles install guide includes Firebase, so that omission is not yet verified.
+**Channel spike:** choose a supported current macOS and pin each candidate before comparison; prove SIP-enabled text, inbound/outbound attachment, sender/chat identity, recovery, and documented permissions. Also establish whether the API-only setup can omit Android-specific Firebase notifications; the normal BlueBubbles install guide includes Firebase, so that omission is not yet verified.
 
 **Optional personal channel:** one allowlisted owner DM, agent selection bound in settings, status/stop, final responses, attachment bounds, offline queue, and approval deep links. Run existing Claude/Codex/Ollama tasks through the same normalized ingress; the transport must not bypass normal policy.
 
 **Group/collaboration milestone:** explicitly enrolled groups, participant checks on every inbound and outbound event, revocation on membership change, group-visible-only context, separate shared sessions, and bot-loop limits. Existing-group use and management operations are distinct capabilities. Do not require private API features for basic private messaging.
 
 Required local tests: real owner-phone round trip; duplicate/reordered events; own-message echo; crash after send but before receipt; asleep/disconnected Mac; signed-out Messages; revoked permissions; API/webhook forgery; oversized and missing attachments; sender alias mismatch; group membership change; expired/replayed approval; revoked bridge; stop while a reply/run is queued. No installation or messaging is authorized by this research document.
+
+## OpenInstinct audit update
+
+The [pinned OpenInstinct audit](openinstinct-audit.md) confirms Linq and verified phone-to-user mapping in that project, not in the separate commercial Instinct product. Treat Linq as a managed-provider candidate, not a dependency of self-hosting. BlueBubbles and imsg remain unselected Mac candidates. imsg exposes a Swift CLI/JSON-RPC path; advanced private features do not belong in the SIP-enabled baseline. Its suitability and current permissions must be verified on the selected version, not inferred from its lighter packaging. [imsg source](https://github.com/openclaw/imsg)
+
+Both candidates must pass the same identity, text, attachment, reconnect, uncertain-send and permission tests. Measure idle/active memory, startup and maintenance burden as well as capability. Preserve email-handle pairing; do not copy a phone-only identity model. Managed adapters must authenticate their actual forwarding path and fail closed on false/null/missing/error verifier outcomes. No generic public webhook is trusted merely because it contains a sender number.
+
+Add report recovery tests: work completed but reply failed, crash after provider acceptance, partial chunk/attachment delivery, missing reply anchor, and revocation before queued send. A report retry must not replay agent execution. Keep stable IDs and exact chat binding; transport API acceptance is not a delivery receipt.

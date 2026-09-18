@@ -7,14 +7,18 @@ import { fileURLToPath } from 'node:url';
 import { RustAuthority } from '../experiments/rust-browser-control.mjs';
 import { ResultArchive } from '../experiments/result-archive.mjs';
 import { assessRecovery, validateRecoveryRequest } from '../experiments/recovery-assessment.mjs';
+import { RecoveryWorker, readWorkerRecord } from '../experiments/recovery-worker.mjs';
+import { dockerRuntime } from '../experiments/owned-worker.mjs';
 
 let owner;
 try {
-  const { values } = parseArgs({ options: { journal: { type: 'string' }, archive: { type: 'string' }, request: { type: 'string' }, recover: { type: 'boolean' }, help: { type: 'boolean' } } });
+  const { values } = parseArgs({ options: { journal: { type: 'string' }, archive: { type: 'string' }, request: { type: 'string' }, 'worker-record': { type: 'string' }, context: { type: 'string' }, recover: { type: 'boolean' }, help: { type: 'boolean' } } });
   if (values.help) {
-    console.log('Usage: node scripts/review-recovery.mjs --recover --journal PATH --archive DIRECTORY --request JSON_FILE\nAcquires an existing journal exclusively and appends its normal paused recovery snapshot (cancelled stays cancelled). Checks one scope/ticket and optional receipt. Never executes, settles, resumes or stops a worker.');
+    console.log('Usage: node scripts/review-recovery.mjs --recover --journal PATH --archive DIRECTORY --request JSON_FILE [--worker-record JSON_FILE --context DOCKER_CONTEXT]\nAcquires an existing journal exclusively and appends its normal paused recovery snapshot (cancelled stays cancelled). Checks one scope/ticket and optional receipt. Optional worker evidence requires a matching Docker engine identity. Never executes, settles, resumes or stops a worker.');
   } else {
     if (!values.recover || !values.journal || !values.archive || !values.request) throw new Error('arguments required');
+    if (Boolean(values['worker-record']) !== Boolean(values.context)) throw new Error('worker record and context required together');
+    const worker = values['worker-record'] ? new RecoveryWorker(await readWorkerRecord(values['worker-record']), dockerRuntime(values.context)) : null;
     const file = await open(values.request, constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK);
     let request;
     try {
@@ -25,12 +29,13 @@ try {
       if (bytesRead > 65536) throw new Error('request limit');
       request = validateRecoveryRequest(JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(buffer.subarray(0, bytesRead))));
     } finally { await file.close(); }
+    if (worker && (request.scope.worker !== worker.record.worker || request.scope.workspace !== worker.record.workspace)) throw new Error('worker scope mismatch');
     const journal = await lstat(values.journal);
     const archive = await lstat(values.archive);
     if (!journal.isFile() || journal.isSymbolicLink() || journal.size === 0 || !archive.isDirectory() || archive.isSymbolicLink()) throw new Error('existing recovery storage required');
     const binary = fileURLToPath(new URL('../target/debug/agentmeld-m0', import.meta.url));
     owner = await RustAuthority.open(binary, values.journal);
-    console.log(JSON.stringify(await assessRecovery(owner, new ResultArchive(binary, values.archive), request)));
+    console.log(JSON.stringify(await assessRecovery(owner, new ResultArchive(binary, values.archive), request, worker)));
   }
 } catch {
   console.error('Recovery assessment unavailable. Check arguments, existing storage and exclusive ownership; preserve evidence. Use --help for usage.');

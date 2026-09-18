@@ -18,8 +18,8 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--context", required=True)
 parser.add_argument("--image", default="agentmeld-m0:local")
 parser.add_argument("--workspace", default="fixture")
-parser.add_argument("--seccomp-profile", choices=["browser", "docker-default"], default="browser")
-parser.add_argument("--probe", choices=["native", "recovery", "workspace", "archive", "reconciliation"], default="native")
+parser.add_argument("--seccomp-profile", choices=["browser", "docker-default", "codex"], default="browser")
+parser.add_argument("--probe", choices=["native", "recovery", "workspace", "archive", "reconciliation", "codex-auth", "codex-boundary"], default="native")
 args = parser.parse_args()
 root = Path(__file__).resolve().parents[1]
 owned = root / ".local/m0/workspaces"
@@ -38,9 +38,14 @@ if args.probe in {"recovery", "archive", "reconciliation"}:
     plan[-1:] = ["--test", "--test-reporter=tap", f"/opt/agentmeld/{test_file}.test.mjs"]
     if args.probe == "archive":
         plan.append("/opt/agentmeld/settled-results.test.mjs")
+elif args.probe in {"codex-auth", "codex-boundary"}:
+    plan[-1:] = [f"/opt/agentmeld/{args.probe}-probe.mjs"]
 elif args.probe == "workspace":
     plan[-1:] = ["--test", "--test-reporter=tap", "/opt/agentmeld/workspace-tools.test.mjs"]
+if args.probe == "codex-boundary" and args.seccomp_profile != "codex":
+    parser.error("codex-boundary requires explicit --seccomp-profile codex")
 profile_digest = None
+apparmor_digest = None
 if args.seccomp_profile == "browser":
     spec = importlib.util.spec_from_file_location("prepare_seccomp", root / "scripts/prepare-seccomp.py")
     module = importlib.util.module_from_spec(spec)
@@ -51,6 +56,14 @@ if args.seccomp_profile == "browser":
         raise SystemExit(f"Browser seccomp policy unavailable: {error}. Run python3 scripts/prepare-seccomp.py")
     profile_digest = hashlib.sha256(profile.read_bytes()).hexdigest()
     plan[1:1] = ["--security-opt=seccomp=" + str(profile)]
+elif args.seccomp_profile == "codex":
+    spec = importlib.util.spec_from_file_location("codex_policy", root / "scripts/prepare-codex-policy.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    profile, apparmor = module.verify_prepared(root)
+    profile_digest = hashlib.sha256(profile.read_bytes()).hexdigest()
+    apparmor_digest = hashlib.sha256(apparmor.read_bytes()).hexdigest()
+    plan[1:1] = ["--security-opt=seccomp=" + str(profile), "--security-opt=apparmor=" + module.PROFILE]
 started = time.monotonic()
 command = ["docker", "--context", args.context, *plan]
 try:
@@ -62,9 +75,9 @@ except subprocess.TimeoutExpired:
 evidence = root / ".local/m0/evidence"
 evidence.mkdir(parents=True, exist_ok=True)
 run_id = str(time.time_ns())
-(evidence / (run_id + (".stdout.json" if args.probe == "native" else ".stdout.tap"))).write_text(result.stdout)
+(evidence / (run_id + (".stdout.json" if args.probe in {"native", "codex-auth", "codex-boundary"} else ".stdout.tap"))).write_text(result.stdout)
 (evidence / (run_id + ".stderr.txt")).write_text(result.stderr)
-metadata = {"imageId": image_id, "probe": args.probe, "exitCode": result.returncode, "elapsedSeconds": round(time.monotonic() - started, 3), "workspace": args.workspace, "seccompProfile": args.seccomp_profile, "seccompSha256": profile_digest}
+metadata = {"imageId": image_id, "probe": args.probe, "exitCode": result.returncode, "elapsedSeconds": round(time.monotonic() - started, 3), "workspace": args.workspace, "seccompProfile": args.seccomp_profile, "seccompSha256": profile_digest, "apparmorSourceSha256": apparmor_digest}
 (evidence / (run_id + ".meta.json")).write_text(json.dumps(metadata, indent=2) + "\n")
 print(result.stdout)
 print(json.dumps(metadata))

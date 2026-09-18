@@ -6,6 +6,7 @@ const execute = promisify(execFile);
 export function dockerRuntime(context) {
   const run = async args => (await execute('docker', ['--context', context, ...args], { timeout: 15000, maxBuffer: 1024 * 1024 })).stdout;
   return {
+    identity: async () => (await run(['info', '--format', '{{.ID}}'])).trim(),
     inspect: async id => JSON.parse(await run(['inspect', id]))[0],
     stop: async id => { await run(['stop', '--time', '1', id]); },
     ids: async () => (await run(['ps', '-a', '--no-trunc', '--format', '{{.ID}}'])).trim().split('\n').filter(Boolean),

@@ -1,5 +1,6 @@
 # Runtime and model integration research
 
+Current scope note (2026-09-18): alpha is Codex-only with ChatGPT subscription authentication. Claude Code, Ollama and messaging research below is retained for post-alpha; it does not impose an M0 exit gate. See the [current checklist](../m0/exit-checklist.md).
 Research date: 2026-09-17. Status: architecture evidence and recommendations only. No dependencies installed, agent runs started, credentials accessed, or runtime behavior tested. Local inspection used `codex --version`, `codex app-server --help`, and `codex exec --help`; installed CLI reports **0.154.0**. Vendor pages are mutable; implementation must pin versions and verify the selected interfaces.
 
 ## Main recommendation

@@ -1,25 +1,26 @@
 # AgentMeld product specification
 
-Date: 2026-09-17. Status: proposed, for review. Owner: Digital Meld. Intended repository: `digitalmeld/agentmeld`.
+Updated: 2026-09-18. Status: proposed, for review. Owner: Digital Meld. Intended repository: `digitalmeld/agentmeld`.
 
 ## 1. Product outcome
 
-Give an individual or team a persistent agent they can message, equip with tools, watch work in an isolated computer, and trust to pause at a defined boundary. Users bring their own Claude Code, Codex, or Ollama configuration. Useful results remain accessible as files, artifacts, conversations, and explicit memory. Work continues when the client closes, provided the self-hosted server remains awake.
+Give an individual or team a persistent agent they can message, equip with tools, watch work in an isolated computer, and trust to pause at a defined boundary. Alpha uses Codex with the owner’s ChatGPT subscription. Claude Code, Ollama and other providers are post-alpha integrations. Useful results remain accessible as files, artifacts, conversations, and explicit memory. Work continues when the client closes, provided the self-hosted server remains awake.
 
-The complete direction includes Muse-like personal assistance and outputs, multiple agents, and later invited collaborators working with scoped agents. The first public alpha must deliver a coherent core with all three launch integrations. It is not a promise to deliver every Muse feature at alpha.
+The complete direction includes Muse-like personal assistance and outputs, multiple agents, and later invited collaborators working with scoped agents. The first public alpha must deliver a coherent core with the Codex subscription integration. It is not a promise to deliver every Muse feature at alpha.
 
 ## 2. Requirements supplied by Brad
 
 - Open source and free to self-host, with a future paid hosted offering.
 - Agent execution in a container or virtual machine.
 - Muse-inspired simplicity, visual restraint, and feature breadth.
-- Claude Code, Codex, and Ollama supported out of the box, with more integrations later.
+- Codex subscription authentication for alpha; Claude Code and Ollama on the roadmap. Prefer supported subscription authentication where available, without promising universal subscription compatibility.
 - Rust where it improves efficiency and maintainability.
 - A path to outside contributors and access to agents, inspired by Buzz.
 - A custom-trained model on the hosted-service roadmap.
-- Two-way iMessage communication with the agent, inspired by Instinct. iMessage is a first-class channel requirement, not merely a generic messaging item on the distant roadmap.
+- Alpha applications on macOS, local browser and iOS. The iPhone over cellular and MacBook Air on the road control enrolled Mac hosts, including the Mac mini at home. Away-from-home control is required for alpha.
+- iMessage, WhatsApp, Windows, general remote browser access and other connectivity integrations follow alpha. See the [scope decision](../decisions/2026-09-18-apple-first-alpha.md).
 
-This pass produces local research and design documents only. Repository creation, implementation, publication, deployment, and account changes are outside this pass.
+The original specification preceded implementation. M0 experiments now exist; see the roadmap for current evidence. The 2026-09-18 architecture audit updates local planning only and does not establish new product capabilities.
 
 ## 3. Product principles
 
@@ -47,7 +48,9 @@ This pass produces local research and design documents only. Repository creation
 
 ## 5. Information architecture and visual direction
 
-Use a web client first. One narrow navigation rail opens **Chat, Activity, Library, Tasks, and Settings**. Chat is the default. An agent switcher scales from one assistant to multiple named agents without turning the first-run experience into a team-management dashboard. Search uses a command palette plus contextual results.
+Muse is the primary design baseline, per Brad’s 2026-09-18 direction. Preserve its restrained shell, conversation/composer proportions and contextual inspector; see the [observed design reference](../design/muse-baseline.md). Add host identity now and scoped collaboration controls later. The navigation below is an AgentMeld scope proposal, not a requirement to redesign Muse’s hierarchy or display unimplemented features.
+
+Deliver native macOS and iOS clients plus a local web client over one shared service. The first internal slice may use the web client to establish the interaction and API contracts. One narrow navigation rail opens **Chat, Activity, Library, Tasks, and Settings**. Chat is the default. An agent switcher scales from one assistant to multiple named agents without turning the first-run experience into a team-management dashboard. Search uses a command palette plus contextual results.
 
 The conversation has a compact agent header, readable message column, attachment-aware composer, tool summaries, and inline approval requests. An optional right panel switches among **Computer, Activity, Approvals, Upcoming, and Identity**. On small screens the panel becomes a full-screen sheet with a persistent back control. Never compress all three columns onto a phone.
 
@@ -74,7 +77,7 @@ Milestones are defined in [the roadmap](roadmap.md). M1 is an internal slice; M2
 | Capability | Public-alpha requirement | Later coverage |
 | --- | --- | --- |
 | Named agents and conversations | Identity, instructions, side conversations, history, search, streaming, steering where supported, stop | Teams, groups, mentions, agent-to-agent handoffs |
-| Models and harnesses | Claude Code, Codex, and Ollama adapters; capability detection; useful errors | Additional native harnesses and model APIs; optional routing |
+| Models and harnesses | Codex with supported ChatGPT subscription login; capability detection; useful errors | Claude Code, Ollama, additional native harnesses/model APIs and optional routing |
 | Agent computer | Isolated CLI execution; terminal, files, browser, live view, human takeover, persistent working state | MicroVM backend, multiple computers, opt-in shared computers, remote worker enrollment |
 | Artifacts | Upload, read, create, edit, version, preview, download; text/Markdown/CSV and sandboxed web artifacts | Rich PDF/Office workflows, image/video/audio generation, podcasts, published web artifacts |
 | Memory and personality | Editable identity and approved durable memory with source, scope, export and deletion | Reviewed assistant-history import and proposed automatic memory updates |
@@ -83,11 +86,12 @@ Milestones are defined in [the roadmap](roadmap.md). M1 is an internal slice; M2
 | Scheduling | One-time and recurring tasks; timezone, next run, history, pause, cancel; change-only notifications | Event triggers, calendar-based scheduling, device/location reminders |
 | Skills | Reviewed built-in and user-authored instructions, versioning, declared requirements | Community packages, teach-by-demonstration, discovery catalog |
 | Goals and monitoring | Basic task objective, status, next action, explicit completion condition | Durable multi-task goals, progress timelines, personalized feed and ideas |
-| Messaging | Two-way iMessage through an optional owner-controlled Mac bridge; text and validated attachments; durable delivery state | Group routing after identity tests; additional messaging services |
-| Voice and devices | Responsive browser UI | Dictation, read-aloud, voice sessions, desktop shell, mobile/push |
-| External access | Schema and authorization seams; external access disabled at alpha | Invites, member/guest roles, shared agents, quotas, audit and revocation |
+| Messaging | No external messaging requirement | iMessage, WhatsApp, transport selection and group routing after identity tests |
+| Applications and devices | macOS app, local browser and iOS app controlling explicitly selected Mac hosts | Windows, general remote browser, voice and additional connectivity |
+| Phone connectivity | Explicit pairing, secured cross-network iPhone/Mac access, host selection, revocation and reconnect | Additional network providers and managed relay options |
+| External access | Single owner and explicitly paired devices; no guest access at alpha | Invites, member/guest roles, shared agents, quotas, audit and revocation |
 | Transactions | Drafting and human handoff only | Supervised purchases through a dedicated payment integration; outbound calls |
-| Self-hosting | Local installation guide, backup/restore, provider setup, bounded resource usage | Remote multiuser deployment guide, migrations, operational dashboards |
+| Self-hosting | Mac installation and Linux execution VM/container setup, backup/restore, provider setup, resource limits | Windows and standalone Linux product packaging, remote multiuser deployment, operational dashboards |
 | Commercial service | No dependency on a Digital Meld account | Managed compute, backups, support, billing, optional proprietary model service |
 
 “Out of the box” means included adapters, documented setup, capability checks, and verified workflows. It does not mean bundled paid credentials, free hosted inference, preinstalled model weights, or universal third-party subscription compatibility.
@@ -128,19 +132,29 @@ The user approves a lasting preference, inspects its source and scope, changes i
 
 **Acceptance:** changed memory is used in the next relevant run; deletion removes active retrieval entries and invalidates cached summaries/indexes. Export is understandable without the originating model. Historical transcript retention and backup retention are disclosed separately. Memory edits cannot alter authorization policy.
 
+Ongoing work can also have an owner-approved summary with its objective, constraints, decisions, evidence and remaining steps, linked to actual tasks. Loading a summary does not resume work automatically. Concurrent changes require revision checks; deletion prevents delayed saves from restoring forgotten content. These records provide continuity without enabling proactive goals or scheduling by themselves.
+
 ### P6. Work with an invited contributor, M3
 
 An owner creates a shared agent context, invites a guest to a selected conversation, and grants a limited tool budget. The guest requests work and contributes files. Revoking the invitation immediately prevents new reads, subscriptions, and tool dispatches.
 
 **Acceptance:** test as the guest, not just the administrator. Guessing resource IDs, replaying event cursors, mentioning private agents, downloading another workspace's files, or prompting for private memory must fail. An owner cannot safely expose a private long-lived agent session by merely hiding its transcript; sharing provisions a new scoped session/computer with reviewed context.
 
-### P7. Message the agent through iMessage
+### P7. Message the agent through iMessage, post-alpha
+
+Completed work and its notification have separate visible states. A failed notification can be recovered without repeating the completed task; a submitted message is not shown as delivered without transport evidence.
 
 The owner explicitly pairs an optional Mac bridge, chooses the sending identity and allowed contacts, and binds a chat to one AgentMeld conversation. A message starts or continues work on the same server-backed agent. Replies, approved files, and scheduled updates return to that chat. The Mac handles messaging transport; agent execution remains in its Linux container or VM. The web app remains available for computer takeover, large artifacts, setup, and detailed review.
 
 **Acceptance:** verify a real inbound message, correlated run, reply, supported attachment, duplicate event, outbound echo, bridge restart, offline queue, and revoked contact. Preserve native message identity and sender/chat binding. A reply in the wrong chat, forwarded approval text, or a contact's display name must never authorize work. Sensitive approvals initially open an expiring authenticated web review; a bare “yes” is not approval. Agent-initiated messages to other people require separately authorized recipients and purpose.
 
 The feature requires an available configured Mac for the proposed self-host transport. Replies use its actual Apple Messages sending identity; naming an agent does not provision a phone number. No claim of native Linux iMessage, guaranteed Apple support for a third-party bridge, or delivery while the bridge is unavailable. Any group chat support must grant history visibility deliberately and check every participant; the initial supported mode is explicitly paired one-to-one conversations. Mobile review links require a supported private/authenticated route to the instance; otherwise approvals remain available on the owner's computer.
+
+### P8. Control named Mac hosts from native apps
+
+The owner uses the macOS app, local browser or paired iOS app to select an enrolled host and create and continue its tasks, observe work, approve/deny actions, view artifacts and stop execution. Work lives on the Mac and continues when a client closes, provided the host is available. Native arbitrary Mac desktop automation is not implied by hosting the isolated agent on a Mac.
+
+**Acceptance:** verify the same task and results across all three clients; phone background/reopen, network loss, stale/replayed commands, device revocation, server restart and Mac-offline status. A failed connection cannot appear as an accepted stop or approval. Qualify interactive browser viewing/control on the phone and disclose unsupported operations. Test on a physical iPhone. Away-from-home control is an alpha gate: qualify iPhone over cellular and MacBook Air over an external network controlling the home Mac mini. Enroll a second host and test wrong-host rejection, distinct credentials/files, concurrent clients and no automatic failover. The MacBook Air must work as a client without hosting its own execution VM.
 
 ## 8. Efficiency and reliability objectives
 
@@ -171,11 +185,13 @@ A future custom model should start from an explicit workload, evaluations, and a
 | Decision | Proposed position | Must resolve before |
 | --- | --- | --- |
 | License | Apache-2.0; AGPL is an explicit alternative | Public repository launch |
-| Alpha installation target | Linux worker; macOS/Windows clients using an existing Linux VM/container engine | Installer design |
-| Authentication packaging | Single-owner loopback alpha; established identity solution for invitations | Remote or multiuser exposure |
-| Claude subscription integration | Do not promise passthrough; support documented API/cloud authentication first | Publishing auth setup guidance |
+| Alpha installation target | Mac-hosted service and isolated Linux worker, macOS/local-web/iOS clients | Installer design |
+| Authentication packaging | Single owner, explicit phone pairing and secured API; no automatic LAN/public exposure | Physical iPhone qualification |
+| Away-from-home iPhone | Required alpha gate; select one secure path covering commands, viewer and artifacts | M2 remote acceptance |
+| Codex subscription isolation | Supported ChatGPT login in a dedicated AgentMeld context; no API-key requirement or personal auth-directory copying | Live M0 qualification |
+| Future provider authentication | Prefer supported subscriptions where available; qualify each provider separately | Post-alpha adapter implementation |
 | Initial curated connectors | Test MCP seam first; prioritize Microsoft/Google productivity after core | M2 connector scope selection |
-| iMessage transport | Optional dedicated Mac bridge; qualify maintained transport and identity/permission behavior | M0 channel experiment and M2 delivery |
+| iMessage/WhatsApp transport | Deferred; preserve research without selecting a provider | Post-alpha messaging milestone |
 | Shared access extent | Invited workspaces first; federation later | M3 planning |
 | Hosted runtime | Evaluate dedicated VMs vs microVM workers using measured isolation and cost | Hosted implementation |
 | Model training | No private-data collection or chosen base model yet | Any dataset acquisition or training |

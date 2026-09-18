@@ -1,8 +1,13 @@
 # M0 local qualification
 
-This milestone has begun. The Rust crate contains experimental contracts and tests; it is not a deployed control plane. Full provider execution, credentials, production viewer control, and iMessage delivery remain separately qualified capabilities. A narrow browser viewer/takeover experiment now passes. See [results](results.md) for current evidence.
+This milestone has begun. The Rust crate contains experimental contracts and tests; it is not a deployed control plane. Codex subscription execution, dedicated credentials and production viewer control remain separately qualified capabilities. Claude, Ollama and iMessage are post-alpha; historical probes below do not gate M0. A narrow browser viewer/takeover experiment now passes. See [results](results.md) for current evidence.
 
 ## What exists
+
+- [Current exit checklist](exit-checklist.md), Codex subscription scope and explicit remaining gates.
+- [Native command credential boundary](codex-credential-boundary.md), synthetic canaries through standalone sandbox and real app-server command execution.
+- [Codex subscription protocol](codex-subscription.md), offline schemas and isolated logged-out account readback.
+- [Fresh-process worker evidence](recovery-worker.md), engine-bound reconstruction without dispatch authority.
 
 - [Durable reviewed recovery](reviewed-recovery.md), distinct accepted-output and closed-unknown dispositions, with restart/readback and Linux checks.
 
