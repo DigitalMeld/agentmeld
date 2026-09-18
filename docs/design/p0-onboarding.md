@@ -153,6 +153,21 @@ Choosing "Do this later" (or a failed connection the owner abandons) must not st
 - **Task 4 (control-core unification):** the approval card anatomy in Step 2 and the inline approval contract must match the unified control plane's approval model exactly. If the unified model changes approval semantics, this doc's §5-equivalent copy changes with it.
 - **Task 6 (golden-task evals):** the guided first task should become eval #1 — the same fixture, the same success criteria.
 
+## 11. Prototype polish pass (v2, 2026-09-18)
+
+The owner asked for the prototype to feel closer to the Muse app's own onboarding: calmer, one clear action per screen, less scaffolding visible. v2 changes presentation only — the journey, steps, states, and copy decisions in §§1–10 are unchanged.
+
+- **Quieter chrome.** The 8-segment dot bar and the fixed bottom nav are gone. Each screen now has a minimal top row (a "← Back" text link and a "Step N of 8 · <stage>" label) under a single thin progress line. The prototype banner is a single slim line.
+- **One thing per screen.** Headlines pair with a short lede; supporting detail lives in cards with more whitespace. The welcome and approvals screens use numbered fact lists instead of dense cards.
+- **Softer scaffolding.** The "prototype tools" failure-state buttons moved into a collapsed "Preview other states" disclosure at the bottom of the relevant screens, so the default view reads like the product.
+- **Warmer success states.** Connected, task-done, and set-up screens open with a restrained check hero instead of emoji; copy is tighter throughout ("I'll do this later", "Take a look around first").
+- **Bug fix.** The expired device-code retry previously regenerated the same four characters twice (e.g. `KQRT-KQRT`); it now issues a fresh 8-character code.
+- **New affordance.** The device-flow code has a Copy button; the countdown and all failure states are unchanged.
+
+Verification for v2: inline JS passes `node --check`; `scripts/check-docs.py` passes. Headless screenshots were not possible in the Linux build environment (Chromium hangs without a display/dbus), so visual review of v2 is pending on the owner's Mac — treat the polish as proposed until the owner clicks through.
+
+---
+
 ## 10. Open questions for the owner
 
 1. **Browser-open vs copy-paste for sign-in:** is the app opening the system browser to the provider's device page acceptable, or should the owner copy the code and URL manually? (Some owners distrust app-opened sign-in windows.)
