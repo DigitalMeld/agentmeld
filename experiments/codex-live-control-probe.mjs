@@ -24,7 +24,7 @@ const start = onRequest => new LiveClient(spawn(binary, ['app-server', '--stdio'
   NO_PROXY: '127.0.0.1,localhost', no_proxy: '127.0.0.1,localhost',
 }, stdio: ['pipe','pipe','pipe'] }), 120000, onRequest);
 let client; let authority; let stage = 'initialize'; let expectedThread; let scenario; let calls = 0; let callbacks = 0;
-const report = { phase: 'm0', liveInference: true, model: 'gpt-5.5', approvedOnce: false, deniedWithoutExecution: false, interruptedPendingApproval: false, interruptedRunningCommand: false, rawAccountOrOutputRetained: false };
+const report = { phase: 'm0', liveInference: true, model: 'gpt-5.5', approvedOnce: false, deniedWithoutExecution: false, interruptedPendingApproval: false, interruptedAndCleanedRunningCommand: false, rawAccountOrOutputRetained: false };
 try {
   authority = await RustAuthority.open('/usr/local/bin/agentmeld-m0', authHome + '/control-' + randomUUID() + '.jsonl');
   client = start(async frame => {
@@ -97,6 +97,9 @@ setTimeout(()=>process.exit(0),60000);`, { flag: 'wx' });
   report.runningCheckpoint = 'requesting-interruption';
   await client.request('turn/interrupt', { threadId: expectedThread, turnId: active.params.turn.id });
   assert.equal((await turnPromise).status, 'interrupted');
+  report.runningCheckpoint = 'cleaning-background-terminals';
+  await client.request('thread/backgroundTerminals/clean', { threadId: expectedThread });
+  report.backgroundTerminalCleanupRequested = true;
   report.runningCheckpoint = 'verifying-stopped-processes';
   await delay(300);
   const before = await Promise.all([readFile(parentFile, 'utf8'), readFile(childFile, 'utf8')]);
@@ -107,9 +110,9 @@ setTimeout(()=>process.exit(0),60000);`, { flag: 'wx' });
     assert.ok(status === '' || /^State:\s+Z/m.test(status));
   }
   report.runningCheckpoint = 'complete';
-  report.interruptedRunningCommand = true;
+  report.interruptedAndCleanedRunningCommand = true;
 } catch { report.failedStage = stage; process.exitCode = 1; }
 finally { if (client) await client.close(); if (authority) await authority.close(); }
-report.qualified = !report.failedStage && report.approvedOnce && report.deniedWithoutExecution && report.interruptedPendingApproval && report.interruptedRunningCommand;
+report.qualified = !report.failedStage && report.approvedOnce && report.deniedWithoutExecution && report.interruptedPendingApproval && report.interruptedAndCleanedRunningCommand;
 if (!report.qualified) process.exitCode = 1;
 console.log(JSON.stringify(report));
