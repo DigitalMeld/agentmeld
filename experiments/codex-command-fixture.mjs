@@ -2,7 +2,7 @@
 import { createServer } from 'node:http';
 import { spawn } from 'node:child_process';
 
-export async function runCommandFixture({ home, command, patch, imagePath }) {
+export async function runCommandFixture({ home, command, patch, imagePath, unifiedExec }) {
   const commandExitCodes = []; let returnedExitCode = null;
   let requests = 0; let toolOutputSeen = false; let selectedTool; let advertisedTools = []; let deniedRequests = 0; let imageReturned = false;
   let resolveDone, rejectDone;
@@ -38,7 +38,7 @@ export async function runCommandFixture({ home, command, patch, imagePath }) {
   });
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   const base = `http://127.0.0.1:${server.address().port}/v1`;
-  const proc = spawn('/opt/agentmeld/node_modules/.bin/codex', ['app-server', '--stdio', '-c', 'model_provider="m0"', '-c', 'model="gpt-5.5"', '-c', `model_providers.m0={name="M0 fixture",base_url="${base}",wire_api="responses",requires_openai_auth=false}`, '-c', 'model_reasoning_effort="low"'], {
+  const proc = spawn('/opt/agentmeld/node_modules/.bin/codex', ['app-server', '--stdio', ...(typeof unifiedExec === 'boolean' ? ['-c', `features.unified_exec=${unifiedExec}`] : []), '-c', 'model_provider="m0"', '-c', 'model="gpt-5.5"', '-c', `model_providers.m0={name="M0 fixture",base_url="${base}",wire_api="responses",requires_openai_auth=false}`, '-c', 'model_reasoning_effort="low"'], {
     cwd: '/workspace', env: { PATH: process.env.PATH, HOME: home, CODEX_HOME: home + '/.codex' }, stdio: ['pipe', 'pipe', 'pipe'],
   });
   const pending = new Map(); let sequence = 0; let buffer = ''; let closing = false; let fatal;

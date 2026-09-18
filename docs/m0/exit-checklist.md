@@ -54,3 +54,5 @@ The [live browser integration](live-browser.md) closes the authenticated browser
 The [controlled VM-restart probe](workspace-disk-limit.md#controlled-vm-restart) preserves filesystem identity/bounds, native subscription availability, conversation nonce and workspace files across a new boot with explicit reattachment. Native lifecycle qualification now passes with synthetic tokens; next: native command-error event disposition and final M0 audit.
 
 The [native lifecycle fixture](auth-lifecycle.md) uses the real pinned app-server with isolated synthetic credentials to verify refresh persistence, permanent expiry withholding, transient recovery and logout without touching the owner session. It does not claim provider-side refresh/revocation qualification.
+
+The owner has now authorized a [scoped native command-event patch](codex-command-event-patch.md). Configuration changes and a separate 0.155.0 comparison did not fix the diagnostic. The patch compiles and passes offline command/boundary and live execution checks; upstream regression qualification is pending build space. The selected runtime remains on unpatched 0.154.0.

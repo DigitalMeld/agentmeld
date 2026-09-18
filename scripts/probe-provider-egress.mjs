@@ -9,7 +9,7 @@ import assert from 'node:assert/strict';
 import { validateQuotaVolume } from '../experiments/quota-volume.mjs';
 import { runLiveBrowser } from '../experiments/live-browser-qualification.mjs';
 import { setTimeout as delay } from 'node:timers/promises';
-const { values } = parseArgs({ options: { context: { type: 'string' }, 'device-login': { type: 'boolean', default: false }, subscription: { type: 'boolean', default: false }, execution: { type: 'boolean', default: false }, control: { type: 'boolean', default: false }, browser: { type: 'boolean', default: false }, 'workspace-stage': { type: 'string' }, 'workspace-instance': { type: 'string' } } });
+const { values } = parseArgs({ options: { context: { type: 'string' }, image: { type: 'string', default: 'agentmeld-m0:local' }, 'device-login': { type: 'boolean', default: false }, subscription: { type: 'boolean', default: false }, execution: { type: 'boolean', default: false }, control: { type: 'boolean', default: false }, browser: { type: 'boolean', default: false }, 'workspace-stage': { type: 'string' }, 'workspace-instance': { type: 'string' } } });
 const workspaceStage = values['workspace-stage'];
 if (workspaceStage || values['workspace-instance']) {
   assert.ok(['write', 'read'].includes(workspaceStage));
@@ -25,7 +25,7 @@ const root = fileURLToPath(new URL('../', import.meta.url));
 const docker = args => execFileSync('docker', ['--context', values.context, ...args], { encoding: 'utf8', timeout: (values.execution || values.control) ? 300000 : values.subscription ? 90000 : 45000, maxBuffer: 1024 * 1024 });
 const run = randomUUID(); const network = 'agentmeld-m0-net-' + run; const proxy = 'agentmeld-m0-proxy-' + run; const worker = 'agentmeld-m0-egress-' + run;
 const directory = root + '.local/m0/egress/' + run; await mkdir(directory, { recursive: true });
-const image = docker(['image', 'inspect', 'agentmeld-m0:local', '--format', '{{.Id}}']).trim();
+const image = docker(['image', 'inspect', values.image, '--format', '{{.Id}}']).trim();
 assert.match(image, /^sha256:[a-f0-9]{64}$/);
 const policyPaths = JSON.parse(execFileSync('python3', ['-c', `import importlib.util,json,pathlib
 root=pathlib.Path(${JSON.stringify(root)})

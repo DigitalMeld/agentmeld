@@ -1,0 +1,13 @@
+{
+  "upstream": "https://github.com/openai/codex",
+  "revision": "6b9826e3aa83b1a5947db50f4332cb9c65f1b340",
+  "tag": "rust-v0.154.0",
+  "patchSha256": "8dfb9526dbe7156f8792560765a4627b4f794d777fa99b040e9fe689eb08d691",
+  "status": "compiled-partially-qualified",
+  "ownerAuthorization": "2026-09-18: Prepare the scoped Codex patch",
+  "removalCondition": "Replace with an upstream release that passes the command-error event regression and requalifies the existing isolation and live lifecycle probes.",
+  "scope": "Emit native begin/end lifecycle for early SandboxDenied output without altering sandbox, approval, execution or model error semantics.",
+  "strippedBinarySha256": "cf2131e5cc8a444fea6d610d46082e600f270d8ba33a724b92adc678f9516887",
+  "experimentalImage": "sha256:fdd0e186168169deb31435a37bbe11771960804a40b3193149bbe996c750bc26",
+  "runtimeActivated": false
+}
