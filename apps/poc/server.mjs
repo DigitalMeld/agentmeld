@@ -1,3 +1,4 @@
+import { recordEvent } from './events.mjs';
 import http from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { randomBytes, timingSafeEqual } from 'node:crypto';
@@ -18,11 +19,11 @@ function pump(){
     if(conversation.continuation!=='ready'){
       task.status='failed';task.activity='Continuation unavailable';task.error='Start a new chat; earlier work is preserved.';return;
     }
-    task.status='running';task.activity='Connecting';await save();
+    recordEvent(task,'started');task.status='running';task.activity='Connecting';await save();
     await execute(task,save,control,conversation);
   })().catch(()=>{
     task.status='failed';task.activity='Needs attention';task.error='The turn could not finish safely. Start a new chat.';conversation.continuation='unavailable';
-  }).finally(async()=>{try{await save();}finally{active=null;pump();}});
+  }).finally(async()=>{try{if(['completed','failed','cancelled'].includes(task.status))recordEvent(task,task.status);await save();}finally{active=null;pump();}});
   control.done.catch(()=>{});
 }
 function authorized(req) {const supplied=Buffer.from(req.headers.authorization||'');const expected=Buffer.from('Bearer '+token);return supplied.length===expected.length&&timingSafeEqual(supplied,expected);}
@@ -49,9 +50,9 @@ const server=http.createServer(async(req,res)=>{
       if(req.method==='POST'&&url.pathname==='/api/stop'){
         const data=await body(req);const task=state.tasks.find(t=>t.id===data.taskId);
         if(!task)return send(res,404,{error:'Task not found.'});
-        if(task.status==='queued'){task.status='cancelled';task.activity='Stopped before execution';await save();return send(res,200,{stopped:true});}
+        if(task.status==='queued'){recordEvent(task,'cancelled');task.status='cancelled';task.activity='Stopped before execution';await save();return send(res,200,{stopped:true});}
         if(active?.id!==task.id||!active.stop||!['running','cancelling'].includes(task.status))return send(res,409,{error:'This turn cannot be stopped yet. Try again in a moment.'});
-        const control=active;task.status='cancelling';task.activity='Stopping';await save();
+        const control=active;recordEvent(task,'cancelling');task.status='cancelling';task.activity='Stopping';await save();
         if(active!==control||!control.stop)return send(res,200,{finished:true});
         await control.stop();
         return send(res,202,{requested:true});

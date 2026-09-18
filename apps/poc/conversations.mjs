@@ -1,3 +1,4 @@
+import { recordEvent, publicEvents } from './events.mjs';
 import { randomUUID, createHash } from 'node:crypto';
 import { readFile, writeFile, mkdir, rename } from 'node:fs/promises';
 import { safeName } from './runtime.mjs';
@@ -21,7 +22,7 @@ export async function openStore(directory) {
   }
   if(!Array.isArray(state.conversations)) throw Error('Invalid conversation store');
   for(const task of state.tasks) if(['running','cancelling'].includes(task.status)) {
-    task.status='interrupted';task.activity='Interrupted by service restart';
+    recordEvent(task,'interrupted');task.status='interrupted';task.activity='Interrupted by service restart';
     task.error='Execution was interrupted. Start a new chat; this conversation cannot safely resume.';
     const c=state.conversations.find(c=>c.id===task.conversationId);if(c)c.continuation='unavailable';
   }
@@ -61,7 +62,7 @@ export function admit(state,data) {
   const createdAt=new Date().toISOString();
   if(!conversation){conversation={id:randomUUID(),title:data.prompt.trim(),createdAt,session:null,workspace:[],continuation:'ready'};state.conversations.push(conversation);}
   const task={id:randomUUID(),conversationId:conversation.id,requestKey:data.requestKey,requestDigest:digest,prompt:data.prompt.trim(),inputs:data.files,artifacts:[],answer:'',status:'queued',activity:'Queued',createdAt};
-  state.tasks.push(task);return {task,duplicate:false};
+  recordEvent(task,'queued');state.tasks.push(task);return {task,duplicate:false};
 }
-export const publicTask=t=>({id:t.id,conversationId:t.conversationId,prompt:t.prompt,answer:t.answer,status:t.status,activity:t.activity,error:t.error,createdAt:t.createdAt,inputs:t.inputs.map(f=>({name:f.name})),artifacts:t.artifacts.map(f=>({name:f.name,size:Buffer.from(f.data,'base64').length}))});
+export const publicTask=t=>({id:t.id,conversationId:t.conversationId,prompt:t.prompt,answer:t.answer,status:t.status,activity:t.activity,error:t.error,createdAt:t.createdAt,events:publicEvents(t),inputs:t.inputs.map(f=>({name:f.name})),artifacts:t.artifacts.map(f=>({name:f.name,size:Buffer.from(f.data,'base64').length}))});
 export const publicConversation=c=>({id:c.id,title:c.title,createdAt:c.createdAt,continuation:c.continuation});

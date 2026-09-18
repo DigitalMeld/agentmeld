@@ -1,6 +1,6 @@
 # Product feedback backlog
 
-Updated: 2026-09-18. B01/B02 have a locally verified implementation for new chats, with legacy/interrupted continuation limits documented in [the POC](poc.md). B03–B06 are implemented in the local web client; B07 Activity history remains **requested, not implemented**. Source: owner feedback while using the [local POC](poc.md), with six attached screenshots. This document records the requested work; it does not expand M0 or claim delivery. Suggested order: conversation continuity and `/new`, small visual fixes, then the durable activity history.
+Updated: 2026-09-18. B01/B02 have a locally verified implementation for new chats, with legacy/interrupted continuation limits documented in [the POC](poc.md). B03–B06 are implemented in the local web client; B07 has retained turn history, conversation/output links and recorded run milestones; detailed native tool steps remain pending. Source: owner feedback while using the [local POC](poc.md), with six attached screenshots. This document records the requested work; it does not expand M0 or claim delivery. Suggested order: conversation continuity and `/new`, small visual fixes, then the durable activity history.
 
 ## B01. Continue an existing conversation
 
@@ -90,3 +90,9 @@ The Activity button is visually improved; this checkpoint does not implement B07
 B07 now shows retained turns across conversations, newest first and grouped by local calendar date. Each row uses the original request as its title, the stored execution status and activity/error text as its factual summary, and the request creation time. Selecting a row opens its conversation and focuses that exact turn; each output opens the version retained by that turn. History survives reload through the existing persisted task store. Mobile navigation dismisses the panel so the destination is visible.
 
 This is turn history, not a complete tool-event ledger: ordered steps, per-action timestamps, command results and stable shareable URLs remain pending. Existing 30-turn retention limits still apply; no automatic deletion or schema migration was added. The composer placeholder is now simply “Message.”
+
+## Activity details and file origins (2026-09-18)
+
+New turns record application-owned milestones with stable IDs and timestamps: queued, started, working files ready, agent ready, saving results, and the final outcome after cleanup. Stop requests and restart interruptions are recorded where observed. Repeated recording of the same milestone is deduplicated. Raw provider payloads, commands and stdout are not copied into this log.
+
+Activity entries offer a live-updating details dialog and an Open conversation action. Older turns explicitly report unavailable milestone history; no past timestamps or successful steps are invented. The Files library now labels each output with its conversation and producing turn’s time, and links back to that turn. Same-name files retain separate original bytes. Native tool-step inspection remains pending.
