@@ -23,11 +23,12 @@ try{
  const jsonDownload=page.waitForEvent('download');await page.locator('[data-export="json"]').click();const json=JSON.parse(await readFile(await(await jsonDownload).path(),'utf8'));assert.equal(json.conversation.title,'Renamed Alpha');assert.equal(json.turns.length,2);assert.ok(!JSON.stringify(json).includes('Original attachment'));
  const mdDownload=page.waitForEvent('download');await page.locator('[data-export="md"]').click();assert.match(await readFile(await(await mdDownload).path(),'utf8'),/# Renamed Alpha/);
  await page.locator('#archiveChat').click();await page.waitForFunction(()=>document.querySelector('#archiveChat').textContent==='Restore chat');await page.locator('#closeChatOptions').click();
- assert.equal(await page.locator('#prompt').isDisabled(),true);assert.equal(await page.locator('#chatScope').inputValue(),'archived');
- await page.locator('#chatScope').selectOption('active');assert.equal(await page.locator('.historyItem').count(),1);
- await page.locator('#chatScope').selectOption('archived');await page.locator('#chatSearch').fill('RENAMED');assert.equal(await page.locator('.historyItem').count(),1);await page.locator('#chatSearch').fill('');
+ assert.equal(await page.locator('#prompt').isDisabled(),true);assert.equal(await page.locator('#archiveChats').getAttribute('aria-pressed'),'true');
+ await page.locator('#archiveChats').click();assert.equal(await page.locator('.historyItem').count(),1);
+ await page.locator('#archiveChats').focus();await page.keyboard.press('Enter');await page.locator('#chatSearch').fill('RENAMED');assert.equal(await page.locator('.historyItem').count(),1);await page.locator('#chatSearch').fill('');
+ assert.equal(await page.locator('#chatHeading').innerText(),'Archived');assert.equal(await page.locator('#archiveChats').getAttribute('aria-label'),'Show active chats');assert.equal(await page.locator('#chatScope').count(),0);
  await page.screenshot({path:'.local/m0/organized-archive.png'});
- await page.reload();await page.locator('#restoreChat').waitFor();assert.equal(await page.locator('#chatScope').inputValue(),'archived');
+ await page.reload();await page.locator('#restoreChat').waitFor();assert.equal(await page.locator('#archiveChats').getAttribute('aria-pressed'),'true');
  await page.locator('#restoreChat').click();await page.waitForFunction(()=>!document.querySelector('#prompt').disabled);assert.equal(await page.locator('.historyItem .chatTitle').first().innerText(),'Renamed Alpha');
  await page.locator('#filesNav').click();await page.locator('#fileType').selectOption('md');assert.equal(await page.locator('.libraryEntry').count(),2);assert.match(await page.locator('#fileSummary').innerText(),/^2 outputs/);
  await page.locator('#fileSort').selectOption('oldest');assert.match(await page.locator('.outputOrigin').first().innerText(),/Version 1/);
