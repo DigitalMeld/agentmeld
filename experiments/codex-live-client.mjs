@@ -1,6 +1,7 @@
 // Bounded, fail-closed native protocol client for explicit live qualification only.
 export class LiveClient {
-  constructor(proc, timeout = 60000) {
+  constructor(proc, timeout = 60000, onRequest = null) {
+    this.onRequest = onRequest; this.callbacks = new Set(); this.callbackTasks = new Set();
     this.proc = proc; this.pending = new Map(); this.events = []; this.waiters = new Set();
     this.deniedCallbacks = 0; this.sequence = 0; this.buffer = ''; this.bytes = 0; this.closing = false;
     this.timer = setTimeout(() => this.fail(), timeout);
@@ -27,6 +28,15 @@ export class LiveClient {
   frame(frame) {
     if (this.failed) return;
     if (frame.method && frame.id !== undefined) {
+      if (this.onRequest) {
+        if (this.callbacks.has(frame.id) || this.callbacks.size >= 32) return this.fail();
+        this.callbacks.add(frame.id);
+        const task = Promise.resolve().then(() => { if (!this.failed && !this.closing) return this.onRequest(frame); }).then(result => {
+          if (!this.failed && !this.closing) this.send({ id: frame.id, result });
+        }).catch(() => this.fail());
+        this.callbackTasks.add(task); task.finally(() => this.callbackTasks.delete(task));
+        return;
+      }
       this.deniedCallbacks++;
       // This probe grants no escalation, permissions, or dynamic tool callback.
       this.send({ id: frame.id, error: { code: -32601, message: 'Live qualification does not grant escalation' } });

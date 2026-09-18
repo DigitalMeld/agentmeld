@@ -3,11 +3,11 @@ import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
 import { PassThrough } from 'node:stream';
 import { LiveClient } from './codex-live-client.mjs';
-function fixture() {
+function fixture(onRequest) {
   const proc = new EventEmitter(); proc.stdin = new PassThrough(); proc.stdout = new PassThrough(); proc.stderr = new PassThrough();
   proc.exitCode = null; proc.signalCode = null;
   proc.kill = signal => { proc.signalCode = signal; proc.emit('exit', null, signal); };
-  const client = new LiveClient(proc, 1000);
+  const client = new LiveClient(proc, 1000, onRequest);
   const send = f => proc.stdout.write(JSON.stringify(f) + '\n');
   return { proc, client, send };
 }
@@ -48,5 +48,43 @@ test('reused turn identity cannot satisfy a new probe from cached completion', a
     const result = client.turn('t', 'new');
     send({ id: 1, result: { turn: { id: 'old' } } });
     await assert.rejects(result, /reused completed turn/);
+  } finally { await client.close(); }
+});
+test('explicit callback handler responds only after its asynchronous decision', async () => {
+  let decide; const decision = new Promise(resolve => { decide = resolve; });
+  const { client, proc, send } = fixture(() => decision); let response = '';
+  proc.stdin.on('data', chunk => response += chunk);
+  try {
+    send({ id: 9, method: 'item/tool/call', params: {} });
+    await Promise.resolve(); assert.equal(response, '');
+    decide({ success: false, contentItems: [] }); await Promise.all([...client.callbackTasks]);
+    assert.deepEqual(JSON.parse(response), { id: 9, result: { success: false, contentItems: [] } });
+  } finally { await client.close(); }
+});
+test('duplicate callback transport identity fails closed before a second handler call', async () => {
+  let calls = 0; let decide; const decision = new Promise(resolve => { decide = resolve; });
+  const { client, send } = fixture(async () => { calls++; return decision; });
+  try {
+    send({ id: 9, method: 'item/tool/call', params: {} }); await Promise.resolve();
+    send({ id: 9, method: 'item/tool/call', params: {} });
+    assert.equal(client.failed, true); assert.equal(calls, 1);
+    decide({ success: true }); await Promise.all([...client.callbackTasks]);
+  } finally { await client.close(); }
+});
+test('handler failure terminates the probe and rejects native waits', async () => {
+  const { client, send } = fixture(async () => { throw Error('private diagnostic'); });
+  try {
+    const waiting = client.wait(() => false);
+    send({ id: 9, method: 'item/tool/call', params: {} });
+    await assert.rejects(waiting, /native probe unavailable/);
+  } finally { await client.close(); }
+});
+test('queued callback cannot begin after protocol failure', async () => {
+  let calls = 0; const { client, send } = fixture(async () => { calls++; return {}; });
+  try {
+    send({ id: 9, method: 'item/tool/call', params: {} });
+    send({ id: 9, method: 'item/tool/call', params: {} });
+    await Promise.all([...client.callbackTasks]);
+    assert.equal(client.failed, true); assert.equal(calls, 0);
   } finally { await client.close(); }
 });

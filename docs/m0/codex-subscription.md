@@ -110,3 +110,5 @@ The pinned 0.154.0 [exec handler](https://github.com/openai/codex/blob/rust-v0.1
 Three additional offline tests cover call/result correlation, forged stdout or assistant claims, and malformed/oversized history. The default suite now has 180 tests. Next live gates are mediated approval allow/deny and interruption; source-level event diagnosis remains open separately.
 
 Verified follow-up image: `sha256:d9f1b9a8c100d28422c82656348cbf1863b800482980dd26adf48385125f0cbc`. Sanitized live report: `.local/m0/live-error-evidence.log`; offline reproduction: `.local/m0/command-error-offline.log`. Subscription recognition, command success, correlated native error result and replacement-process continuation all pass. The report separately retains `commandErrorEvent: false`.
+
+The subsequent [live control qualification](live-control.md) passes mediated allow/deny and pending/running cancellation. This supersedes the earlier pending status for those specific live cases; the separate UI error-event gap and broader checklist remain open.
