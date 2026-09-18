@@ -45,7 +45,8 @@
   .facts li strong{color:var(--text);font-weight:600}
   .facts .mk{flex:none;width:24px;height:24px;border-radius:50%;background:var(--accent-dim);
     color:var(--accent);font-size:13px;display:flex;align-items:center;justify-content:center;margin-top:2px}
-  .row{display:flex;gap:10px;flex-wrap:wrap;margin-top:26px;align-items:center}
+  .row{display:flex;gap:10px;flex-wrap:wrap;margin-top:26px;align-items:center;justify-content:flex-end}
+  .row.left{justify-content:flex-start}
   button{font:inherit;cursor:pointer;border-radius:11px;padding:12px 22px;border:1px solid var(--border);
     background:var(--panel2);color:var(--text);font-size:15.5px;transition:border-color .15s,filter .15s}
   button:hover{border-color:var(--faint)}
@@ -101,8 +102,6 @@
   .degraded-shell .chat{padding:20px 18px;color:var(--faint);font-size:14px;min-height:96px}
   .degraded-shell .composer{border-top:1px solid var(--border);padding:14px 18px;color:var(--faint);
     font-size:14px;background:var(--panel)}
-  .bar{height:6px;background:var(--border);border-radius:3px;overflow:hidden;margin:26px 0 8px}
-  .bar i{display:block;height:100%;background:var(--accent);width:0;transition:width .5s ease}
   .hero-ok{width:56px;height:56px;border-radius:50%;background:#1c2b21;color:var(--good);
     display:flex;align-items:center;justify-content:center;font-size:26px;margin:6px 0 20px}
   .recap{list-style:none;padding:0;margin:0 0 20px}
@@ -112,6 +111,39 @@
   .fine{margin-top:44px;font-size:12.5px;color:var(--faint);text-align:center}
   .attach{display:inline-flex;align-items:center;gap:8px;background:var(--panel2);
     border:1px solid var(--border);border-radius:9px;padding:7px 13px;font-size:13.5px;color:var(--muted);margin:10px 0 4px}
+  .chathead{display:flex;gap:12px;align-items:center;padding:4px 0 16px;border-bottom:1px solid var(--border);margin-bottom:16px}
+  .avatar{width:38px;height:38px;flex:none;border-radius:50%;background:var(--accent-dim);color:var(--accent);
+    display:flex;align-items:center;justify-content:center;font-weight:600;font-size:16px}
+  .chathead .who strong{display:block;font-size:15.5px}
+  .chathead .who span{font-size:12.5px;color:var(--good)}
+  .thread{display:flex;flex-direction:column;gap:10px;margin-bottom:16px;min-height:180px}
+  .msg{max-width:88%;padding:11px 15px;border-radius:14px;font-size:15px;animation:rise .22s ease-out}
+  .msg p{margin:0 0 8px;color:var(--muted)}
+  .msg p:last-child{margin:0}
+  .msg p strong{color:var(--text)}
+  .msg.agent{background:var(--panel);border:1px solid var(--border);align-self:flex-start;border-top-left-radius:4px}
+  .msg.user{background:var(--accent-dim);align-self:flex-end;border-top-right-radius:4px}
+  .msg.user p{color:var(--text)}
+  .typing{display:inline-flex;gap:5px;padding:4px 0}
+  .typing i{width:6px;height:6px;border-radius:50%;background:var(--faint);animation:blink 1.1s infinite}
+  .typing i:nth-child(2){animation-delay:.18s} .typing i:nth-child(3){animation-delay:.36s}
+  @keyframes blink{0%,100%{opacity:.25}50%{opacity:1}}
+  .pill{display:inline-block;background:#1c2b21;color:var(--good);font-size:12.5px;font-weight:600;
+    border-radius:20px;padding:4px 12px;margin:2px 0 8px}
+  .composer{border:1px solid var(--border);border-radius:14px;background:var(--panel);padding:4px 4px 4px 6px}
+  .composer textarea{width:100%;background:transparent;border:none;color:var(--text);
+    font:inherit;font-size:15px;line-height:1.5;padding:10px 10px 4px;min-height:66px;resize:none;display:block}
+  .composer textarea:focus{outline:none}
+  .composer .cbar{display:flex;justify-content:space-between;align-items:center;padding:6px 8px 8px}
+  .composer .cbar .attach{margin:0}
+  .composer .cbar button{padding:9px 20px}
+  .composer.off{padding:16px 18px;text-align:center}
+  .composer.off p{font-size:14px;margin:0 0 12px}
+  .nextstep{border:1px solid var(--accent-dim);border-radius:12px;background:#1a1826;
+    padding:14px 16px;margin:2px 0 4px}
+  .nextstep p{font-size:14px;margin:0 0 10px}
+  .nextstep .row{margin-top:0}
+  .inmsg-actions{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
 </style>
 </head>
 <body>
@@ -150,7 +182,7 @@
     </ul>
     <div class="row"><button class="primary" id="svc-next" data-go="s-provider" disabled>Continue</button></div>
     <details class="lab"><summary>Preview other states</summary>
-      <div class="row"><button class="small ghost" id="svc-fail">Worker runtime missing</button></div>
+      <div class="row left"><button class="small ghost" id="svc-fail">Worker runtime missing</button></div>
     </details>
   </section>
 
@@ -163,8 +195,8 @@
       <p>Checking the connection never starts billable work. Nothing runs until you send a message.</p>
     </div>
     <div class="row">
-      <button class="primary" data-go="s-deviceflow">Connect ChatGPT subscription</button>
       <button class="ghost" id="defer-provider">I'll do this later</button>
+      <button class="primary" data-go="s-deviceflow">Connect ChatGPT subscription</button>
     </div>
   </section>
 
@@ -178,11 +210,11 @@
     </div>
     <p class="statusline" id="dev-status"><span class="spin"></span>&nbsp; Waiting for you to sign in…</p>
     <div class="row">
-      <button class="primary" id="dev-check">I've signed in — check</button>
       <button class="ghost" data-go="s-provider">Cancel</button>
+      <button class="primary" id="dev-check">I've signed in — check</button>
     </div>
     <details class="lab"><summary>Preview other states</summary>
-      <div class="row">
+      <div class="row left">
         <button class="small ghost" data-devfail="denied">Sign-in denied</button>
         <button class="small ghost" data-devfail="expired">Code expired</button>
         <button class="small ghost" data-devfail="nosub">No subscription found</button>
@@ -195,8 +227,8 @@
   <section class="screen" data-stage="2" id="s-deviceerr">
     <div class="err"><h3 id="de-title"></h3><p id="de-body"></p></div>
     <div class="row">
-      <button class="primary" id="de-retry">Try again</button>
       <button class="ghost" data-go="s-provider">Back</button>
+      <button class="primary" id="de-retry">Try again</button>
     </div>
   </section>
 
@@ -221,8 +253,8 @@
       <div class="composer">Connect a provider to start ▸</div>
     </div>
     <div class="row">
-      <button class="primary" data-go="s-provider">Connect provider now</button>
       <button class="ghost" data-go="s-approvals">Continue setup without a provider</button>
+      <button class="primary" data-go="s-provider">Connect provider now</button>
     </div>
   </section>
 
@@ -243,9 +275,9 @@
         <dt>Action</dt><dd>Save <strong>report.md</strong> to Downloads</dd>
         <dt>Scope</dt><dd>This file only, this once</dd>
       </dl>
-      <div class="row" style="margin-top:6px">
-        <button class="small primary" id="ex-allow">Allow once</button>
+      <div class="row left" style="margin-top:6px">
         <button class="small" id="ex-deny">Deny</button>
+        <button class="small primary" id="ex-allow">Allow once</button>
       </div>
       <p id="ex-result" class="hint"></p>
     </div>
@@ -262,62 +294,32 @@
     <div class="row"><button class="primary" id="agent-create">Create agent</button></div>
   </section>
 
-  <!-- 6a · First task -->
-  <section class="screen" data-stage="5" id="s-task">
-    <h1>Run your first task</h1>
-    <p class="lede">The classic first job: find the story in sample sales data. The file is already attached — one tap sends it.</p>
-    <div class="card" id="task-card">
-      <h3>Find the story in my sales data</h3>
-      <span class="attach">📎 sample-sales.csv</span>
-      <p>"Summarize what's happening and write a short report."</p>
-      <div class="row" style="margin-top:14px">
-        <button class="primary" id="task-run">Run my first task</button>
+  <!-- 6 · Chat: first task pre-filled -->
+  <section class="screen" data-stage="5" id="s-chat">
+    <div class="chathead">
+      <div class="avatar" id="chat-avatar">A</div>
+      <div class="who"><strong id="chat-agent">Assistant</strong><span id="chat-presence">● ready</span></div>
+    </div>
+    <div class="thread" id="thread"></div>
+    <div class="composer" id="composer">
+      <div id="composer-live">
+        <textarea id="chat-input" rows="2">Summarize what&apos;s happening in the sample sales data and write a short report.</textarea>
+        <div class="cbar">
+          <span class="attach">📎 sample-sales.csv</span>
+          <button class="primary" id="chat-send">Send</button>
+        </div>
+      </div>
+      <div id="composer-off" hidden>
+        <p>No provider connected — chat stays off until one is. An enabled input that fails on send would be dishonest.</p>
+        <div class="row" style="margin-top:0"><button class="primary" data-go="s-provider">Connect ChatGPT subscription</button></div>
       </div>
     </div>
-    <div class="card" id="task-nodegraded" hidden>
-      <h3>Waiting on a provider</h3>
-      <p>You skipped the provider connection, so there's nothing to run this with yet. Your agent is created and everything else is ready.</p>
-      <div class="row" style="margin-top:14px"><button class="primary" data-go="s-provider">Connect provider</button></div>
-    </div>
+    <p class="hint" id="chat-hint">Just hit send — or clear the box and ask anything.</p>
     <details class="lab"><summary>Preview other states</summary>
-      <div class="row"><button class="small ghost" id="task-fail-preview">Task fails</button></div>
+      <div class="row left"><button class="small ghost" id="chat-fail-preview">Task fails</button></div>
     </details>
   </section>
 
-  <!-- 6b · Task running -->
-  <section class="screen" data-stage="5" id="s-taskrun">
-    <h1 id="taskrun-title">Working on it…</h1>
-    <p class="lede" id="taskrun-sub">Thinking</p>
-    <div class="bar"><i id="taskrun-bar"></i></div>
-    <div class="row"><button class="ghost" id="taskrun-stop">Stop</button></div>
-  </section>
-
-  <!-- 6c · Task done -->
-  <section class="screen" data-stage="5" id="s-taskdone">
-    <div class="hero-ok">✓</div>
-    <h1>Your first report is ready</h1>
-    <div class="card">
-      <h3>report.md — saved to Library</h3>
-      <p>Read 24 rows, computed totals, wrote report.md.<br>
-      Revenue <strong>110,000</strong> · cost <strong>44,800</strong> · profit <strong>65,200</strong>.</p>
-    </div>
-    <div class="row">
-      <button class="primary" data-go="s-pair">Continue</button>
-      <button class="ghost" data-go="s-task">Ask a follow-up</button>
-    </div>
-  </section>
-
-  <!-- 6d · Task failed -->
-  <section class="screen" data-stage="5" id="s-taskfail">
-    <div class="err">
-      <h3>The task could not finish</h3>
-      <p>Check that the local service is running and your subscription is connected, then start a new chat to continue. Earlier saved files remain available.</p>
-    </div>
-    <div class="row">
-      <button class="primary" id="task-retry">Try again</button>
-      <button class="ghost" data-go="s-pair">Skip for now</button>
-    </div>
-  </section>
 
   <!-- 7a · Pair iPhone -->
   <section class="screen" data-stage="6" id="s-pair">
@@ -325,8 +327,8 @@
     <p class="lede">Pair your iPhone to chat, approve actions, and view artifacts from your phone. Pairing is explicit: you see the device and exactly what it may do.</p>
     <div class="note">Pairs on your <strong>local network</strong> today. Away-from-home access is set up separately once the secure connection is qualified — your paired phone picks it up automatically. No date is promised here.</div>
     <div class="row">
-      <button class="primary" data-go="s-paircode">Pair iPhone</button>
       <button class="ghost" data-go="s-done" id="pair-skip">Skip for now</button>
+      <button class="primary" data-go="s-paircode">Pair iPhone</button>
     </div>
   </section>
 
@@ -336,11 +338,11 @@
     <p class="lede">Enter this code in the AgentMeld app on your iPhone:</p>
     <div class="code">731 942<small>Expires in <span id="pair-count">04:59</span></small></div>
     <div class="row">
-      <button class="primary" id="pair-done-btn">Simulate: phone paired</button>
       <button class="ghost" data-go="s-pair">Cancel</button>
+      <button class="primary" id="pair-done-btn">Simulate: phone paired</button>
     </div>
     <details class="lab"><summary>Preview other states</summary>
-      <div class="row"><button class="small ghost" id="pair-fail">Phone can't reach this Mac</button></div>
+      <div class="row left"><button class="small ghost" id="pair-fail">Phone can't reach this Mac</button></div>
     </details>
   </section>
 
@@ -351,8 +353,8 @@
       <p>Check two things: is the phone on the <strong>same network</strong> as this Mac, and is this Mac awake and reachable? Then try a fresh code.</p>
     </div>
     <div class="row">
-      <button class="primary" data-go="s-paircode">New code &amp; retry</button>
       <button class="ghost" data-go="s-done">Skip for now</button>
+      <button class="primary" data-go="s-paircode">New code &amp; retry</button>
     </div>
   </section>
 
@@ -383,7 +385,8 @@
   var stages = ["Welcome","Mac setup","Provider","Approvals","Agent","First task","Pair iPhone","Done"];
   var stack = ["s-welcome"];
   var timers = [];
-  var state = { provider:false, agent:"Assistant", taskDone:false, paired:false, t0:Date.now() };
+  var state = { provider:false, agent:"Assistant", taskDone:false, paired:false, chatSent:false, chatFail:false, t0:Date.now() };
+  function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
   var trackFill = document.getElementById("track-fill");
 
   function clearTimers(){ timers.forEach(clearTimeout); timers=[]; if(window.__tick){clearInterval(window.__tick);window.__tick=null;} }
@@ -399,8 +402,8 @@
     document.getElementById("step-label").textContent = "Step " + (st+1) + " of " + stages.length + " · " + stages[st];
     document.getElementById("back").disabled = stack.length<=1;
     window.scrollTo(0,0);
-    var init = { "s-service":initService, "s-deviceflow":initDevice, "s-taskrun":initTaskRun,
-                 "s-paircode":initPair, "s-task":initTask, "s-done":initDone }[id];
+    var init = { "s-service":initService, "s-deviceflow":initDevice, "s-chat":initChat,
+                 "s-paircode":initPair, "s-done":initDone }[id];
     if(init) init();
   }
   function go(id){ stack.push(id); show(id); }
@@ -506,34 +509,89 @@
   /* ---- agent ---- */
   document.getElementById("agent-create").addEventListener("click",function(){
     var v=document.getElementById("agent-name").value.trim()||"Assistant";
-    state.agent=v; go("s-task");
+    state.agent=v; go("s-chat");
   });
 
-  /* ---- first task ---- */
-  function initTask(){
-    var nog = !state.provider;
-    document.getElementById("task-card").hidden = nog;
-    document.getElementById("task-nodegraded").hidden = !nog;
+  /* ---- chat: first task pre-filled ---- */
+  function agentMsg(html){
+    var d=document.createElement("div"); d.className="msg agent"; d.innerHTML=html;
+    document.getElementById("thread").appendChild(d); return d;
   }
-  document.getElementById("task-run").addEventListener("click",function(){ go("s-taskrun"); });
-  document.getElementById("task-fail-preview").addEventListener("click",function(){ go("s-taskfail"); });
-  document.getElementById("task-retry").addEventListener("click",function(){ go("s-taskrun"); });
-  function initTaskRun(){
-    var phases=[["Thinking",18],["Working on your files",55],["Saving results",88]];
-    var bar=document.getElementById("taskrun-bar"), sub=document.getElementById("taskrun-sub");
-    document.getElementById("taskrun-title").textContent="Working on it…";
-    bar.style.width="0";
-    phases.forEach(function(p,i){
-      later(function(){ sub.textContent=p[0]; bar.style.width=p[1]+"%";
-        if(i===phases.length-1) later(function(){ bar.style.width="100%"; state.taskDone=true; go("s-taskdone"); },900);
-      }, 1100*(i+1));
-    });
+  function userMsg(text){
+    var d=document.createElement("div"); d.className="msg user";
+    var p=document.createElement("p"); p.textContent=text; d.appendChild(p);
+    document.getElementById("thread").appendChild(d);
   }
-  document.getElementById("taskrun-stop").addEventListener("click",function(){
-    clearTimers();
-    document.getElementById("taskrun-title").textContent="Stopped.";
-    document.getElementById("taskrun-sub").textContent="The run was stopped. Nothing half-finished was kept.";
+  function typing(){
+    var d=document.createElement("div"); d.className="msg agent"; d.id="typing";
+    d.innerHTML='<span class="typing"><i></i><i></i><i></i></span>';
+    document.getElementById("thread").appendChild(d);
+  }
+  function untype(){ var t=document.getElementById("typing"); if(t) t.remove(); }
+
+  function initChat(){
+    state.chatSent=false; state.chatFail=false;
+    document.getElementById("chat-agent").textContent=state.agent;
+    document.getElementById("chat-avatar").textContent=(state.agent.charAt(0)||"A").toUpperCase();
+    document.getElementById("thread").innerHTML="";
+    document.getElementById("composer").style.display="";
+    var live=state.provider;
+    document.getElementById("composer-live").hidden=!live;
+    document.getElementById("composer-off").hidden=live;
+    document.getElementById("chat-hint").style.display=live?"":"none";
+    if(live) document.getElementById("chat-input").value="Summarize what\u2019s happening in the sample sales data and write a short report.";
+    agentMsg("<p>Hi, I'm <strong>"+esc(state.agent)+"</strong> \u2014 everything's ready on your Mac.</p>"
+      +(live
+        ? "<p>I've loaded a sample task so you can see me work. Just hit send \u2014 or clear the box and ask me anything.</p>"
+        : "<p>Connect your ChatGPT subscription and I can start working. Until then, I'm just here to say hi.</p>"));
+  }
+  document.getElementById("chat-send").addEventListener("click",function(){
+    if(state.chatSent) return;
+    state.chatSent=true;
+    var text=document.getElementById("chat-input").value.trim()||"(sent an empty message)";
+    userMsg(text);
+    document.getElementById("composer").style.display="none";
+    document.getElementById("chat-hint").style.display="none";
+    runTask();
   });
+  document.getElementById("chat-fail-preview").addEventListener("click",function(){
+    if(state.chatSent) return;
+    state.chatSent=true; state.chatFail=true;
+    userMsg(document.getElementById("chat-input").value.trim()||"(sent an empty message)");
+    document.getElementById("composer").style.display="none";
+    document.getElementById("chat-hint").style.display="none";
+    runTask();
+  });
+  function runTask(){
+    typing();
+    if(state.chatFail){
+      later(function(){ untype();
+        var m=agentMsg("<p><strong>The task could not finish.</strong></p>"
+          +"<p>Check that the local service is running and your subscription is connected, then try again. Earlier saved files remain available.</p>"
+          +'<div class="inmsg-actions"><button class="small primary" id="chat-retry">Try again</button></div>');
+        m.querySelector("#chat-retry").addEventListener("click",function(){
+          state.chatFail=false; runTask();
+        });
+      },1400);
+      return;
+    }
+    later(function(){ untype();
+      agentMsg("<p>On it \u2014 reading <strong>sample-sales.csv</strong>\u2026</p>"); typing();
+      later(function(){ untype();
+        agentMsg("<p>Found 24 rows. Computing totals and writing <strong>report.md</strong>\u2026</p>"); typing();
+        later(function(){ untype(); state.taskDone=true;
+          agentMsg('<span class="pill">\u2713 First task complete</span>'
+            +"<p>Done \u2014 <strong>report.md</strong> is in your Library.</p>"
+            +"<p>Revenue <strong>110,000</strong> \u00b7 cost <strong>44,800</strong> \u00b7 profit <strong>65,200</strong>.</p>"
+            +'<div class="nextstep"><p>Want to take me with you? Pair your iPhone to chat and approve actions from your phone.</p>'
+            +'<div class="inmsg-actions"><button class="small primary" id="ns-pair">Pair iPhone</button>'
+            +'<button class="small ghost" id="ns-later">I\u2019ll explore on my own</button></div></div>');
+          document.getElementById("ns-pair").addEventListener("click",function(){ go("s-pair"); });
+          document.getElementById("ns-later").addEventListener("click",function(){ go("s-done"); });
+        },1700);
+      },1500);
+    },900);
+  }
 
   /* ---- pairing ---- */
   function initPair(){ tick(document.getElementById("pair-count"), 299, null); }
@@ -543,7 +601,6 @@
 
   /* ---- done ---- */
   function initDone(){
-    function esc(s){ return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
     var rows=[
       ["<span class='ok'>✓</span>","Mac service and isolated workspace ready"],
       [state.provider?"<span class='ok'>✓</span>":"<span class='warn'>○</span>",

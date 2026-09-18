@@ -77,19 +77,21 @@ Below the copy, a **clearly labeled sample approval card** ("Example — nothing
 
 Minimal: a name field prefilled with "Assistant", one line explaining "This is the agent you'll talk to. You can rename it, edit how it describes itself, and add approved memories later in Settings." [Create agent] → the agent exists with the default identity; persona/profile editing is discoverable, not required. No agent switcher, no team concepts — single owner at alpha.
 
-### Step 4 — First useful task (guided P1)
+### Step 4 — First useful task: land in Chat, pre-filled (revised 2026-09-18)
 
-The canonical first task is the P1 fixture: "Find the story in my sales data." The onboarding screen presents it as a suggestion card (per prototype refinements, cards prefill — here, one tap sends): the sample CSV is already attached, the prompt is shown, and the owner taps **Run my first task**.
+Owner feedback cut two screens here: instead of a dedicated "run your first task" screen plus a progress screen, onboarding lands the owner directly in Chat — the surface they will actually use — with the first task pre-filled. The composer holds the prompt ("Summarize what's happening in the sample sales data and write a short report.") and the sample CSV is already attached. One tap on Send runs it; the owner can also clear the composer and ask anything — the prefill is a suggestion, not a gate. This also answers the "WTF do I do" moment: the empty box is never empty on first run.
 
-- The run streams honest states (Thinking → Working on your files → Saving results) with Stop available throughout.
-- Completion lands on a success screen: the report previewed, "Saved to Library", what happened in one line ("Read 24 rows, computed totals, wrote report.md"), and two next actions: "Ask a follow-up" and "Try your own file".
-- **This is where time-to-first-useful-task stops** (§8).
+- The run streams honest states in the thread (reading → computing → saving) with a typing indicator; no separate progress screen.
+- Completion is an agent message: a "First task complete" marker, the report summary, and "Saved report.md to Library". **This is where time-to-first-useful-task stops** (§8).
+- The same message offers the next step inline: "Want to take me with you?" [Pair iPhone] [I'll explore on my own] — pairing is offered at the moment of first success, not forced as a final screen.
+- If the task fails, the agent posts the POC failure copy in-thread ("The task could not finish… Earlier saved files remain available.") with a retry affordance reusing the same inputs.
+- Degraded path (no provider): the same Chat screen renders with an honest disabled composer ("Connect a provider to start") instead of a fake-enabled input.
 
-If the task fails, the failure copy from the POC applies ("The task could not finish… Earlier saved files remain available. Start a new chat."), plus a "Try again" that reuses the same inputs — never an auto-retry of a half-finished run.
+This resolves open question #2 as the prefilled-composer synthesis: the canonical sample task is the default, and the open prompt is one clear away. The guided task remains golden-task eval #1 — the prefill text is the eval prompt.
 
-### Step 5 — Pair iPhone (skippable)
+### Step 5 — Pair iPhone (offered, not forced; revised 2026-09-18)
 
-"Take AgentMeld with you." The pairing ceremony, per the Apple-first decision: the Mac shows a short-lived pairing code; the iPhone app (same network) confirms; the owner sees the device identity and exactly what it may do (chat, approvals, artifacts, computer view — not host administration). Test ping optional.
+"Take AgentMeld with you." After the first task completes, the agent offers pairing inline in Chat rather than as a mandatory final screen. The pairing ceremony itself is unchanged: the Mac shows a short-lived pairing code; the iPhone app (same network) confirms; the owner sees the device identity and exactly what it may do (chat, approvals, artifacts, computer view — not host administration).
 
 - *Pairing code expired / phone can't reach this Mac*: fresh code inline; the error distinguishes "not on the same network" from "this Mac isn't reachable."
 - **Honest boundary:** away-from-home control requires the remote-transport decision (handoff Task 2), which is still open. Onboarding pairs on the local network and says so: "Away-from-home access is set up separately once the secure connection is qualified — your paired phone will pick it up automatically." No promise, no greyed-out "coming soon" toggle that implies a date.
@@ -141,7 +143,7 @@ Choosing "Do this later" (or a failed connection the owner abandons) must not st
 
 ## 8. Success metrics
 
-- **Time-to-first-useful-task:** from first app launch to first artifact in Library. Target: p50 ≤ 15 minutes on a machine meeting the prerequisites. Provider sign-in time is measured separately (owner-dominated) and excluded from the product target — but its drop-off is tracked per step.
+- **Time-to-first-useful-task:** from first app launch to the agent's "first task complete" message in Chat (first artifact in Library). Target: p50 ≤ 15 minutes on a machine meeting the prerequisites. Provider sign-in time is measured separately (owner-dominated) and excluded from the product target — but its drop-off is tracked per step.
 - **Setup completion rate:** fraction of first launches reaching Step 6 within 7 days; drop-off measured per step to find the actual friction (expected: Step 1).
 - **First-task success rate:** fraction of first tasks completing without an error state.
 - **Zero silent misconfigurations:** any instance reporting "set up" must have a verified provider connection or an explicit deferred state — audited, not asserted.
@@ -166,12 +168,22 @@ The owner asked for the prototype to feel closer to the Muse app's own onboardin
 
 Verification for v2: inline JS passes `node --check`; `scripts/check-docs.py` passes. Headless screenshots were not possible in the Linux build environment (Chromium hangs without a display/dbus), so visual review of v2 is pending on the owner's Mac — treat the polish as proposed until the owner clicks through.
 
+## 12. Prototype v3: chat landing + right-aligned actions (2026-09-18)
+
+Same-day follow-up from the owner's click-through of v2:
+
+- **Buttons align right.** All screen action rows are right-aligned with the primary action rightmost (secondary first: [I'll do this later] [Connect…]). Lab preview rows and the in-message next-step actions stay left-aligned — they're a different context.
+- **No dedicated first-task screens.** The "Run your first task" card, the progress screen, and the success screen are gone. Onboarding now lands directly in Chat with the sample task pre-filled in the composer and the CSV attached — one tap on Send runs it, or the owner clears the box and asks anything. The run streams in-thread; completion is an agent message with the "First task complete" marker, the report summary, and an inline next step ([Pair iPhone] / [I'll explore on my own]). Pairing is offered at the moment of first success, not forced as a final screen. The degraded (no-provider) variant renders the same Chat with an honest disabled composer.
+- Design doc §3 Steps 4–5 rewritten; §8 metric endpoint clarified (the agent's completion message); open questions #2 (resolved as prefilled-composer synthesis) and #3 (partially resolved) updated.
+
+Verification for v3: inline JS passes `node --check`; `scripts/check-docs.py` passes; no dangling references to removed screens. Visual click-through still pending on the owner's Mac.
+
 ---
 
 ## 10. Open questions for the owner
 
 1. **Browser-open vs copy-paste for sign-in:** is the app opening the system browser to the provider's device page acceptable, or should the owner copy the code and URL manually? (Some owners distrust app-opened sign-in windows.)
-2. **First-task choice:** is the sample CSV analysis the right canonical first task, or should the first run be an open prompt with the CSV as a suggestion card?
-3. **Pairing placement:** keep iPhone pairing as the final onboarding step, or move it to a post-setup "next steps" surface once the transport decision lands?
+2. **First-task choice — resolved 2026-09-18 as the prefilled-composer synthesis:** onboarding lands in Chat with the sample CSV task pre-filled (one tap sends) and the composer clearable for an open prompt. The canonical task is the default; the open prompt is one clear away.
+3. **Pairing placement — partially resolved 2026-09-18:** pairing is now offered inline in Chat at the moment of first success rather than forced as a final screen. Remaining: should it also live in a post-setup "next steps" surface once the transport decision lands?
 4. **Entry order:** Mac app and local browser share this flow — should the local browser remain a supported first-run path for alpha, or is it explicitly a fallback with reduced ceremony?
 5. **Setup imports:** should first-run offer to import anything (files, prior chats)? Memory import is undesigned and out of scope — confirm it stays out for alpha.
