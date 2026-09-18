@@ -45,3 +45,5 @@ Image: `sha256:4445999cd5f837ecfee6f6d7f9131ccfda629bfb0dad1ace7fccaac642932028`
 The offline canary qualification now passes both standalone Codex sandbox execution and a real app-server `exec_command` requested through a synthetic model stream. The parent probe can read its synthetic credential file; sandboxed commands cannot read it directly, through a workspace symlink, or through the two tested proc-root paths. Workspace writes still succeed. No real credentials, subscription login or live inference were used.
 
 See [credential boundary evidence](codex-credential-boundary.md) for the separate named AppArmor/seccomp policy, reproduction, limitations and next steps. This qualifies those command paths only. Persistent credential storage, other native tools, mediated egress and authenticated inference remain open.
+
+The [dedicated store proposal](codex-auth-store.md) now specifies the exact VM-local volume, native token-file path, permissions, setup command and recovery behavior. Synthetic persistence and tool denial pass; real creation and login remain pending explicit authorization.
