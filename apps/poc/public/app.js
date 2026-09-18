@@ -1,4 +1,4 @@
-import { chatSearch, activityTasks, duration, elapsedLabel, runExport, renderMarkdown, literalMatches } from './conversation-tools.js';
+import { countLabel, showTurnStatus, dayLabel, chatSearch, activityTasks, duration, elapsedLabel, runExport, renderMarkdown, literalMatches } from './conversation-tools.js';
 import { artifactKey, latestVersions, textFile, csvRows, manifest, zipFiles } from './artifact-tools.js';
 import { browseWorkspace, fileKind, breadcrumbs, readPreferences } from './file-browser.js';
 import { chatInfo, orderedChats, outputEntries, visibleOutputs, conversationExport } from './organization.js';
@@ -27,7 +27,11 @@ const markdown=renderMarkdown;
 let previewFile=null,previewRequest=0,connected=false,refreshing=false,uploading=false,composing=false;
 let noticeTimer;
 function notice(text){(document.querySelector('dialog[open]')||document.body).append($('notice'));$('notice').textContent=text;$('notice').classList.remove('sr');clearTimeout(noticeTimer);noticeTimer=setTimeout(()=>{$('notice').classList.add('sr');},3500);}
-async function copyText(text){try{await navigator.clipboard.writeText(text);notice('Copied to clipboard.');}catch{notice('Could not copy. Select the text and copy it manually.');}}
+const copyTimers=new WeakMap();
+async function copyText(text,button){try{
+ await navigator.clipboard.writeText(text);notice('Copied to clipboard.');
+ if(button){clearTimeout(copyTimers.get(button));button.innerHTML=icon('check');button.classList.add('copied');copyTimers.set(button,setTimeout(()=>{button.innerHTML=icon('copy');button.classList.remove('copied');},1600));}
+}catch{notice('Could not copy. Select the text and copy it manually.');}}
 $('copyPreview').onclick=()=>{if(previewFile?.text!==undefined)copyText(previewFile.text);};
 let composerValue=null,composerWidth=0;
 function resizeComposer(){const el=$('prompt');if(el.value===composerValue&&el.clientWidth===composerWidth)return;composerValue=el.value;composerWidth=el.clientWidth;el.style.height='auto';el.style.height=Math.min(140,el.scrollHeight)+'px';el.style.overflowY=el.scrollHeight>140?'auto':'hidden';}
@@ -52,7 +56,7 @@ function showChat(){view='chat';render();}
 const drafts=new Map();let submitting=false;
 const draftKey=()=>selected||'new';
 function rememberDraft(){const key=draftKey(),draft=drafts.get(key)||{};Object.assign(draft,{text:$('prompt').value,files,scroll:$('conversation').scrollTop});drafts.set(key,draft);}
-function selectConversation(id){closeConversationFind();document.querySelector('.history').classList.remove('open');rememberDraft();selected=id;showArchived=!!state.conversations.find(c=>c.id===id)?.archived;saveSelection();const d=drafts.get(draftKey());$('prompt').value=d?.text||'';files=d?.files||[];lastRender='';showChat();$('conversation').scrollTop=d?.scroll||0;error();}
+function selectConversation(id){closeConversationFind();document.querySelector('.history').classList.remove('open');rememberDraft();selected=id;showArchived=!!state.conversations.find(c=>c.id===id)?.archived;saveSelection();const d=drafts.get(draftKey());$('prompt').value=d?.text||'';files=d?.files||[];lastRender='';showChat();$('conversation').scrollTo({top:d?.scroll??$('conversation').scrollHeight,behavior:'instant'});updateLatest();error();}
 function newTask(){closeConversationFind();rememberDraft();drafts.delete('new');selected=null;showArchived=false;saveSelection();files=[];$('prompt').value='';lastRender='';document.querySelector('.history').classList.remove('open');error();showChat();$('prompt').focus();}
 $('chatSearch').oninput=()=>render();$('fileSearch').oninput=()=>render();$('archiveChats').onclick=()=>{showArchived=!showArchived;render();};$('activitySearch').oninput=()=>renderActivity();
 $('attach').onclick=()=>$('upload').click();
@@ -90,7 +94,7 @@ let lastActivity='',lastLibrary='';
 function currentActivity(){return activityTasks(state,{filter:activityFilter,query:$('activitySearch').value,conversationId:$('activityCurrent').checked?selected:null,outputs:$('activityOutputs').checked,oldest:activityOldest});}
 function renderActivity(){
  let day='';const tasks=$('activityCurrent').checked&&!selected?[]:currentActivity();
- $('activityCount').textContent=tasks.length+' runs';$('activityOrder').textContent=activityOldest?'Oldest first':'Newest first';$('activityOrder').setAttribute('aria-pressed',String(activityOldest));
+ $('activityCount').textContent=countLabel(tasks.length,'run');$('activityOrder').textContent=activityOldest?'Oldest first':'Newest first';$('activityOrder').setAttribute('aria-pressed',String(activityOldest));
  for(const b of document.querySelectorAll('[data-activity-filter]'))b.setAttribute('aria-pressed',String(b.dataset.activityFilter===activityFilter));
  const content=tasks.map(task=>{
  const date=new Date(task.createdAt),key=date.toLocaleDateString(),heading=key!==day?'<h3>'+esc(date.toLocaleDateString([], {month:'short',day:'numeric',year:'numeric'}))+'</h3>':'';day=key;
@@ -102,14 +106,16 @@ function renderActivity(){
 function messageAction(attribute,id,label,symbol,extra=''){
  return '<button class="icon '+extra+'" '+attribute+'="'+id+'" aria-label="'+label+'" data-tooltip>'+icon(symbol)+'</button>';
 }
-function renderTurn(task){
- const inputs=task.inputs.length?'<div class="messageLabel">'+task.inputs.map(f=>'<button class="inputFile" data-input="'+task.id+'" data-name="'+esc(f.name)+'" aria-label="Download original '+esc(f.name)+'">'+esc(f.name)+' ↓</button>').join(' ')+'</div>':'';
+function renderTurn(task,index,turns){
+ const inputs=task.inputs.length?'<div class="messageLabel">'+task.inputs.map(f=>'<button class="inputFile" data-input="'+task.id+'" data-name="'+esc(f.name)+'" aria-label="Download original '+esc(f.name)+'">'+esc(f.name)+(Number.isFinite(f.size)?'<small>'+formatBytes(f.size)+'</small>':'')+'</button>').join(' ')+'</div>':'';
  const details=messageAction('data-detail',task.id,'Run details','activity');
  const request='<div class="messageRow requestRow"><div class="messageActions">'+messageAction('data-copy-request',task.id,'Copy request','copy')+'</div><div class="message user">'+esc(task.prompt)+inputs+'</div></div>';
  const reply=task.answer?'<div class="messageRow replyRow"><div class="message assistant">'+markdown(task.answer)+'</div><div class="messageActions">'+messageAction('data-copy-answer',task.id,'Copy reply','copy','copyReply')+details+'</div></div>':'';
  const active=['queued','running','cancelling'].includes(task.status);
- const status='<div class="runStatus"><div class="pending">'+(active?'<span class="pulse"></span>':'')+esc(task.error||task.activity)+'</div>'+(!task.answer?'<div class="messageActions">'+details+'</div>':'')+'</div>';
- return '<div class="time">'+esc(new Date(task.createdAt).toLocaleString([], {month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}))+'</div><div class="turn" id="turn-'+task.id+'" tabindex="-1">'+request+reply+status+task.artifacts.map(f=>fileButton(task,f)).join('')+'</div>';
+ const status=showTurnStatus(task,index===turns.length-1)?'<div class="runStatus"'+(task.error||['failed','cancelled','interrupted'].includes(task.status)?' data-attention':'')+'><div class="pending">'+(active?'<span class="pulse"></span>':'')+esc(task.error||(task.status==='completed'&&!task.answer?'No reply recorded':task.activity))+'</div>'+(!task.answer?'<div class="messageActions">'+details+'</div>':'')+'</div>':'';
+ const date=new Date(task.createdAt),previous=turns[index-1];
+ const heading=!previous||new Date(previous.createdAt).toLocaleDateString()!==date.toLocaleDateString()?'<div class="daySeparator">'+esc(dayLabel(task.createdAt))+'</div>':'';
+ return heading+'<div class="time"><time datetime="'+esc(task.createdAt)+'" title="'+esc(date.toLocaleString())+'">'+esc(date.toLocaleTimeString([], {hour:'numeric',minute:'2-digit'}))+'</time></div><div class="turn" id="turn-'+task.id+'" tabindex="-1">'+request+reply+status+task.artifacts.map(f=>fileButton(task,f)).join('')+'</div>';
 }
 function render(){
   const inFiles=view==='files',chatVisible=!inFiles||fileChatOpen;
@@ -129,12 +135,12 @@ function render(){
   $('conversation').hidden=!chatVisible;$('library').hidden=view!=='files';$('composeWrap').hidden=!chatVisible;
   const chatQuery=$('chatSearch').value.trim().toLocaleLowerCase();
   const matchingChats=orderedChats(state,showArchived,'').filter(c=>chatSearch(state,c,chatQuery)!==null);
-  $('chatResults').textContent=chatQuery?matchingChats.length+' matching chats':'';$('clearChatSearch').hidden=!chatQuery;
-  const historyContent=matchingChats.length?matchingChats.map(t=>'<button class="historyItem '+(t.id===selected?'selected':'')+'" data-select="'+t.id+'"><span class="chatTitle">'+esc(t.title)+'</span><small>'+(t.pinned?'Pinned · ':'')+chatInfo(state,t).count+' turns · '+esc(chatInfo(state,t).status)+'</small>'+(chatQuery?'<span class="chatExcerpt">'+esc(chatSearch(state,t,chatQuery))+'</span>':'')+'</button>').join(''):'<div class="emptyHistory">'+(chatQuery?'No matching chats.':showArchived?'No archived chats.':'Your chats will appear here.')+'</div>';
+  $('chatResults').textContent=chatQuery?countLabel(matchingChats.length,'matching chat'):'';$('clearChatSearch').hidden=!chatQuery;
+  const historyContent=matchingChats.length?matchingChats.map(t=>'<button class="historyItem '+(t.id===selected?'selected':'')+'" data-select="'+t.id+'" aria-current="'+(t.id===selected?'true':'false')+'" aria-label="'+esc(t.title)+'" data-tooltip><span class="chatTitle">'+esc(t.title)+'</span><small>'+(t.pinned?'Pinned · ':'')+countLabel(chatInfo(state,t).count,'turn')+(chatInfo(state,t).status==='completed'?'':' · '+esc(chatInfo(state,t).status))+'</small>'+(chatQuery?'<span class="chatExcerpt">'+esc(chatSearch(state,t,chatQuery))+'</span>':'')+'</button>').join(''):'<div class="emptyHistory">'+(chatQuery?'No matching chats.':showArchived?'No archived chats.':'Your chats will appear here.')+'</div>';
   if(historyContent!==lastHistory){$('history').innerHTML=historyContent;lastHistory=historyContent;}
   const current=state.conversations.find(c=>c.id===selected);
-  $('chatToolbar').hidden=!current||!chatVisible;$('selectedTitle').textContent=current?.title||'';
-  $('chatSummary').textContent=current?chatInfo(state,current).count+' turns':'';
+  $('chatToolbar').hidden=!current||!chatVisible;$('selectedTitle').textContent=current?.title||'';$('selectedTitle').title=current?.title||'';
+  $('chatSummary').textContent=current?countLabel(chatInfo(state,current).count,'turn'):'';
   $('readOnlyBanner').hidden=!current||!chatVisible||(!current.archived&&current.continuation==='ready');
   $('readOnlyReason').textContent=current?.archived?'This chat is archived.':current?.continuation==='legacy'?'This older chat is read-only. Its history and files are preserved.':'This chat cannot safely resume. Its history and files are preserved.';
   $('restoreChat').hidden=!current?.archived;
@@ -149,7 +155,7 @@ function render(){
   if(fileSort==='opened')outputs.sort((a,b)=>(preferences.opened[JSON.stringify([b.task.id,b.file.name])]||0)-(preferences.opened[JSON.stringify([a.task.id,a.file.name])]||0));
   if($('latestVersions').checked){const keys=new Set(latestVersions(outputEntries(state)).map(artifactKey));outputs=outputs.filter(e=>keys.has(artifactKey(e)));}
   visibleArtifacts=outputs;renderArtifactActions();
-  $('fileSummary').textContent=outputs.length+' outputs · '+formatBytes(outputs.reduce((sum,e)=>sum+e.file.size,0));
+  $('fileSummary').textContent=countLabel(outputs.length,'output')+' · '+formatBytes(outputs.reduce((sum,e)=>sum+e.file.size,0));
   const libraryContent=fileCategory==='system'?workspaceMarkup(fileQuery):outputs.map(({task:t,file:f,title,version})=>'<article class="libraryEntry'+(selectedArtifacts.has(JSON.stringify([t.id,f.name]))?' isSelected':'')+'">'+(selecting?'<label class="artifactCheck"><input type="checkbox" data-artifact-key="'+esc(JSON.stringify([t.id,f.name]))+'" '+(selectedArtifacts.has(JSON.stringify([t.id,f.name]))?'checked':'')+(bundleController?' disabled':'')+' aria-label="Select '+esc(f.name)+'"></label>':'')+'<button class="artifactThumbnail" data-task="'+t.id+'" data-file="'+esc(f.name)+'" aria-label="Preview '+esc(f.name)+'"><span class="thumbnailText" data-thumbnail-task="'+t.id+'" data-thumbnail-name="'+esc(f.name)+'">'+esc(f.name)+'</span></button>'+fileButton(t,f)+'<button class="outputOrigin" data-jump="'+t.id+'">'+esc(title)+' · Version '+version+' · '+esc(new Date(t.createdAt).toLocaleString())+'</button></article>').join('')||'<div class="libraryEmpty"><h2>'+(fileQuery?'No matching files':'No '+(fileCategory==='all'?'artifacts':categories[fileCategory].toLowerCase())+' yet')+'</h2><p>Files you create in this category will appear here.</p></div>';
   if(libraryContent!==lastLibrary){$('libraryFiles').innerHTML=libraryContent;lastLibrary=libraryContent;}
   if(inFiles&&fileCategory!=='system')loadThumbnails();
@@ -187,7 +193,7 @@ function workspaceMarkup(query){
   const breadcrumbContent=breadcrumbs(workspacePath).map(b=>'<button data-folder="'+esc(b.path)+'">'+esc(b.name)+'</button>').join('<span aria-hidden="true"> / </span>');
   if($('workspaceBreadcrumbs').innerHTML!==breadcrumbContent)$('workspaceBreadcrumbs').innerHTML=breadcrumbContent;
   const entries=workspace?.conversationId===workspaceId?browseWorkspace(workspace.entries,workspacePath,query,$('showHiddenFiles').checked):[];
-  $('fileSummary').textContent=entries.length+' items · '+formatBytes(entries.reduce((sum,e)=>sum+(e.size||0),0));
+  $('fileSummary').textContent=countLabel(entries.length,'item')+' · '+formatBytes(entries.reduce((sum,e)=>sum+(e.size||0),0));
   return '<table><thead><tr><th>Name</th><th>Type</th><th>Last modified</th><th>Size</th></tr></thead><tbody>'+entries.map(e=>'<tr><td><button class="file" '+(e.directory?'data-folder="'+esc(e.name)+'"':'data-workspace-file="'+esc(e.name)+'"')+'><span class="fileIcon">'+icon(e.directory?'folder':'file')+'</span><span>'+esc(query?e.name:e.name.split('/').pop())+'</span></button></td><td>'+(e.directory?'Folder':esc(fileKind(e.name)))+'</td><td>'+(e.modifiedAt?esc(new Date(e.modifiedAt).toLocaleString()):'—')+'</td><td>'+(e.directory?'—':formatBytes(e.size))+'</td></tr>').join('')+'</tbody></table>'+(entries.length||workspaceLoading?'':'<p class="muted">'+(query?'No matching files.':'This folder is empty.')+'</p>');
 }
 document.addEventListener('click',e=>{const choice=e.target.closest('[data-workspace-id]');if(choice){workspaceId=choice.dataset.workspaceId;workspacePath='';workspace=null;$('workspacePicker').open=false;loadWorkspace();$('workspacePicker').querySelector('summary').focus();}else if(!$('workspacePicker').contains(e.target))$('workspacePicker').open=false;});
@@ -252,7 +258,7 @@ document.addEventListener('keydown',e=>{
 window.addEventListener('beforeunload',e=>{if($('prompt').value||files.length||[...drafts.entries()].some(([key,d])=>d.pending||(key!==draftKey()&&(d.text||d.files?.length)))){e.preventDefault();e.returnValue='';}});
 function updateLatest(){$('latestBar').hidden=(view!=='chat'&&!fileChatOpen)||!selected||$('conversation').scrollHeight-$('conversation').scrollTop-$('conversation').clientHeight<150;}
 $('conversation').addEventListener('scroll',updateLatest);
-$('jumpLatest').onclick=()=>{$('conversation').scrollTo({top:$('conversation').scrollHeight,behavior:'instant'});updateLatest();};
+$('jumpLatest').onclick=()=>{$('conversation').scrollTo({top:$('conversation').scrollHeight,behavior:'instant'});updateLatest();$('prompt').focus({preventScroll:true});};
 let previewImageUrl=null;function clearPreviewImage(){for(const media of $('previewBody').querySelectorAll('audio,video')){media.onerror=null;media.pause();media.removeAttribute('src');media.load();}if(previewImageUrl)URL.revokeObjectURL(previewImageUrl);previewImageUrl=null;}
 $('preview').addEventListener('close',()=>{previewRequest++;clearPreviewImage();$('preview').classList.remove('expanded');$('expandPreview').setAttribute('aria-pressed','false');$('expandPreview').textContent='Expand';});
 function renderPreviewText(){
@@ -291,7 +297,7 @@ async function openPreview(taskId,name){
 document.addEventListener('click',async e=>{
   const folder=e.target.closest('[data-folder]');if(folder){workspacePath=folder.dataset.folder;$('fileSearch').value='';render();}
   const workspaceFile=e.target.closest('[data-workspace-file]');if(workspaceFile)await openWorkspaceFile(workspaceFile.dataset.workspaceFile);
-  const copy=e.target.closest('[data-copy-answer]');if(copy){const task=state.tasks.find(t=>t.id===copy.dataset.copyAnswer);if(task)await copyText(task.answer);}
+  const copy=e.target.closest('[data-copy-answer]');if(copy){const task=state.tasks.find(t=>t.id===copy.dataset.copyAnswer);if(task)await copyText(task.answer,copy);}
   const jump=e.target.closest('[data-jump]');if(jump){const task=state.tasks.find(t=>t.id===jump.dataset.jump);if(task){jumpToTask(task);}}
   const detail=e.target.closest('[data-detail]');if(detail){detailId=detail.dataset.detail;renderDetails();$('runDetails').showModal();}
   const choose=e.target.closest('[data-select]');if(choose){selectConversation(choose.dataset.select);}
@@ -403,7 +409,7 @@ function moveFind(delta){if(findMarks.length){findIndex=(findIndex+delta+findMar
 $('findInChat').onclick=openConversationFind;$('closeFind').onclick=()=>{closeConversationFind();$('findInChat').focus();};$('findText').oninput=()=>{findIndex=0;highlightConversation();updateFind(true);};$('findPrevious').onclick=()=>moveFind(-1);$('findNext').onclick=()=>moveFind(1);$('findText').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();moveFind(e.shiftKey?-1:1);}};
 $('clearChatSearch').onclick=()=>{$('chatSearch').value='';render();$('chatSearch').focus();};
 document.addEventListener('click',async e=>{
- const copy=e.target.closest('[data-copy-request]');if(copy){const t=state.tasks.find(t=>t.id===copy.dataset.copyRequest);if(t)await copyText(t.prompt);}
+ const copy=e.target.closest('[data-copy-request]');if(copy){const t=state.tasks.find(t=>t.id===copy.dataset.copyRequest);if(t)await copyText(t.prompt,copy);}
  const code=e.target.closest('.copyCode');if(code)await copyText(code.closest('.codeBlock').querySelector('code').textContent);
 });
 const selectedRun=()=>state.tasks.find(t=>t.id===detailId);

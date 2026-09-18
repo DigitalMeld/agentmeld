@@ -1,5 +1,7 @@
 // Original outline symbols shared by navigation and file results.
 const paths={
+ check:'<path d="m5 12 4 4L19 6"/>',
+ more:'<circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/>',
  copy:'<rect x="8" y="8" width="12" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/>',
  refresh:'<path d="M20 7V3l-3 3a8 8 0 1 0 3 9M20 7h-5"/>',
  up:'<path d="M12 20V4m-6 6 6-6 6 6"/>',

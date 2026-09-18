@@ -11,3 +11,13 @@ export function renderMarkdown(text){const lines=text.split('\n'),out=[];let lis
 const item=/^\s*(?:([-*]) |(\d+)\. )(.*)$/.exec(line);if(item){const type=item[1]?'ul':'ol';if(list!==type){close();list=type;out.push('<'+type+'>');}out.push('<li>'+inline(item[3])+'</li>');continue;}close();const h=/^(#{1,4}) (.+)$/.exec(line);if(h){out.push('<h'+h[1].length+'>'+inline(h[2])+'</h'+h[1].length+'>');continue;}if(/^> ?/.test(line)){out.push('<blockquote>'+inline(line.replace(/^> ?/,''))+'</blockquote>');continue;}if(/^\s*---+\s*$/.test(line)){out.push('<hr>');continue;}
 if(line.includes('|')&&/^\s*\|?[ :|-]+\|[ :|-]*$/.test(lines[i+1]||'')){const cells=row=>row.trim().replace(/^\||\|$/g,'').split('|').map(c=>inline(c.trim()));out.push('<div class="tableWrap"><table><thead><tr>'+cells(line).map(c=>'<th>'+c+'</th>').join('')+'</tr></thead><tbody>');i++;while((lines[i+1]||'').includes('|')){i++;out.push('<tr>'+cells(lines[i]).map(c=>'<td>'+c+'</td>').join('')+'</tr>');}out.push('</tbody></table></div>');continue;}if(line.trim())out.push('<p>'+inline(line)+'</p>');}close();return out.join('');}
 export function literalMatches(text,query){const q=query.trim();if(!q)return [];const pattern=q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');return [...text.matchAll(new RegExp(pattern,'giu'))].map(m=>({index:m.index,length:m[0].length}));}
+
+// Only successful, older turns can lose their status line. Failures stay discoverable.
+export const showTurnStatus=(task,latest)=>latest||task.status!=='completed'||!!task.error||!task.answer;
+export const countLabel=(count,noun)=>count+' '+noun+(count===1?'':'s');
+export function dayLabel(value,now=new Date()){
+ const date=new Date(value),yesterday=new Date(now);yesterday.setDate(yesterday.getDate()-1);
+ if(date.toLocaleDateString()===now.toLocaleDateString())return 'Today';
+ if(date.toLocaleDateString()===yesterday.toLocaleDateString())return 'Yesterday';
+ return date.toLocaleDateString([], {month:'short',day:'numeric',...(date.getFullYear()!==now.getFullYear()?{year:'numeric'}:{})});
+}

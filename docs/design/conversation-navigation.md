@@ -60,3 +60,24 @@ Disposable unit/browser fixtures cover search isolation and filters, excerpts, e
 Owner feedback supersedes items 9–10 above: Copy request and Run details now use compact original outline icons with hover/focus tooltips and accessible names. The redundant Use request action and its draft-appending handler have been removed. Copy request continues to copy the original prompt; reusing that text can be done explicitly by pasting into the composer.
 
 Bubble placement refinement: request copy sits immediately left of the user bubble. Reply copy and run details sit immediately right of the response bubble, vertically centered. Both copy actions use the same 14px glyph with separate accessible names/tooltips and 28px controls (32px on coarse pointers). Turns without a reply keep run details beside their status. No detached action row or Copy reply text button remains. Desktop and narrow layouts retain these associations.
+
+
+## Transcript polish
+
+Implemented after bubble-action review:
+
+1. Show Finished only for the latest turn. Older failures, cancellations, active work, errors, and missing replies retain their status and details.
+2. Replace Find text with a search icon and a hover/focus label.
+3. Replace Chat options text with an ellipsis icon and a hover/focus label.
+4. Show a temporary checkmark on the exact request/reply copy button after successful clipboard writing; retain the accessible confirmation.
+5. Omit redundant completed status from history rows; preserve exceptional and active statuses.
+6. Use singular/plural counts consistently for turns, search matches, runs, outputs, and workspace items.
+7. Expose full truncated chat titles through history tooltips and the toolbar title; identify the selected chat for assistive technology.
+8. Open unvisited conversations at the latest message, and restore the exact saved reading position, including zero, when returning.
+9. Group timestamps under local Today/Yesterday/date headings; retain exact timestamps on semantic time elements and hover titles.
+10. Jump to latest returns focus to the composer without moving the restored viewport.
+11. Show known attachment sizes beside filenames in message bubbles.
+
+Verification: disposable conversation browser fixtures cover latest-only status, attached controls, copy feedback, title semantics, compact toolbar controls, attachment sizes, scroll restoration, search, run details, and narrow layouts. Unit checks preserve older error/active states and cover local calendar boundaries. These checks use no live provider inference.
+
+Local result: 200 Node tests and both conversation-navigation and general UI browser fixtures passed; JavaScript syntax, Markdown validation, and diff checks passed. The full check-local script stopped at its first Rust command because Cargo is unavailable on this host; no Rust verification is claimed for this frontend-only batch.
