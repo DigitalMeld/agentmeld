@@ -43,3 +43,21 @@ The credential/home volume remains separate and denied to native child tools. On
 Evidence: `.local/m0/live-workspace.log` and the per-run records under `.local/m0/quota/` and `.local/m0/egress/`. Both live stages report `qualified: true`; the second reports `conversationPreserved: true`. Disk-full is induced by the bounded offline fixture before live inference, not by a model-controlled fill operation. This closes bounded workspace integration for the tested authenticated lifecycle, not whole-VM restart, power-loss durability or a production volume manager.
 
 Authenticated integration image: `sha256:e3b83ac30199b998515fac528cd349a4b5b6b35b9e88df190d4ed2287ae26818`. All 185 default local tests plus formatting, lint, build and documentation checks pass.
+
+## Controlled VM restart
+
+Verified 2026-09-18 on image `sha256:5935ec3e3ede08620649e9aad2c657699f729233e3ce7d0c6b4149e47d03d754`: a live subscription-backed workspace and its native conversation survive a controlled restart of the dedicated M0 VM.
+
+```sh
+node scripts/probe-workspace-quota.mjs --context colima-agentmeld-m0 --subscription --restart-vm
+```
+
+The explicit flag requires subscription mode and the dedicated context. Before restart it requires zero running or stopped containers, verifies the prepared sandbox policies and the exact owned volume/backing-file association, and writes an ignored local recovery-intent record. It removes only disposable Docker mount metadata, detaches that fixture's loop device and preserves the ext4 backing file and separate native credential/home volume. The named AppArmor profile is unloaded for shutdown and the same verified policy is loaded after startup. No agent executes during that transition.
+
+After restart, the VM boot ID must differ, while Docker engine ID, immutable image ID, ext4 UUID and 67,108,864-byte backing size must match. The driver explicitly reattaches the same backing filesystem to a loop device and recreates its owned volume metadata with the same instance label and constrained options. It does not assume that a loop-device number remains stable across boots. If this recovery sequence fails, it retains the fixture backing and recovery-intent record for inspection.
+
+A new authenticated worker then resumes the original native conversation. Its command reads the retained marker, and its response reproduces the conversation-only nonce without receiving that nonce in the new prompt. Existing disk-full/recovery files remain intact and measured filesystem capacity remains 58,675,200 bytes. Native account/model admission, credential-file tool denial and restricted provider egress are rechecked by the replacement worker. The probe never logs out, reimports or removes the authorized credential store.
+
+The explicit run passed both live stages and all six VM identity/reattachment assertions. Cleanup removed the disposable quota volume, loop mapping and backing file; direct Docker readback showed no containers and only the retained auth volume. Sanitized evidence is in ignored `.local/m0/vm-recovery.log` and `.local/m0/quota/`. All 194 local tests pass (18 Rust, 170 Node, six Python), including rejection of unchanged boot identity or changed engine/image/filesystem/bound, plus formatting, lint, build and documentation checks.
+
+This supersedes the earlier unqualified whole-VM restart statement only for controlled shutdown and explicit reattachment. Sudden power loss, filesystem repair, unattended production recovery, an in-flight command at reboot, host macOS reboot and general backup/restore remain unqualified. The original container-replacement and resource measurements retain their original image bindings.
