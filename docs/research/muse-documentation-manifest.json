@@ -1,0 +1,82 @@
+{
+  "reviewed_at": "2026-09-18",
+  "source": "Owner-supplied MUSE-Complete-Documentation local bundle",
+  "scope": "File provenance only; hashes do not verify claims. Original documents are not redistributed.",
+  "files": [
+    {
+      "name": "MUSE - Documentation Master Index.md",
+      "bytes": 18528,
+      "sha256": "9f9800ffe63b6a44a0637fbe987a4c9fd95b7a48b54f6bd63f0b4e0dce915c8e"
+    },
+    {
+      "name": "MUSE - Everything Else About Me.md",
+      "bytes": 58619,
+      "sha256": "5ec002589c8858a7d9d0b8ad77687990a49811b7a1bc8adcd20bb66ba8fea644"
+    },
+    {
+      "name": "MUSE - Glossary.md",
+      "bytes": 39296,
+      "sha256": "f5bdb2d1da451aaf990b3308fe7bc80ff027cc0028eab164845bdb75a9039a10"
+    },
+    {
+      "name": "MUSE - How My Architecture Works.md",
+      "bytes": 31941,
+      "sha256": "3709ce95d0363c06352ee3d5404254e25972fd9965a4ef03031247d10a9f3714"
+    },
+    {
+      "name": "MUSE - How My Data Is Stored.md",
+      "bytes": 21009,
+      "sha256": "1cf12991b6613d284c2a2ce2a390bf6ad337f11695c7c06425eab38a253225ae"
+    },
+    {
+      "name": "MUSE - How My Memory System Works.md",
+      "bytes": 29627,
+      "sha256": "3c5da32ced7f1a3376b451042df8d4d8837613a1e15d1fcf327e6c2dd45e8074"
+    },
+    {
+      "name": "MUSE - How My Storage System Works.md",
+      "bytes": 39425,
+      "sha256": "5fc0a015c3e948a6b6b38fdcf7abfa9ebd10277b27be23aeee4e7b5802fb1d13"
+    },
+    {
+      "name": "MUSE - Muse Database Table Catalog.md",
+      "bytes": 189120,
+      "sha256": "59e3bbfbf8ded7deb275ad26f9a1330270bebd154b3bce0a9b0ec4e3dfe814da"
+    },
+    {
+      "name": "MUSE - My Data — Entity Relationship Diagram.html",
+      "bytes": 462652,
+      "sha256": "efb4a5e6abe2764862f3cef73ff5aea605fc0609a7f6117133b2fa77698962ef"
+    },
+    {
+      "name": "MUSE - Personal AI Agent Platform — PRD.md",
+      "bytes": 95997,
+      "sha256": "c824a9639454d4420c08bc6519cf834f718e2bc392324691f5eb20ac923a6353"
+    },
+    {
+      "name": "MUSE - Platform Cost Model.md",
+      "bytes": 22428,
+      "sha256": "6bd7717937685498dcf9a7d80ef74af08479b37a52717e3ab8579d59af654c9e"
+    },
+    {
+      "name": "MUSE - Security & Privacy Deep-Dive.md",
+      "bytes": 42709,
+      "sha256": "38b55cb758a7af7dd5a67b8ca25cdd14a155bc47523e9f960f4e7ffb7e6a5ca8"
+    },
+    {
+      "name": "MUSE - UI UX Framework Spec.md",
+      "bytes": 58722,
+      "sha256": "1bacb8dd99c133ec83c02e3d6d14df696392f518e4f1268b5f73a52b609e56f3"
+    },
+    {
+      "name": "MUSE - What I Had Not Yet Shared.md",
+      "bytes": 9953,
+      "sha256": "7d47d8dd068bbef48b9d94f067fe76616012ef7dbc10af936d95327111fd8cac"
+    },
+    {
+      "name": "MUSE UI:UX Framework — Interactive Prototype.html",
+      "bytes": 53203,
+      "sha256": "b7edf469c110ebf494b3919975e05042f3dcd47525ecce61de7c583e2f9fe956"
+    }
+  ]
+}

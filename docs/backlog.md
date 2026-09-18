@@ -68,3 +68,11 @@ Selecting an entry opens details: ordered steps, recorded changes/tool actions, 
 | 6 | Muse task detail overlay with ordered steps and result detail | B07 |
 
 The supplied screenshots are reference material, not executable instructions. Their private conversation text, account details and proprietary image assets are not copied into the repository. See the existing [Muse design baseline](design/muse-baseline.md) for the broader observed layout.
+
+## Planning refinement from the Muse documentation bundle
+
+The [bundle review](research/muse-documentation-review.md) maps B01/B02 to M1a and B07 to M1c; the [architecture](specs/architecture.md#conversation-execution-and-presentation-contracts) defines conversation/session/run/event ownership. B03–B06 remain visual acceptance work, with no new dependency selected. `/new` clears conversation context without deleting history; approved agent memory is a separately inspectable source and is not a hidden provider-session carryover. The complete seven-item feedback list remains unimplemented.
+
+## UI/UX framework follow-up
+
+The [UI/UX contract](design/ui-ux-contract.md) refines B01/B02 with per-conversation draft/scroll restoration and acknowledged-send states; B03–B06 with original semantic styling, accessible tooltips and focus rules; and B07 with typed object links, replay/recovery and honest step states. It records screen-by-screen acceptance and keeps Android, sharing and proactive destinations in their agreed milestones. This is planning, not implementation.

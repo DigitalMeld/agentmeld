@@ -41,23 +41,41 @@ Build only the first conversation screen, inline approval, artifact preview, and
 
 **Exit:** actual local end-to-end demonstration plus denied-action, path-containment, viewer-auth, stream-reconnect, and restart-recovery checks. No public deployment or invitation feature.
 
+### M1 delivery slices after the POC
+
+Apply the [UI/UX contract](../design/ui-ux-contract.md) to each slice: preserve draft/navigation state, use object deep links, expose authoritative statuses, and verify keyboard/focus and narrow layouts. Improve the existing POC; the source document's separate all-platform mock prototype is not a prerequisite.
+
+Use the [data implementation blueprint](data-model.md) and [staged migration plan](data/migration-plan.md) for schema ownership and cutover. The SQL draft is validated only with synthetic in-memory data; no production migration has run.
+
+Use the [Muse bundle review](../research/muse-documentation-review.md) and [feedback backlog](../backlog.md) as acceptance detail. These slices refine M1 rather than reopen M0. Deliver each visible improvement before taking on the next; no new patch qualification or infrastructure program is a prerequisite.
+
+| Slice | Concrete delivery | Completion check |
+| --- | --- | --- |
+| M1a: conversation continuity | B01/B02; stable conversation/messages/runs, native session mapping, bounded retained workspace, `/new` | Upload CSV, obtain report, revise it in the same chat, reload/restart, continue; fresh chat has no prior thread context; duplicate requests and concurrent turns do not fork or cross conversations |
+| M1b: reusable outputs | Inputs, working sources and immutable result versions linked to their producing run | Revise the report without reuploading; old/new versions remain correct and downloadable; migrate current POC records without losing files |
+| M1c: inspectable work | B07 event-backed activity, conversation/output links, status and step detail; B03–B06 icon/tooltips/rail polish | Run/fail/stop tasks, follow activity links, reopen after restart; no fabricated tool events or duplicate entries; inspect actual rendering and keyboard behavior |
+| M1d: browser and approvals | Integrate qualified viewer/controller into the user workflow with inline action review | Owner takes over the browser fixture, resumes with fresh observation, denies an action and stops work; reconnect never grants control implicitly |
+| M1e: service durability | Rust-owned versioned API, SQLite migrations, result/event recovery and supervised worker lifecycle | Close clients during work; restart/reconcile; reopen results, waiting approvals and cancelled work without replaying side effects |
+
+Retain the working POC while moving ownership into the Rust service incrementally. Persisted format changes require backup, fixture migration and readback of existing records. Do not maintain two competing canonical stores or replace the useful UI merely to change frameworks. M1a may first extend the current server; migration into Rust must preserve its public IDs and data. M1 is complete only after the full acceptance scenario above and these continuity/recovery checks pass.
+
 ## M2. Deliver a coherent self-hosted alpha
 
 **Outcome:** Codex subscription execution works through the three-client product experience.
 
 - Qualify Codex subscription login, streaming, native tools, approvals, cancellation and continuation; do not equate raw completion output with tool-loop support.
-- Add named agents and side conversations, search, editable approved memory, skill requirements, artifact versions, and a tested MCP reference connector.
+- Add named agents and side conversations, search/archive/delete, editable versioned Identity/Persona/Profile and approved memory, skill requirements, artifact versions, and a tested MCP reference connector. Search excludes hidden control traffic and removes deleted visible content. Provide explicit export and per-object deletion behavior.
 - Add bounded, source-linked work records under owner-approved memory: index-then-read retrieval, expected revisions, deletion tombstones and compaction refresh. Remembering work cannot dispatch it.
 - Qualify durable result/event recovery for native and local web clients: stable IDs, grant rechecks, reconnect replay and honest accepted/completed states. Native messaging reply anchors and transport delivery receipts remain post-alpha.
 - Add one-time/recurring tasks, Upcoming, execution history, missed-run policy, budget limits, and meaningful-change notifications.
 - Finish the browser/computer experience, durable workspace/profile management, explicit recovery, and setup health checks.
-- Deliver P8: native macOS and iOS apps plus local browser access to enrolled Mac hosts. Qualify explicit device pairing, secured cross-network access, explicit host selection, cross-client task state, approvals, artifacts, stop and reconnect on a physical iPhone.
+- Deliver P8: native macOS and iOS apps plus local browser access to enrolled Mac hosts. Keep client rendering capabilities separate from device command capabilities; pairings do not grant unrestricted Mac/iPhone access. Qualify explicit device pairing, secured cross-network access, explicit host selection, cross-client task state, approvals, artifacts, stop and reconnect on a physical iPhone.
 - Require P8 across networks: iPhone over cellular and MacBook Air away from home control the Mac mini. Qualify a second host, wrong-host denial, independent grants, concurrent clients and offline behavior. No automatic task migration or failover.
 - Select one secure remote path for commands, live viewer and artifacts. Compare a conventional private/reverse connection with a bounded Nostr transport candidate using the [connectivity assessment](../research/nostr-buzz-connectivity.md). No provider or new dependency is selected implicitly.
 - Document Mac installation, Linux VM/container requirements, service lifecycle, sleep/offline behavior, model setup, backup/restore, upgrades and deletion. Qualify iOS installation/distribution before claiming installability.
 - Resolve the project license before the open-source release; create contributing guidance and extension contracts based on implemented seams.
 
-**Exit:** P1–P5 and P8 from the product spec pass against the qualified Codex integration and representative failure cases. Public documentation states each model's tested capabilities and setup costs. No unqualified “all models,” “fully secure,” “unlimited,” or “complete Muse parity” claims. All three clients address the selected host's durable agent state. Cellular iPhone and remote Mac-to-Mac control must be qualified before alpha completion. Messaging does not gate this milestone.
+**Exit:** P1–P5 and P8–P10 from the product spec pass against the qualified Codex integration and representative failure cases. Public documentation states each model's tested capabilities and setup costs. No unqualified “all models,” “fully secure,” “unlimited,” or “complete Muse parity” claims. All three clients address the selected host's durable agent state. Cellular iPhone and remote Mac-to-Mac control must be qualified before alpha completion. Messaging does not gate this milestone.
 
 ## M3. Add invited collaboration and stronger isolation
 
@@ -78,7 +96,7 @@ Build only the first conversation screen, inline approval, artifact preview, and
 Potential increments, ordered by observed demand:
 
 1. Rich document and spreadsheet workflows with rendered output checks; image/audio/video providers and podcast artifacts.
-2. Goals with progress timelines, monitoring stop conditions, personalized Ideas, and a configurable Feed generated within a budget.
+2. Goals with progress timelines, monitoring stop conditions, personalized Ideas, and a configurable Feed generated within a budget. Use the [separate domain contracts](../research/muse-documentation-review.md#goals-ideas-feed-and-maintenance-contracts-for-m4): suggestions do not execute, goals do not schedule implicitly, and Feed is distinct from Activity. Add optional source-linked relationship/memory/skill/reflection proposals with review, rollback, changed-input admission and strict background budgets.
 3. Curated Microsoft/Google connections, additional MCP/OpenAPI tools, authenticated event triggers, and provider-specific permission controls.
 4. Teach-by-demonstration that produces a reviewed draft skill; packaged skills and portable agent/team definitions.
 5. iMessage and WhatsApp integrations; compare Linq, BlueBubbles, imsg and other providers only when this milestone begins. Add Windows, general remote-browser access, additional connectivity options (including evaluation of Tailscale), dictation, read-aloud, voice and push as separately qualified increments.
