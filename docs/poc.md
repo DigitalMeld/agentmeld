@@ -127,4 +127,10 @@ Reproduce ordinary fixtures with `node --test experiments/poc-conversations.test
 
 ## Interface polish
 
-The local web client uses a refined original brain and consistent outline icons, with no POC badge in navigation or development label in the composer. Hover/focus tooltips name icon controls, stay within the viewport and dismiss with Escape before a preview dialog closes. Attach files works by keyboard as well as pointer. The runtime requests direct conversational replies without repeating that no files were necessary. Durable Activity history remains the next functional backlog item; the Activity icon does not imply that timeline is implemented.
+The local web client uses a refined original brain and consistent outline icons, with no POC badge in navigation or development label in the composer. Hover/focus tooltips name icon controls, stay within the viewport and dismiss with Escape before a preview dialog closes. Attach files works by keyboard as well as pointer. The runtime requests direct conversational replies without repeating that no files were necessary. The Activity history slice below now provides turn navigation and output links; detailed tool steps remain pending.
+
+## Activity history (2026-09-18)
+
+The Activity panel lists all retained turns by local date, with the original request, actual stored status, latest activity/error summary and request creation time. Rows navigate to the exact turn and preserve conversation drafts. File links resolve through the originating task ID, so identically named outputs from different turns retain their own contents. The existing store provides persistence; no new event schema or inferred tool steps are introduced.
+
+The explicit browser fixture verifies three entries across two conversations after reload, original output contents, exact-turn focus retained through an unchanged poll, and mobile panel dismissal on navigation. Detailed tool-step history remains backlog B07 work. Composer placeholder: “Message.”

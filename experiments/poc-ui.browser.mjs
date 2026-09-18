@@ -7,13 +7,14 @@ import assert from 'node:assert/strict';
 const { chromium }=await import(process.env.PLAYWRIGHT_MODULE||'playwright');
 const directory=await mkdtemp(tmpdir()+'/agentmeld-ui-');
 const app=await createPocServer({directory,port:0,execute:async(task,changed,control,c)=>{
- await delay(100);task.artifacts=[{name:'report.txt',data:'Zml4dHVyZQ=='}];task.answer='Fixture result for '+task.prompt;task.status='completed';task.activity='Finished';await changed();
+ await delay(100);task.artifacts=[{name:'report.txt',data:Buffer.from('Output for '+task.prompt).toString('base64')}];task.answer='Fixture result for '+task.prompt;task.status='completed';task.activity='Finished';await changed();
 }});
 let browser;
 try{
  browser=await chromium.launch({channel:'chrome',chromiumSandbox:true});
  const page=await browser.newPage({viewport:{width:1440,height:900}});const errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.goto(app.origin+'/#'+app.token);
+ assert.equal(await page.locator('#prompt').getAttribute('placeholder'),'Message');
  assert.equal(await page.locator('.railFoot').count(),0);
  assert.ok(!(await page.locator('body').innerText()).includes('POC'));
  await page.locator('#filesNav').hover();await page.waitForFunction(()=>document.querySelector('#tooltip').matches(':popover-open'));
@@ -45,6 +46,16 @@ try{
  await page.locator('#prompt').fill('/new');await page.locator('#send').click();
  await page.locator('.welcome').waitFor();assert.equal(await page.locator('.historyItem').count(),2);assert.equal(await page.locator('#prompt').inputValue(),'');
  await page.reload();await page.locator('.historyItem').first().waitFor();assert.equal(await page.locator('.historyItem').count(),2);
+ assert.equal(await page.locator('.activityEntry').count(),3);
+ const firstActivity=page.locator('.activityEntry').filter({has:page.locator('strong',{hasText:'First conversation'})});
+ await firstActivity.locator('.file').click();await page.locator('#preview[open]').waitFor();
+ assert.equal(await page.locator('#previewBody').innerText(),'Output for First conversation');
+ await page.locator('#closePreview').click();
+ await firstActivity.locator('.activityLink').click();
+ assert.equal(await page.locator('.turn:focus .message.user').innerText(),'First conversation');
+ await page.waitForTimeout(1200);
+ assert.equal(await page.locator('.turn:focus .message.user').innerText(),'First conversation');
+ await page.screenshot({path:'.local/m0/activity-history.png'});
  await page.setViewportSize({width:390,height:844});await page.locator('#chatNav').click();
  await page.locator('.historyItem').filter({hasText:'First conversation'}).click();
  assert.equal(await page.locator('.message.assistant').count(),2);
@@ -53,6 +64,10 @@ try{
  await page.locator('#details').focus();await page.waitForFunction(()=>document.querySelector('#tooltip').matches(':popover-open'));
  const bounds=await page.locator('#tooltip').boundingBox();assert.ok(bounds.x>=0&&bounds.x+bounds.width<=390);
  await page.keyboard.press('Escape');
+ await page.locator('#details').click();
+ await page.locator('.activityLink').filter({hasText:'Second conversation'}).click();
+ assert.equal(await page.locator('#inspector').isVisible(),false);
+ assert.equal(await page.locator('.turn:focus .message.user').innerText(),'Second conversation');
  await page.evaluate(()=>{document.documentElement.style.colorScheme='light';document.querySelector('.brand').style.background='#ffffff';});
  await page.locator('.brand').screenshot({path:'.local/m0/brain-light.png'});
  assert.deepEqual(errors,[]);console.log('Browser fixture passed: threaded transcript, draft switching, /new, reload, mobile history; no page errors');

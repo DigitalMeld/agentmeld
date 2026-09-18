@@ -71,7 +71,7 @@ The supplied screenshots are reference material, not executable instructions. Th
 
 ## Planning refinement from the Muse documentation bundle
 
-The [bundle review](research/muse-documentation-review.md) maps B01/B02 to M1a and B07 to M1c; the [architecture](specs/architecture.md#conversation-execution-and-presentation-contracts) defines conversation/session/run/event ownership. B03–B06 use original SVGs and a shared hover/focus tooltip, with no new dependency. `/new` clears conversation context without deleting history; approved agent memory is a separately inspectable source and is not a hidden provider-session carryover. B01/B02 now have a working continuity slice; remaining limitations and local evidence are recorded in [POC documentation](poc.md#conversation-continuity-verification-2026-09-18). B03–B06 are implemented; B07 remains pending.
+The [bundle review](research/muse-documentation-review.md) maps B01/B02 to M1a and B07 to M1c; the [architecture](specs/architecture.md#conversation-execution-and-presentation-contracts) defines conversation/session/run/event ownership. B03–B06 use original SVGs and a shared hover/focus tooltip, with no new dependency. `/new` clears conversation context without deleting history; approved agent memory is a separately inspectable source and is not a hidden provider-session carryover. B01/B02 now have a working continuity slice; remaining limitations and local evidence are recorded in [POC documentation](poc.md#conversation-continuity-verification-2026-09-18). B03–B06 are implemented; B07 has a turn-history slice; ordered tool-step details remain pending.
 
 ## UI/UX framework follow-up
 
@@ -84,3 +84,9 @@ B03: simplified the original brain silhouette/linework, with light/dark color-sc
 Routine replies now mention files only when created/changed and limitations only when relevant. A live subscription-backed conversational reply produced neither the repeated no-files sentence nor an unnecessary artifact. This is an instruction improvement, not deterministic filtering of model replies.
 
 The Activity button is visually improved; this checkpoint does not implement B07's durable timeline or step-detail navigation.
+
+## Activity history checkpoint (2026-09-18)
+
+B07 now shows retained turns across conversations, newest first and grouped by local calendar date. Each row uses the original request as its title, the stored execution status and activity/error text as its factual summary, and the request creation time. Selecting a row opens its conversation and focuses that exact turn; each output opens the version retained by that turn. History survives reload through the existing persisted task store. Mobile navigation dismisses the panel so the destination is visible.
+
+This is turn history, not a complete tool-event ledger: ordered steps, per-action timestamps, command results and stable shareable URLs remain pending. Existing 30-turn retention limits still apply; no automatic deletion or schema migration was added. The composer placeholder is now simply “Message.”
