@@ -116,3 +116,7 @@ The [24-improvement workflow batch](design/workflow-organization.md) adds persis
 ## Full saved workspace and universal file layouts
 
 The [workspace browser batch](design/workspace-browser.md) replaces the artifact-only System Files placeholder and fixes per-category Grid/List behavior. Its 25 improvements, APIs, additive metadata, validation and runtime limits are documented together. A live persistent machine filesystem outside `/workspace` remains a separate runtime capability.
+
+## Artifact actions and previews
+
+The [24-improvement artifact actions batch](design/artifact-actions.md) adds selection, bounded ZIP exports, file indexes, latest-version filtering, structured/source/media previews and preview navigation. It preserves output versions and does not introduce file deletion or model calls.

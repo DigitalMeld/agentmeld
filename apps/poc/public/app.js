@@ -1,3 +1,4 @@
+import { artifactKey, latestVersions, textFile, csvRows, manifest, zipFiles } from './artifact-tools.js';
 import { browseWorkspace, fileKind, breadcrumbs, readPreferences } from './file-browser.js';
 import { chatInfo, orderedChats, outputEntries, visibleOutputs, conversationExport } from './organization.js';
 import { formatBytes, validateAttachments } from './composer.js';
@@ -12,6 +13,7 @@ let preferences;try{preferences=readPreferences(localStorage);}catch{preferences
 let fileCategory='all',fileLayout=preferences.layouts.all||'grid',fileSort=preferences.sort,fileChatOpen=false;
 function saveFilePreferences(){try{localStorage.setItem('agentmeld-files',JSON.stringify(preferences));}catch{}}
 function rememberOpened(taskId,name){const key=JSON.stringify([taskId,name]);delete preferences.opened[key];preferences.opened[key]=Date.now();preferences.opened=Object.fromEntries(Object.entries(preferences.opened).slice(-100));saveFilePreferences();}
+let selecting=false,selectedArtifacts=new Set(),visibleArtifacts=[],bundleController=null,bundleProgress='',previewSequence=[];
 let lastWorkspaceChoices='';
 let workspace=null,workspaceId='',workspacePath='',workspaceLoading=false,workspaceRequest=0;
 const categories={all:'All artifacts',documents:'Documents',web:'Web artifacts',images:'Images',videos:'Videos',audio:'Podcasts',system:'System files'};
@@ -55,7 +57,7 @@ $('chatSearch').oninput=()=>render();$('fileSearch').oninput=()=>render();$('arc
 $('attach').onclick=()=>$('upload').click();
 $('newChat').onclick=newTask;$('mobileNew').onclick=newTask;
 $('chatNav').onclick=()=>{showChat();if(matchMedia('(max-width:720px)').matches)document.querySelector('.history').classList.toggle('open');};$('filesNav').onclick=()=>{view='files';document.querySelector('.history').classList.remove('open');render();};
-for(const button of document.querySelectorAll('[data-category]')){button.insertAdjacentHTML('afterbegin',icon(button.dataset.symbol));button.onclick=()=>{fileCategory=button.dataset.category;fileLayout=preferences.layouts[fileCategory]||(fileCategory==='documents'?'list':'grid');if(fileCategory==='system')loadWorkspace();$('fileSidebar').classList.remove('open');render();};}
+for(const button of document.querySelectorAll('[data-category]')){button.insertAdjacentHTML('afterbegin',icon(button.dataset.symbol));button.onclick=()=>{bundleController?.abort();$('selectionError').hidden=true;fileCategory=button.dataset.category;selectedArtifacts.clear();selecting=false;fileLayout=preferences.layouts[fileCategory]||(fileCategory==='documents'?'list':'grid');if(fileCategory==='system')loadWorkspace();$('fileSidebar').classList.remove('open');render();};}
 $('fileOptions').addEventListener('keydown',e=>{if(!$('fileOptions').open||!['ArrowDown','ArrowUp','Home','End'].includes(e.key))return;e.preventDefault();const buttons=[...$('fileOptions').querySelectorAll('button')];let i=buttons.indexOf(document.activeElement);i=e.key==='Home'?0:e.key==='End'?buttons.length-1:(i+(e.key==='ArrowDown'?1:-1)+buttons.length)%buttons.length;buttons[i].focus();});
 function closeFileOptions(){$('fileOptions').open=false;$('fileOptions').querySelector('summary').focus();}
 for(const button of document.querySelectorAll('[data-layout]'))button.onclick=()=>{fileLayout=button.dataset.layout;preferences.layouts[fileCategory]=fileLayout;saveFilePreferences();render();closeFileOptions();};
@@ -127,8 +129,10 @@ function render(){
   const fileQuery=$('fileSearch').value.trim().toLocaleLowerCase();
   let outputs=visibleOutputs(state,fileQuery,'all',fileSort).filter(e=>!categoryExtensions[fileCategory]||categoryExtensions[fileCategory].includes(e.file.name.split('.').pop().toLowerCase()));
   if(fileSort==='opened')outputs.sort((a,b)=>(preferences.opened[JSON.stringify([b.task.id,b.file.name])]||0)-(preferences.opened[JSON.stringify([a.task.id,a.file.name])]||0));
+  if($('latestVersions').checked){const keys=new Set(latestVersions(outputEntries(state)).map(artifactKey));outputs=outputs.filter(e=>keys.has(artifactKey(e)));}
+  visibleArtifacts=outputs;renderArtifactActions();
   $('fileSummary').textContent=outputs.length+' outputs · '+formatBytes(outputs.reduce((sum,e)=>sum+e.file.size,0));
-  const libraryContent=fileCategory==='system'?workspaceMarkup(fileQuery):outputs.map(({task:t,file:f,title,version})=>'<article class="libraryEntry"><button class="artifactThumbnail" data-task="'+t.id+'" data-file="'+esc(f.name)+'" aria-label="Preview '+esc(f.name)+'"><span class="thumbnailText" data-thumbnail-task="'+t.id+'" data-thumbnail-name="'+esc(f.name)+'">'+esc(f.name)+'</span></button>'+fileButton(t,f)+'<button class="outputOrigin" data-jump="'+t.id+'">'+esc(title)+' · Version '+version+' · '+esc(new Date(t.createdAt).toLocaleString())+'</button></article>').join('')||'<div class="libraryEmpty"><h2>'+(fileQuery?'No matching files':'No '+(fileCategory==='all'?'artifacts':categories[fileCategory].toLowerCase())+' yet')+'</h2><p>Files you create in this category will appear here.</p></div>';
+  const libraryContent=fileCategory==='system'?workspaceMarkup(fileQuery):outputs.map(({task:t,file:f,title,version})=>'<article class="libraryEntry'+(selectedArtifacts.has(JSON.stringify([t.id,f.name]))?' isSelected':'')+'">'+(selecting?'<label class="artifactCheck"><input type="checkbox" data-artifact-key="'+esc(JSON.stringify([t.id,f.name]))+'" '+(selectedArtifacts.has(JSON.stringify([t.id,f.name]))?'checked':'')+(bundleController?' disabled':'')+' aria-label="Select '+esc(f.name)+'"></label>':'')+'<button class="artifactThumbnail" data-task="'+t.id+'" data-file="'+esc(f.name)+'" aria-label="Preview '+esc(f.name)+'"><span class="thumbnailText" data-thumbnail-task="'+t.id+'" data-thumbnail-name="'+esc(f.name)+'">'+esc(f.name)+'</span></button>'+fileButton(t,f)+'<button class="outputOrigin" data-jump="'+t.id+'">'+esc(title)+' · Version '+version+' · '+esc(new Date(t.createdAt).toLocaleString())+'</button></article>').join('')||'<div class="libraryEmpty"><h2>'+(fileQuery?'No matching files':'No '+(fileCategory==='all'?'artifacts':categories[fileCategory].toLowerCase())+' yet')+'</h2><p>Files you create in this category will appear here.</p></div>';
   if(libraryContent!==lastLibrary){$('libraryFiles').innerHTML=libraryContent;lastLibrary=libraryContent;}
   if(inFiles&&fileCategory!=='system')loadThumbnails();
   const stoppable=turns.find(t=>['running','cancelling','queued'].includes(t.status));
@@ -176,9 +180,10 @@ $('copyWorkspacePath').onclick=()=>copyText('/workspace'+(workspacePath?'/'+work
 $('workspaceConversation').onclick=()=>{if(workspaceId)selectConversation(workspaceId);};
 $('copyFilePath').onclick=()=>{if(previewFile)copyText('/workspace/'+previewFile.name);};
 async function openWorkspaceFile(name){
+  previewSequence=[];
   const id=workspaceId,request=++previewRequest;
   try{const blob=await(await api('/api/workspace/file?conversation='+encodeURIComponent(id)+'&name='+encodeURIComponent(name),{signal:AbortSignal.timeout(8000)})).blob();
-    const text=/\.(md|txt|csv|json|log|js|mjs|ts|py|sh|toml|yaml|yml|html|css|xml|ini|cfg)$/i.test(name)||name.split('/').pop().startsWith('.')?await blob.text():undefined;
+    const text=textFile(name)?await blob.text():undefined;
     if(request!==previewRequest)return;
     clearPreviewImage();previewFile={blob,name,text,conversationId:id};previewRaw=false;$('previewTitle').textContent=name;$('previewOrigin').textContent=(state.conversations.find(c=>c.id===id)?.title||'Workspace')+' · /workspace/'+name+' · '+formatBytes(blob.size);$('versionLabel').hidden=true;$('copyPreview').hidden=text===undefined;renderPreviewText();if(!$('preview').open)$('preview').showModal();
   }catch(e){if(request===previewRequest)notice('Could not open this workspace file. Refresh the workspace and try again.');}
@@ -229,9 +234,21 @@ window.addEventListener('beforeunload',e=>{if($('prompt').value||files.length||[
 function updateLatest(){$('latestBar').hidden=(view!=='chat'&&!fileChatOpen)||!selected||$('conversation').scrollHeight-$('conversation').scrollTop-$('conversation').clientHeight<150;}
 $('conversation').addEventListener('scroll',updateLatest);
 $('jumpLatest').onclick=()=>{$('conversation').scrollTo({top:$('conversation').scrollHeight,behavior:'instant'});updateLatest();};
-let previewImageUrl=null;function clearPreviewImage(){if(previewImageUrl)URL.revokeObjectURL(previewImageUrl);previewImageUrl=null;}
-$('preview').addEventListener('close',clearPreviewImage);
-function renderPreviewText(){if(!previewFile)return;clearPreviewImage();if(/\.(png|jpe?g|gif|webp)$/i.test(previewFile.name)){const mime=/\.png$/i.test(previewFile.name)?'image/png':/\.gif$/i.test(previewFile.name)?'image/gif':/\.webp$/i.test(previewFile.name)?'image/webp':'image/jpeg';previewImageUrl=URL.createObjectURL(new Blob([previewFile.blob],{type:mime}));const img=document.createElement('img');img.src=previewImageUrl;img.alt=previewFile.name;img.className='fileImage';$('previewBody').replaceChildren(img);$('previewSource').hidden=true;return;}const md=/\.md$/i.test(previewFile.name);$('previewSource').hidden=!md;$('previewSource').textContent=previewRaw?'View formatted Markdown':'View raw Markdown';$('previewBody').innerHTML=previewFile.text!==undefined?(md&&!previewRaw?markdown(previewFile.text):'<pre>'+esc(previewFile.text)+'</pre>'):'This file is ready to download.';}
+let previewImageUrl=null;function clearPreviewImage(){for(const media of $('previewBody').querySelectorAll('audio,video')){media.onerror=null;media.pause();media.removeAttribute('src');media.load();}if(previewImageUrl)URL.revokeObjectURL(previewImageUrl);previewImageUrl=null;}
+$('preview').addEventListener('close',()=>{previewRequest++;clearPreviewImage();$('preview').classList.remove('expanded');$('expandPreview').setAttribute('aria-pressed','false');$('expandPreview').textContent='Expand';});
+function renderPreviewText(){
+ if(!previewFile)return;clearPreviewImage();updatePreviewNavigation();
+ const {name,blob,text}=previewFile,ext=name.split('.').pop().toLowerCase();
+ $('previewMetadata').textContent=fileKind(name)+' · '+formatBytes(blob.size)+(text!==undefined?' · '+text.split('\n').length+' lines':'');
+ const structured=['md','json','csv'].includes(ext)&&text!==undefined;
+ $('previewSource').hidden=!structured;$('previewSource').textContent=previewRaw?'View formatted '+ext.toUpperCase():'View raw '+ext.toUpperCase();
+ const types={png:'image/png',jpg:'image/jpeg',jpeg:'image/jpeg',gif:'image/gif',webp:'image/webp',mp3:'audio/mpeg',wav:'audio/wav',m4a:'audio/mp4',ogg:'audio/ogg',mp4:'video/mp4',webm:'video/webm',mov:'video/quicktime'};
+ if(types[ext]){const type=types[ext],tag=type.startsWith('image')?'img':type.startsWith('audio')?'audio':'video';previewImageUrl=URL.createObjectURL(new Blob([blob],{type}));const el=document.createElement(tag);el.src=previewImageUrl;el.className='fileMedia';el.setAttribute('aria-label',name);if(tag==='img'){el.alt=name;el.classList.add('fileImage');el.onload=()=>{$('previewMetadata').textContent+=' · '+el.naturalWidth+' × '+el.naturalHeight;};}else{el.controls=true;el.preload='metadata';}el.onerror=()=>{const msg=document.createElement('p');msg.textContent='This format could not be previewed. You can still download the original file.';$('previewBody').replaceChildren(msg);};$('previewBody').replaceChildren(el);return;}
+ if(text===undefined){$('previewBody').textContent='Preview is unavailable for this format. Download the original file to open it.';return;}
+ if(!previewRaw&&ext==='csv'){const rows=csvRows(text);$('previewBody').innerHTML='<div class="tableWrap"><table class="csvPreview">'+rows.map((r,i)=>'<tr>'+r.slice(0,50).map(c=>'<'+(i?'td':'th')+'>'+esc(c)+'</'+(i?'td':'th')+'>').join('')+'</tr>').join('')+'</table></div><p class="muted">Preview shows up to 100 data rows and 50 columns. Download preserves the complete file.</p>';return;}
+ let content=text;if(!previewRaw&&ext==='json'){try{content=JSON.stringify(JSON.parse(text),null,2);}catch{content=text;}}
+ $('previewBody').innerHTML=ext==='md'&&!previewRaw?markdown(text):'<pre>'+esc(content)+'</pre>';
+}
 $('previewSource').onclick=()=>{previewRaw=!previewRaw;renderPreviewText();};
 $('previewConversation').onclick=()=>{if(previewFile?.conversationId){$('preview').close();selectConversation(previewFile.conversationId);return;}const task=state.tasks.find(t=>t.id===previewFile?.taskId);$('preview').close();if(task)jumpToTask(task);};
 $('previewVersion').onchange=()=>{if(previewFile){const next=$('previewVersion').value;$('previewVersion').value=previewFile.taskId;openPreview(next,previewFile.name);}};
@@ -239,7 +256,7 @@ async function openPreview(taskId,name){
   const request=++previewRequest;
   try{
     const res=await api('/api/file?task='+encodeURIComponent(taskId)+'&name='+encodeURIComponent(name));const blob=await res.blob();
-    const isText=/\.(md|txt|csv|json|log)$/i.test(name);const text=isText?await blob.text():undefined;
+    const isText=textFile(name);const text=isText?await blob.text():undefined;
     if(request!==previewRequest)return;
     clearPreviewImage();rememberOpened(taskId,name);previewFile={blob,name,text,taskId};previewRaw=false;$('previewTitle').textContent=name;
     const task=state.tasks.find(t=>t.id===taskId);
@@ -261,7 +278,7 @@ document.addEventListener('click',async e=>{
   const choose=e.target.closest('[data-select]');if(choose){selectConversation(choose.dataset.select);}
   const remove=e.target.closest('[data-remove]');if(remove&&!submitting&&!uploading&&!drafts.get(draftKey())?.pending){files.splice(Number(remove.dataset.remove),1);render();}
   const input=e.target.closest('[data-input]');if(input){try{const res=await api('/api/file?kind=input&task='+encodeURIComponent(input.dataset.input)+'&name='+encodeURIComponent(input.dataset.name));downloadBlob(await res.blob(),input.dataset.name);}catch(e){notice(e.message);}}
-  const file=e.target.closest('[data-file]');if(file)await openPreview(file.dataset.task,file.dataset.file);
+  const file=e.target.closest('[data-file]');if(file){previewSequence=(file.closest('#libraryFiles')?visibleArtifacts:outputEntries(state).filter(x=>x.task.conversationId===state.tasks.find(t=>t.id===file.dataset.task)?.conversationId)).map(x=>({taskId:x.task.id,name:x.file.name}));await openPreview(file.dataset.task,file.dataset.file);}
   const exp=e.target.closest('[data-export]');if(exp&&selected){try{const format=exp.dataset.export;downloadBlob(new Blob([conversationExport(state,selected,format)],{type:format==='json'?'application/json':'text/markdown'}),'agentmeld-'+selected+'.'+format);}catch(e){notice(e.message);}}
 
   if(e.target.closest('#sample')&&!submitting&&!uploading&&!drafts.get(draftKey())?.pending){
@@ -320,4 +337,38 @@ async function refresh(){
     render();
   }
 }
+
+function renderArtifactActions(){
+ const system=fileCategory==='system';$('selectArtifacts').hidden=system;$('artifactFilters').hidden=system;$('selectArtifacts').textContent=selecting?'Done':'Select';$('selectArtifacts').setAttribute('aria-pressed',String(selecting));$('selectionBar').hidden=!selecting||system;$('clearFileSearch').hidden=!$('fileSearch').value;
+ const all=outputEntries(state),keys=new Set(all.map(artifactKey));selectedArtifacts=new Set([...selectedArtifacts].filter(k=>keys.has(k)));
+ $('selectArtifacts').disabled=!!bundleController;for(const checkbox of document.querySelectorAll('[data-artifact-key]'))checkbox.disabled=!!bundleController;
+ const chosen=all.filter(e=>selectedArtifacts.has(artifactKey(e)));$('selectionSummary').textContent=bundleController?bundleProgress:chosen.length+' selected · '+formatBytes(chosen.reduce((n,e)=>n+e.file.size,0));
+ for(const id of ['downloadSelected','exportManifest','copySelectedPaths','clearSelection'])$(id).disabled=!chosen.length||!!bundleController;
+ $('selectVisible').disabled=!visibleArtifacts.length||!!bundleController;$('cancelDownload').hidden=!bundleController;
+ for(const b of document.querySelectorAll('[data-category]')){if(b.dataset.category==='system')continue;let count=b.querySelector('.categoryCount');if(!count){count=document.createElement('span');count.className='categoryCount';count.setAttribute('aria-hidden','true');b.append(count);}count.textContent=all.filter(e=>!categoryExtensions[b.dataset.category]||categoryExtensions[b.dataset.category].includes(e.file.name.split('.').pop().toLowerCase())).length;}
+}
+$('selectArtifacts').onclick=()=>{$('selectionError').hidden=true;selecting=!selecting;if(!selecting)selectedArtifacts.clear();render();};
+$('selectVisible').onclick=()=>{for(const e of visibleArtifacts)selectedArtifacts.add(artifactKey(e));render();};
+$('clearSelection').onclick=()=>{selectedArtifacts.clear();render();};
+$('latestVersions').onchange=()=>{selectedArtifacts.clear();render();};
+$('clearFileSearch').onclick=()=>{$('fileSearch').value='';render();$('fileSearch').focus();};
+document.addEventListener('change',e=>{if(e.target.matches('[data-artifact-key]')){const key=e.target.dataset.artifactKey;e.target.checked?selectedArtifacts.add(key):selectedArtifacts.delete(key);e.target.closest('.libraryEntry').classList.toggle('isSelected',e.target.checked);renderArtifactActions();}});
+const chosenArtifacts=()=>outputEntries(state).filter(e=>selectedArtifacts.has(artifactKey(e)));
+$('copySelectedPaths').onclick=()=>copyText(chosenArtifacts().map(e=>'/workspace/'+e.file.name+' (turn '+e.task.id+')').join('\n'));
+$('exportManifest').onclick=()=>downloadBlob(new Blob([JSON.stringify(manifest(chosenArtifacts()),null,2)],{type:'application/json'}),'artifact-index.json');
+$('cancelDownload').onclick=()=>bundleController?.abort();
+$('downloadSelected').onclick=async()=>{
+ const chosen=chosenArtifacts();if(bundleController||!chosen.length)return;
+ if(chosen.length>500||chosen.reduce((n,e)=>n+e.file.size,0)>33500000){$('selectionError').textContent='Select at most 500 files totaling less than 32 MB.';$('selectionError').hidden=false;return;}
+ bundleProgress='Preparing archive…';bundleController=new AbortController();const controller=bundleController;$('selectionError').hidden=true;renderArtifactActions();
+ try{const entries=[];for(const [i,e] of chosen.entries()){bundleProgress='Preparing '+(i+1)+' of '+chosen.length+'…';$('selectionSummary').textContent=bundleProgress;const res=await api('/api/file?task='+encodeURIComponent(e.task.id)+'&name='+encodeURIComponent(e.file.name),{signal:AbortSignal.any([controller.signal,AbortSignal.timeout(15000)])});entries.push({name:e.task.id+'/'+e.file.name,data:new Uint8Array(await res.arrayBuffer())});}controller.signal.throwIfAborted();entries.push({name:'artifact-index.json',data:new TextEncoder().encode(JSON.stringify(manifest(chosen),null,2))});downloadBlob(zipFiles(entries),'agentmeld-artifacts.zip');notice('Archive ready.');}
+ catch(e){$('selectionError').textContent=controller.signal.aborted?'Download cancelled. Your selection is preserved.':'Could not prepare the archive. Retry to download your selection.';$('selectionError').hidden=false;}
+ finally{bundleController=null;renderArtifactActions();}
+};
+function updatePreviewNavigation(){const i=previewSequence.findIndex(e=>e.taskId===previewFile?.taskId&&e.name===previewFile?.name);$('previousFile').disabled=i<=0;$('nextFile').disabled=i<0||i>=previewSequence.length-1;$('previewPosition').textContent=i<0?'':(i+1)+' / '+previewSequence.length;}
+function adjacentPreview(delta){const i=previewSequence.findIndex(e=>e.taskId===previewFile?.taskId&&e.name===previewFile?.name);const next=i<0?null:previewSequence[i+delta];if(next)openPreview(next.taskId,next.name);}
+$('previousFile').onclick=()=>adjacentPreview(-1);$('nextFile').onclick=()=>adjacentPreview(1);
+$('expandPreview').onclick=()=>{const expanded=$('preview').classList.toggle('expanded');$('expandPreview').setAttribute('aria-pressed',String(expanded));$('expandPreview').textContent=expanded?'Restore size':'Expand';};
+$('preview').addEventListener('keydown',e=>{if(e.target.matches('input,textarea,select,audio,video')||e.altKey||e.ctrlKey||e.metaKey||e.shiftKey)return;if(['ArrowLeft','ArrowRight'].includes(e.key)){e.preventDefault();adjacentPreview(e.key==='ArrowLeft'?-1:1);}});
+
 render();await refresh();setInterval(refresh,1000);
