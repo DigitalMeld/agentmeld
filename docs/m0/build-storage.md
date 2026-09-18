@@ -79,3 +79,34 @@ image archive or retained standalone candidate binary was found in the inspected
 patch-build directories. Restore the baseline and rebuild the pinned candidate
 before further runtime qualification; verify image retention across VM restart.
 This is an additional M0 operational gap.
+
+## Baseline recovery and restart verification
+
+Rebuilt the unchanged pinned Dockerfile after the missing-image readback.
+Restored image:
+`sha256:12ed9904b4604148fec691c0d5a2a2e9ba6d41c4b24675c3c7d144dfc13591bc`.
+This is a new build, not recovery of the original artifact or patched candidate.
+
+The native/browser probe passes before restart (2.366 seconds) and after a
+controlled dedicated-VM stop/start (2.678 seconds), with the exact same immutable
+image ID. Both runs verify non-root/read-only/no-new-privileges/seccomp boundaries,
+native app-server initialization, renderer sandboxing, and viewer takeover/fresh
+resume. No inference is involved in those two probes. The credential volume is
+still present; VM configuration byte-matches the original 4 GiB backup and the
+named AppArmor policy was reloaded.
+
+The inventory reports 4 npm, 199 Debian and 22 resolved Rust packages, with
+zero missing Debian copyright files. The package lock matches the checkout.
+The earlier disappearance is not reproduced by this restart; its cause remains
+unestablished. The source-patched candidate still needs rebuilding and final
+qualification. Evidence: ignored `.local/m0/restored-*` reports.
+
+The restored baseline also passes the live GPT-5.5 subscription control probe:
+allow, deny, pending-approval cancellation, and running-command interruption
+with explicit terminal cleanup all report true. The existing dedicated store
+was used without reimport or credential changes. Evidence:
+`.local/m0/restored-live-control.log`.
+
+Removed the inventoried disposable Rust build stage after qualification.
+Immediate image readback still matches the restored runtime ID. No volume or
+global prune was used.

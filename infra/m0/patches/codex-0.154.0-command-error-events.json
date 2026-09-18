@@ -12,5 +12,5 @@
   "runtimeActivated": false,
   "upstreamTargetedRegression": "Denied-write startup regression fails unpatched with no lifecycle events and passes patched; ran as UID 1000 on Linux aarch64 with bundled bwrap.",
   "upstreamSuite": "43 selected unified-exec tests: 40 passed, 3 failed on patched and baseline comparisons. Glob-deny-read and two network-denial failures remain; full workspace suite not run.",
-  "localImageAvailability": "Missing after regression-build cleanup and VM restart; historical qualification hashes retained. Rebuild and verify retention before use."
+  "localImageAvailability": "Candidate missing after cleanup/restart; historical qualification hashes retained. Baseline rebuilt and restart-verified separately. Rebuild candidate before use."
 }
