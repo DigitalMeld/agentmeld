@@ -32,7 +32,7 @@ Phase 2 made the Rust service the host's single writer and supervisor, with the 
 
 One row per proposal, host-owned, in the service's database — never in the worker, never in a client.
 
-States: `pending` → `approved` | `denied` | `expired` | `revoked`. (`superseded` is the question in §9; until it is resolved the design uses `revoked` for both device revocation and superseding, with a `reason` column recording which.)
+States: `pending` → `approved` | `denied` | `expired` | `revoked`. **Resolved (owner, 2026-09-19): schema rules** — the core-schema draft and the UI contract both use `revoked`, so there is no `superseded` state. Supersession ("replaced by a newer proposal") is `revoked` with `revoked_reason = 'superseded'`; the contract map's `superseded` is read as that row, not a sixth state.
 
 Transitions are issued exactly once, in one transaction, by the service only:
 
@@ -179,7 +179,7 @@ CREATE TABLE computer_leases (
 );
 ```
 
-Notes on the sketch vs. the draft schema: the draft's `approvals` has no `action_json` (this design stores the canonical proposed action so `decide` can recompute the digest rather than trusting a second copy), no `ticket_hash` (the contract map's single-use ticket needs a stored verifier), and no `revoked_reason`. Whether these columns belong or the implementer models them differently is a review point, not a mandate — the invariants (§2–§3) are the mandate.
+Notes on the sketch vs. the draft schema: the draft's `approvals` has no `action_json` (this design stores the canonical proposed action so `decide` can recompute the digest rather than trusting a second copy), no `ticket_hash` (the contract map's single-use ticket needs a stored verifier — **resolved: TARS judgment, keep `ticket_hash`**), and no `revoked_reason`. The invariants (§2–§3) are the mandate; the columns are the reviewed shape.
 
 ## 10. Proof plan
 
@@ -202,19 +202,19 @@ All assertions run against the real binary and the real SQLite file; the fake wo
 
 ## 11. What could go wrong
 
-- **The `superseded` question (§9) leaks into every client.** If the state set isn't settled before implementation, the UI renders a state the server never emits, or the server emits a state the UI can't render. Settle it in review, not in code.
+- **The `superseded` question is settled (§12.1), but the contract map still says `superseded`.** If the contract map isn't amended to `revoked` + reason, a future reader will re-derive the sixth state. Amend the map row when Phase 3 implements, or the discrepancy will resurface.
 - **Ticket transport.** The ticket travels service → worker over the Unix socket and human → service over HTTPS, but the approval decision the *browser* submits must not become a bearer credential for execution — the ticket is issued to the worker's seam reply, never to the client response, and the client response carries only the receipt. Keep that separation in the implementation or the ticket becomes a confused-deputy token.
 - **Expiry sweep starvation.** If the sweep is lazy-only and nobody reads a stale `pending` row, rows linger `pending` past their TTL with the run blocked. The startup sweep plus the read-path expiry application (§3) close this, but the implementer must prove both exist — a `pending` row older than its TTL with a live server is a bug.
 - **Lease UI before the client track.** Phase 3 defines lease semantics, but the frozen PoC has no "Computer" surface to trigger takeover. If no client can take over, the lease code is dead code that only the harness exercises — honest, but the design should say so rather than imply a UI exists.
 - **Revocation vs. the pairing bootstrap.** Phase 2's bootstrap disables re-enrollment after the first device; the resolved re-pairing policy is explicit on-host CLI action (rust-service-front §13 Q1, resolved in the Phase 2 implementation — the `pair` CLI command). Phase 3's revocation can therefore strand the owner with zero devices, recoverable only via on-host CLI access. The design treats that as the honest lockout story and says so, rather than softening revocation.
 
-## 12. Open questions for the owner
+## 12. Resolved questions
 
-1. **State naming: `superseded` vs `revoked`.** The contract map says `pending → approved | denied | expired | superseded`; the core-schema draft's CHECK lists `revoked` (no `superseded`); the UI contract's Approvals row lists `revoked` (no `superseded`). Is revocation-of-device (and lease-takeover, digest-mismatch) the *same* terminal state as supersession, distinguished by `revoked_reason` — or is `superseded` its own state for "replaced by a newer proposal"? This design sketches `revoked` + reason; confirm or correct.
-2. **Ticket storage shape.** The contract map requires a single-use execution ticket, but the schema draft has no ticket column. This design sketches `ticket_hash` on the row. Acceptable, or should the ticket be an event/metadata rather than a column?
-3. **`tool_steps` timing.** Phase 3 leaves `tool_steps` uninstalled, with audit via `run_events` + `approvals`. Is the queryable tool-step projection a Phase 4 co-install with SSE, or does some alpha workflow need it earlier?
-4. **Lease UI in Phase 3.** The design defines the lease sequence and endpoints but the frozen PoC has no Computer/takeover surface. Does Phase 3 ship a minimal takeover control in the frozen UI, or does the lease stay harness-only until the client track builds the surface?
-5. **Re-pairing after self-revocation.** If the owner revokes their only device, Phase 2's disabled re-enrollment means the only way back in is the explicit on-host CLI re-pair (the resolved rust-service-front §13 Q1 policy). Confirm this lockout story is acceptable: revocation of the last device is recoverable only with host access, never remotely.
+1. **State naming: `superseded` vs `revoked`.** ✅ Resolved by the owner (2026-09-19): **schema rules** — `revoked` only; supersession is `revoked` with `revoked_reason = 'superseded'`.
+2. **Ticket storage shape.** ✅ Resolved by TARS judgment (owner-delegated, 2026-09-19): `ticket_hash` column on the row — the simplest host-owned verifier for the single-use ticket.
+3. **`tool_steps` timing.** ✅ Resolved by TARS judgment (2026-09-19): Phase 4 co-install with the SSE stream. Phase 3's audit trail is `run_events` + the `approvals` row; no alpha workflow needs the queryable projection earlier.
+4. **Lease UI in Phase 3.** ✅ Resolved by TARS judgment (2026-09-19): harness-only. The frozen PoC has no Computer/takeover surface; the lease sequence is defined, endpointed, and harness-proven, and the client track builds the surface later. The design says so plainly rather than implying a UI exists.
+5. **Re-pairing after self-revocation.** ✅ Resolved per the Phase 2 re-pairing policy (explicit on-host CLI, rust-service-front §13 Q1): revoking the last device is recoverable only with host access, never remotely. Documented as the lockout story; flag it if unacceptable.
 
 ## 13. What was verified and what was not
 
