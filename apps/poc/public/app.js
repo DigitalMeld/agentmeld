@@ -167,6 +167,41 @@ function renderActivity(){
 function messageAction(attribute,id,label,symbol,extra=''){
  return '<button class="icon '+extra+'" '+attribute+'="'+id+'" aria-label="'+label+'" data-tooltip>'+icon(symbol)+'</button>';
 }
+// Incremental reply streaming (issue #113): append a delta to the task's
+// answer and repaint only that turn's reply bubble, rAF-throttled. The
+// server stays the source of truth — terminal run events take the normal
+// full-refresh path, which reconciles any divergence.
+let deltaRaf = 0;
+const deltaPending = new Set();
+function appendReplyDelta(runId, text){
+  const task = state.tasks.find(t=>t.id===runId);
+  if(!task) return;
+  const turnEl = document.getElementById('turn-'+runId);
+  if(!turnEl) return; // turn not on screen; the next render shows server text
+  task.answer = (task.answer||'') + text;
+  if(!turnEl.querySelector('.message.assistant')){
+    // First delta: materialize the reply bubble with one refresh; later
+    // deltas take the fast path below.
+    refresh().catch(()=>{});
+    return;
+  }
+  deltaPending.add(runId);
+  if(deltaRaf) return;
+  deltaRaf = requestAnimationFrame(()=>{
+    deltaRaf = 0;
+    // Bottom-follow while streaming, mirroring render(): only when the
+    // reader is already near the bottom; never yank a reader who scrolled up.
+    const conv = $('conversation');
+    const nearBottom = conv && (conv.scrollHeight - conv.scrollTop - conv.clientHeight < 100);
+    for(const id of deltaPending){
+      const t = state.tasks.find(x=>x.id===id);
+      const bubble = document.getElementById('turn-'+id)?.querySelector('.message.assistant');
+      if(t && bubble) bubble.innerHTML = markdown(t.answer||'');
+    }
+    deltaPending.clear();
+    if(nearBottom) conv.scrollTo({top: conv.scrollHeight, behavior: 'instant'});
+  });
+}
 function renderTurn(task,index,turns){
  const inputs=task.inputs.length?'<div class="messageLabel">'+task.inputs.map(f=>'<button class="inputFile" data-input="'+task.id+'" data-name="'+esc(f.name)+'" aria-label="Download original '+esc(f.name)+'">'+esc(f.name)+(Number.isFinite(f.size)?'<small>'+formatBytes(f.size)+'</small>':'')+'</button>').join(' ')+'</div>':'';
  const details=messageAction('data-detail',task.id,'Run details','activity');
@@ -558,7 +593,7 @@ $('pairingForm').addEventListener('submit',async e=>{
 });
 function ensureTrack(){
   if(track||!token)return;
-  track=initClientTrack({api:async(path,opts)=>(await api(path,opts)).json(),esc,$,notice,icon,token:()=>token,getState:()=>state,requestRefresh:()=>{refresh().catch(()=>{});},selectConversation});
+  track=initClientTrack({api:async(path,opts)=>(await api(path,opts)).json(),esc,$,notice,icon,token:()=>token,getState:()=>state,requestRefresh:()=>{refresh().catch(()=>{});},selectConversation,onDelta:appendReplyDelta});
   track.start();
 }
 if(token)bootApp();else showPairing('first-run');
