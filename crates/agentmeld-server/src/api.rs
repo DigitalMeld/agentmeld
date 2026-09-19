@@ -1004,6 +1004,7 @@ const STATIC_ASSETS: &[(&str, &str)] = &[
     ("/preview-reader.js", "preview-reader.js"),
     ("/style.css", "style.css"),
     ("/tooltips.js", "tooltips.js"),
+    ("/fonts/roboto-latin.woff2", "fonts/roboto-latin.woff2"),
 ];
 
 async fn static_root(State(state): State<AppState>) -> Response {
@@ -1028,6 +1029,7 @@ fn serve_file(public_dir: &std::path::Path, file: &str) -> Response {
         Some("js") => "text/javascript; charset=utf-8",
         Some("css") => "text/css; charset=utf-8",
         Some("svg") => "image/svg+xml",
+        Some("woff2") => "font/woff2",
         Some("webmanifest") => "application/manifest+json",
         _ => "application/octet-stream",
     };
