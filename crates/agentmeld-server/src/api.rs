@@ -189,7 +189,7 @@ pub fn router(state: AppState) -> Router {
         .route("/workspace", get(get_workspace))
         .route("/workspace/file", get(get_workspace_file))
         .route("/file", get(get_file))
-        .route("/events", get(future_stub))
+        .route("/events", get(get_events))
         .route("/approvals/{id}/decision", post(post_approval_decision))
         .route("/approvals/{id}", get(get_approval))
         .route("/approvals", get(get_approvals))
@@ -487,10 +487,74 @@ fn download(name: &str, bytes: Vec<u8>) -> Response {
         .into_response()
 }
 
-/// Future route stub: the client never calls these; they answer 501 until
-/// the delivery surface is built.
-async fn future_stub(Authed(_): Authed) -> Response {
-    err(501, "This feature is not available in this build.")
+// --------------------------------------------- Phase 4: SSE event stream.
+//
+// GET /api/v1/events — the host-local event stream. Authenticated device
+// session only; a revoked device fails here at connect time, and the
+// producer closes the stream on heartbeat-time revocation. See events.rs
+// for the wire contract (cursor rules, hello, resync, at-least-once).
+
+/// Query params for the event stream: `?cursor=` (a run_events.sequence).
+#[derive(Deserialize)]
+struct EventsQuery {
+    cursor: Option<String>,
+}
+
+async fn get_events(
+    Authed(_): Authed,
+    State(state): State<AppState>,
+    Query(query): Query<EventsQuery>,
+    headers: HeaderMap,
+) -> Response {
+    use crate::events::{resolve_cursor, spawn_event_stream, StreamConfig};
+    use tokio_stream::StreamExt as _;
+
+    // Last-Event-ID (the SSE reconnect header) wins over ?cursor=; both are
+    // host-local run_events.sequence values.
+    let last_event_id = headers.get("last-event-id").and_then(|v| v.to_str().ok());
+    let max_seq = match state.db.max_event_sequence() {
+        Ok(n) => n,
+        Err(e) => return internal_err("event stream cursor", e),
+    };
+    let (_source, cursor) = match resolve_cursor(last_event_id, query.cursor.as_deref(), max_seq) {
+        Ok(ok) => ok,
+        Err((status, code, message)) => {
+            return (
+                StatusCode::from_u16(status).unwrap_or(StatusCode::BAD_REQUEST),
+                Json(serde_json::json!({
+                    "error": message,
+                    "code": code,
+                    "current_seq": max_seq,
+                })),
+            )
+                .into_response()
+        }
+    };
+
+    // The raw Authorization header feeds the heartbeat-time revocation
+    // recheck inside the producer; the device already authenticated above.
+    // The token lives only for this connection's lifetime.
+    let authorization = headers
+        .get(header::AUTHORIZATION)
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("")
+        .to_string();
+    let frames = spawn_event_stream(
+        state.db.clone(),
+        state.auth.clone(),
+        authorization,
+        cursor,
+        StreamConfig::default(),
+    );
+    let body = axum::body::Body::from_stream(
+        frames.map(|frame| Ok::<_, std::convert::Infallible>(axum::body::Bytes::from(frame))),
+    );
+    (
+        StatusCode::OK,
+        [("content-type", "text/event-stream")],
+        body,
+    )
+        .into_response()
 }
 
 // --------------------------------------------- Phase 3: approval decision.
@@ -655,7 +719,10 @@ async fn post_lease_takeover(Authed(ctx): Authed, State(state): State<AppState>)
     // point. Pending approvals die with lease_takeover; a live worker is
     // cancelled with service.turn.cancel reason lease_takeover.
     let active = state.supervisor.active_run_id().await;
-    match state.db.lease_takeover(&ctx.device_id, active.is_some()) {
+    match state
+        .db
+        .lease_takeover(&ctx.device_id, active.is_some(), active.as_deref())
+    {
         Ok(outcome) => {
             if outcome.killed_active_turn {
                 if let Some(run_id) = &active {
@@ -686,9 +753,11 @@ async fn post_lease_takeover_ack(
     State(state): State<AppState>,
     Json(body): Json<LeaseMutationRequest>,
 ) -> Response {
-    let result = state
-        .db
-        .lease_takeover_ack(&ctx.device_id, body.expected_generation);
+    let active = state.supervisor.active_run_id().await;
+    let result =
+        state
+            .db
+            .lease_takeover_ack(&ctx.device_id, body.expected_generation, active.as_deref());
     lease_mutation_response(&state, result)
 }
 
@@ -711,9 +780,11 @@ async fn post_lease_private_begin(
     State(state): State<AppState>,
     Json(body): Json<LeaseMutationRequest>,
 ) -> Response {
-    let result = state
-        .db
-        .lease_private_begin(&ctx.device_id, body.expected_generation);
+    let active = state.supervisor.active_run_id().await;
+    let result =
+        state
+            .db
+            .lease_private_begin(&ctx.device_id, body.expected_generation, active.as_deref());
     lease_mutation_response(&state, result)
 }
 
@@ -722,9 +793,11 @@ async fn post_lease_private_end(
     State(state): State<AppState>,
     Json(body): Json<LeaseMutationRequest>,
 ) -> Response {
-    let result = state
-        .db
-        .lease_private_end(&ctx.device_id, body.expected_generation);
+    let active = state.supervisor.active_run_id().await;
+    let result =
+        state
+            .db
+            .lease_private_end(&ctx.device_id, body.expected_generation, active.as_deref());
     lease_mutation_response(&state, result)
 }
 
@@ -733,9 +806,10 @@ async fn post_lease_resume(
     State(state): State<AppState>,
     Json(body): Json<LeaseMutationRequest>,
 ) -> Response {
+    let active = state.supervisor.active_run_id().await;
     let result = state
         .db
-        .lease_resume(&ctx.device_id, body.expected_generation);
+        .lease_resume(&ctx.device_id, body.expected_generation, active.as_deref());
     lease_mutation_response(&state, result)
 }
 
@@ -772,10 +846,12 @@ async fn post_lease_revoke(
     };
     // A revoke that lands mid-pause still has a worker to kill.
     let active = state.supervisor.active_run_id().await;
-    match state
-        .db
-        .lease_revoke(&ctx.device_id, reason, body.expected_generation)
-    {
+    match state.db.lease_revoke(
+        &ctx.device_id,
+        reason,
+        body.expected_generation,
+        active.as_deref(),
+    ) {
         Ok(outcome) => {
             if outcome.killed_active_turn {
                 if let Some(run_id) = &active {

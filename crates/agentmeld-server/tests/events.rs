@@ -55,6 +55,7 @@ fn reappend_returns_original_sequence() {
             &binding,
             &[event("e1", "run.thinking", Some("k1"))],
             None,
+            false,
         )
         .expect("append");
     assert_eq!(first.stored.len(), 1);
@@ -69,6 +70,7 @@ fn reappend_returns_original_sequence() {
             &binding,
             &[event("e1", "run.thinking", Some("k1"))],
             None,
+            false,
         )
         .expect("re-append");
     assert_eq!(second.stored.len(), 1);
@@ -89,6 +91,7 @@ fn reappend_returns_original_sequence() {
             &binding,
             &[event("e2", "run.thinking", Some("k1"))],
             None,
+            false,
         )
         .expect("re-append by key");
     assert!(third.stored[0].duplicate);
@@ -102,6 +105,7 @@ fn reappend_returns_original_sequence() {
             &binding,
             &[event("e3", "run.thinking", Some("k2"))],
             None,
+            false,
         )
         .expect("fresh event");
     assert!(!fourth.stored[0].duplicate);

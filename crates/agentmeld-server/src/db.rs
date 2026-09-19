@@ -27,6 +27,7 @@ const MIGRATIONS: &[(i64, &str)] = &[
     (2, include_str!("migrations/v2.sql")),
     (3, include_str!("migrations/v3.sql")),
     (4, include_str!("migrations/v4.sql")),
+    (5, include_str!("migrations/v5.sql")),
 ];
 
 pub struct Db {
@@ -497,6 +498,41 @@ pub struct RunRow {
     pub started_at: Option<i64>,
     pub finished_at: Option<i64>,
     pub terminal_reason: Option<String>,
+}
+
+/// One row of the host-local event stream, as returned by
+/// [`Db::stream_events_after`]. `seq` is the cursor; `id` is the stable
+/// `run_events.id` clients dedupe on; `payload` is the raw journal JSON.
+#[derive(Debug, Clone)]
+pub struct StreamRow {
+    pub seq: i64,
+    pub id: String,
+    pub kind: String,
+    pub workspace_id: String,
+    pub conversation_id: String,
+    pub run_id: String,
+    pub actor: Option<String>,
+    pub ts: i64,
+    pub payload: String,
+}
+
+/// One row of the `tool_steps` projection: the queryable record of a
+/// worker tool call. `state` is one of `running`, `completed`, `failed`,
+/// `denied`, `cancelled`, `unknown`.
+#[derive(Debug, Clone)]
+pub struct ToolStepRow {
+    pub id: String,
+    pub call_key: String,
+    pub parent_step_id: Option<String>,
+    pub ordinal: i64,
+    pub tool_name: String,
+    pub title: String,
+    pub approval_id: Option<String>,
+    pub state: String,
+    pub result_json: Option<String>,
+    pub output_blob_id: Option<String>,
+    pub started_at: i64,
+    pub finished_at: Option<i64>,
 }
 
 #[derive(Debug, Clone)]
@@ -1065,6 +1101,95 @@ impl Db {
         Ok(rows)
     }
 
+    // ------------------------------------------------------- event stream
+
+    /// One row of the host-local event stream. `sequence` is the cursor;
+    /// `id` is the stable `run_events.id` clients dedupe on.
+    pub fn stream_events_after(&self, cursor: i64, limit: i64) -> Result<Vec<StreamRow>, String> {
+        let conn = self.conn.lock().map_err(|e| format!("db lock: {e}"))?;
+        let mut stmt = conn
+            .prepare(
+                "SELECT sequence, id, kind, workspace_id, conversation_id, run_id,
+                        actor, created_at, payload_json
+                 FROM run_events
+                 WHERE workspace_id = 'default'
+                   AND sequence > ?1
+                   AND visibility = 'user'
+                   AND kind NOT IN ('approval.dispatched', 'provider_session.bound')
+                 ORDER BY sequence ASC
+                 LIMIT ?2",
+            )
+            .map_err(|e| format!("db: {e}"))?;
+        let rows = stmt
+            .query_map(params![cursor, limit], |r| {
+                Ok(StreamRow {
+                    seq: r.get(0)?,
+                    id: r.get(1)?,
+                    kind: r.get(2)?,
+                    workspace_id: r.get(3)?,
+                    conversation_id: r.get(4)?,
+                    run_id: r.get(5)?,
+                    actor: r.get(6)?,
+                    ts: r.get(7)?,
+                    payload: r.get(8)?,
+                })
+            })
+            .map_err(|e| format!("db: {e}"))?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|e| format!("db: {e}"))?;
+        Ok(rows)
+    }
+
+    /// Highest `run_events.sequence` on this host. The 410 cursor-too-old
+    /// check compares the client's cursor against this.
+    pub fn max_event_sequence(&self) -> Result<i64, String> {
+        let conn = self.conn.lock().map_err(|e| format!("db lock: {e}"))?;
+        conn.query_row(
+            "SELECT COALESCE(MAX(sequence), 0) FROM run_events WHERE workspace_id = 'default'",
+            [],
+            |r| r.get(0),
+        )
+        .map_err(|e| format!("db: {e}"))
+    }
+
+    /// The `tool_steps` projection for a run, in service-assigned ordinal
+    /// order. Used by the (future) UI and by tests asserting the worker's
+    /// tool-call journaling.
+    pub fn tool_steps_for_run(&self, run_id: &str) -> Result<Vec<ToolStepRow>, String> {
+        let conn = self.conn.lock().map_err(|e| format!("db lock: {e}"))?;
+        let mut stmt = conn
+            .prepare(
+                "SELECT id, call_key, parent_step_id, ordinal, tool_name, title,
+                        approval_id, state, result_json, output_blob_id,
+                        started_at, finished_at
+                 FROM tool_steps
+                 WHERE workspace_id = 'default' AND run_id = ?1
+                 ORDER BY ordinal ASC",
+            )
+            .map_err(|e| format!("db: {e}"))?;
+        let rows = stmt
+            .query_map(rusqlite::params![run_id], |r| {
+                Ok(ToolStepRow {
+                    id: r.get(0)?,
+                    call_key: r.get(1)?,
+                    parent_step_id: r.get(2)?,
+                    ordinal: r.get(3)?,
+                    tool_name: r.get(4)?,
+                    title: r.get(5)?,
+                    approval_id: r.get(6)?,
+                    state: r.get(7)?,
+                    result_json: r.get(8)?,
+                    output_blob_id: r.get(9)?,
+                    started_at: r.get(10)?,
+                    finished_at: r.get(11)?,
+                })
+            })
+            .map_err(|e| format!("db: {e}"))?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|e| format!("db: {e}"))?;
+        Ok(rows)
+    }
+
     fn milestone_events_locked(
         &self,
         tx: &rusqlite::Transaction,
@@ -1487,7 +1612,7 @@ impl Db {
         match run.status {
             RunStatus::Queued => {
                 self.set_run_status_locked(&tx, task_id, RunStatus::Cancelled, None)?;
-                self.record_milestone_locked(&tx, task_id, "run.cancelled")?;
+                self.record_milestone_locked(&tx, task_id, "run.cancelled", None)?;
                 tx.commit()
                     .map_err(|e| RequestError::new(format!("commit stop: {e}"), 500))?;
                 Ok(StopOutcome::CancelledQueued)
@@ -1501,7 +1626,7 @@ impl Db {
                 }
                 if run.status == RunStatus::Starting || run.status == RunStatus::Running {
                     self.set_run_status_locked(&tx, task_id, RunStatus::Cancelling, None)?;
-                    self.record_milestone_locked(&tx, task_id, "run.cancelling")?;
+                    self.record_milestone_locked(&tx, task_id, "run.cancelling", None)?;
                 }
                 tx.commit()
                     .map_err(|e| RequestError::new(format!("commit stop: {e}"), 500))?;
@@ -1577,7 +1702,7 @@ impl Db {
             return Err(RequestError::new("run is not cancelling", 409));
         }
         self.set_run_status_locked(&tx, run_id, RunStatus::Cancelled, None)?;
-        self.record_milestone_locked(&tx, run_id, "run.cancelled")?;
+        self.record_milestone_locked(&tx, run_id, "run.cancelled", None)?;
         tx.commit()
             .map_err(|e| RequestError::new(format!("commit setup cancel: {e}"), 500))?;
         Ok(())
@@ -1585,27 +1710,33 @@ impl Db {
 
     /// PoC recordEvent() semantics: per-kind milestone, deduped by
     /// <run_id>:<kind>; unknown kinds throw.
+    /// Journal a per-kind milestone row (`{run_id}:{kind}`) if the worker did
+    /// not already emit that kind. `actor` names the cause
+    /// ('worker' / 'service' / `device:<id>`); `None` omits it when the cause
+    /// cannot be named at this layer.
     pub(crate) fn record_milestone_locked(
         &self,
         tx: &rusqlite::Transaction,
         run_id: &str,
         kind: &str,
+        actor: Option<&str>,
     ) -> Result<(), RequestError> {
         if crate::domain::milestone_label(kind).is_none() {
             return Err(RequestError::new(format!("unknown milestone: {kind}"), 500));
         }
         let run = self.run_row_locked(tx, run_id)?;
-        let now = now_ms();
+        let now = self.clock_now();
         tx.execute(
             "INSERT OR IGNORE INTO run_events
-             (id, workspace_id, conversation_id, run_id, version, kind, source_key, visibility, payload_json, created_at)
-             VALUES (?1, 'default', ?2, ?3, 1, ?4, ?5, 'user', '{}', ?6)",
+             (id, workspace_id, conversation_id, run_id, version, kind, source_key, visibility, actor, payload_json, created_at)
+             VALUES (?1, 'default', ?2, ?3, 1, ?4, ?5, 'user', ?6, '{}', ?7)",
             rusqlite::params![
                 format!("{run_id}:{kind}"),
                 run.conversation_id,
                 run_id,
                 kind,
                 format!("{run_id}:{kind}"),
+                actor,
                 now
             ],
         )
@@ -2130,7 +2261,7 @@ impl crate::db::Db {
             )
             .map_err(|e| RequestError::new(format!("read generation: {e}"), 500))?;
         self.set_run_status_locked(&tx, run_id, RunStatus::Running, None)?;
-        self.record_milestone_locked(&tx, run_id, "run.started")?;
+        self.record_milestone_locked(&tx, run_id, "run.started", Some("service"))?;
         let message_id = {
             let ordinal: i64 = tx
                 .query_row(
@@ -2174,6 +2305,7 @@ impl crate::db::Db {
         expected_binding: &Binding,
         events: &[crate::seam::WorkerEvent],
         completed_listing: Option<&[super::db::WorkspaceEntry]>,
+        tool_events_allowed: bool,
     ) -> Result<EventsOutcome, RequestError> {
         let mut conn = self
             .conn
@@ -2195,7 +2327,7 @@ impl crate::db::Db {
                 return Err(RequestError::new("run is not active", 409));
             }
         }
-        let now = now_ms();
+        let now = self.clock_now();
         let mut stored = vec![];
         let mut terminal = false;
         for event in events {
@@ -2223,16 +2355,25 @@ impl crate::db::Db {
             }
             let payload = serde_json::to_string(&event.payload)
                 .map_err(|_| RequestError::new("bad event payload", 500))?;
+            // The seam spec marks provider_session.bound "never a
+            // client-visible field"; store it as diagnostic going forward
+            // (the stream also excludes it by kind — defense in depth).
+            let visibility = if event.event_type == "provider_session.bound" {
+                "diagnostic"
+            } else {
+                "user"
+            };
             tx.execute(
                 "INSERT INTO run_events
-                 (id, workspace_id, conversation_id, run_id, version, kind, source_key, visibility, payload_json, created_at)
-                 VALUES (?1, 'default', ?2, ?3, 1, ?4, ?5, 'user', ?6, ?7)",
+                 (id, workspace_id, conversation_id, run_id, version, kind, source_key, visibility, actor, payload_json, created_at)
+                 VALUES (?1, 'default', ?2, ?3, 1, ?4, ?5, ?6, 'worker', ?7, ?8)",
                 rusqlite::params![
                     row_id,
                     run.conversation_id,
                     run_id,
                     event.event_type,
                     dedupe,
+                    visibility,
                     payload,
                     now
                 ],
@@ -2249,6 +2390,7 @@ impl crate::db::Db {
                 &event.payload,
                 expected_binding,
                 completed_listing,
+                tool_events_allowed,
             )?;
             if event.event_type == "run.terminated" {
                 terminal = true;
@@ -2274,8 +2416,9 @@ impl crate::db::Db {
         payload: &serde_json::Value,
         expected_binding: &Binding,
         completed_listing: Option<&[super::db::WorkspaceEntry]>,
+        tool_events_allowed: bool,
     ) -> Result<(), RequestError> {
-        let now = now_ms();
+        let now = self.clock_now();
         let text_of = |key: &str| {
             payload
                 .get(key)
@@ -2284,9 +2427,15 @@ impl crate::db::Db {
                 .to_string()
         };
         match event_type {
-            "run.started" => self.record_milestone_locked(tx, run_id, "run.started")?,
-            "run.restored" => self.record_milestone_locked(tx, run_id, "run.restored")?,
-            "run.thinking" => self.record_milestone_locked(tx, run_id, "run.thinking")?,
+            "run.started" => {
+                self.record_milestone_locked(tx, run_id, "run.started", Some("worker"))?
+            }
+            "run.restored" => {
+                self.record_milestone_locked(tx, run_id, "run.restored", Some("worker"))?
+            }
+            "run.thinking" => {
+                self.record_milestone_locked(tx, run_id, "run.thinking", Some("worker"))?
+            }
             "run.answer_delta" => {
                 let text = text_of("text");
                 if !text.is_empty() {
@@ -2301,11 +2450,15 @@ impl crate::db::Db {
                 )
                 .map_err(|e| RequestError::new(format!("set activity: {e}"), 500))?;
             }
-            "run.saving" => self.record_milestone_locked(tx, run_id, "run.saving")?,
+            "run.saving" => {
+                self.record_milestone_locked(tx, run_id, "run.saving", Some("worker"))?
+            }
             // run.artifacts_delivered is applied when the delivery is
             // accepted (store_delivered_artifacts), not here.
             "run.artifacts_delivered" => {}
-            "run.interrupted" => self.record_milestone_locked(tx, run_id, "run.interrupted")?,
+            "run.interrupted" => {
+                self.record_milestone_locked(tx, run_id, "run.interrupted", Some("worker"))?
+            }
             "provider_session.bound" => {
                 let binding = payload
                     .get("binding")
@@ -2362,12 +2515,25 @@ impl crate::db::Db {
                 )
                 .map_err(|e| RequestError::new(format!("bind session: {e}"), 500))?;
             }
+            "tool.call_started" | "tool.call_finished" => {
+                // Tool-call events exist only on worker-seam/2. A worker on
+                // an older negotiated protocol that sends one is violating
+                // its session contract: fail the turn closed rather than
+                // journal half a step.
+                if !tool_events_allowed {
+                    return Err(RequestError::new(
+                        "tool events require worker-seam/2; the worker negotiated an older protocol",
+                        400,
+                    ));
+                }
+                self.apply_tool_event_locked(tx, run_id, event_type, payload, now)?;
+            }
             "run.completed" => {
                 let listing = completed_listing.ok_or_else(|| {
                     RequestError::new("worker completed without a workspace snapshot", 500)
                 })?;
                 self.set_run_status_locked(tx, run_id, RunStatus::Completed, None)?;
-                self.record_milestone_locked(tx, run_id, "run.completed")?;
+                self.record_milestone_locked(tx, run_id, "run.completed", Some("worker"))?;
                 self.finalize_response_message_locked(tx, run_id, "complete")?;
                 let bytes = serde_json::to_vec(listing)
                     .map_err(|_| RequestError::new("encode snapshot", 500))?;
@@ -2399,7 +2565,7 @@ impl crate::db::Db {
                     rusqlite::params![stage, run_id],
                 )
                 .map_err(|e| RequestError::new(format!("set failure stage: {e}"), 500))?;
-                self.record_milestone_locked(tx, run_id, "run.failed")?;
+                self.record_milestone_locked(tx, run_id, "run.failed", Some("worker"))?;
                 self.finalize_response_message_locked(tx, run_id, "failed")?;
                 // Continuation is derived: the failed run above flips the
                 // conversation to 'unavailable' on the next read.
@@ -2418,7 +2584,7 @@ impl crate::db::Db {
                     rusqlite::params![stage, run_id],
                 )
                 .map_err(|e| RequestError::new(format!("set failure stage: {e}"), 500))?;
-                self.record_milestone_locked(tx, run_id, "run.cancelled")?;
+                self.record_milestone_locked(tx, run_id, "run.cancelled", Some("worker"))?;
                 self.finalize_response_message_locked(tx, run_id, "failed")?;
                 // Continuation is derived: the cancelled run above flips the
                 // conversation to 'unavailable' on the next read.
@@ -2441,7 +2607,7 @@ impl crate::db::Db {
                 if !run.status.is_terminal() {
                     let msg = "The task could not finish. Check that the local VM is running and your Codex subscription is connected, start a new chat to continue. Earlier saved files remain available.";
                     self.set_run_status_locked(tx, run_id, RunStatus::Failed, Some(msg))?;
-                    self.record_milestone_locked(tx, run_id, "run.failed")?;
+                    self.record_milestone_locked(tx, run_id, "run.failed", Some("worker"))?;
                     self.finalize_response_message_locked(tx, run_id, "failed")?;
                     // Continuation is derived: the failed run above flips the
                     // conversation to 'unavailable' on the next read.
@@ -2454,7 +2620,7 @@ impl crate::db::Db {
                 } else if !cleanup_ok {
                     let msg = "Task ended, but cleanup needs attention. Restart the local service before continuing.";
                     self.set_run_status_locked(tx, run_id, RunStatus::Failed, Some(msg))?;
-                    self.record_milestone_locked(tx, run_id, "run.failed")?;
+                    self.record_milestone_locked(tx, run_id, "run.failed", Some("worker"))?;
                     // Continuation is derived: the failed run above flips the
                     // conversation to 'unavailable' on the next read.
                     tx.execute(
@@ -2501,7 +2667,7 @@ impl crate::db::Db {
                     if digest.is_empty() || digest.len() > 128 {
                         return Err(RequestError::new("run.resumed requires a digest", 400));
                     }
-                    self.lease_note_observed_locked(tx, digest, now)
+                    self.lease_note_observed_locked(tx, digest, now, Some(run_id))
                         .map_err(|e| RequestError::new(format!("{e:?}"), e.status()))?;
                 } else if !other.starts_with("approval.") {
                     return Err(RequestError::new(
@@ -2511,6 +2677,292 @@ impl crate::db::Db {
                 }
             }
         }
+        Ok(())
+    }
+
+    // ------------------------------------------------------- tool steps
+
+    /// Validate a worker-seam/2 tool event and project it onto `tool_steps`.
+    /// The caller journalled the event row in the same transaction, so the
+    /// journal and the projection commit atomically and can never diverge.
+    fn apply_tool_event_locked(
+        &self,
+        tx: &rusqlite::Transaction,
+        run_id: &str,
+        event_type: &str,
+        payload: &serde_json::Value,
+        now: i64,
+    ) -> Result<(), RequestError> {
+        match event_type {
+            "tool.call_started" => self.start_tool_step_locked(tx, run_id, payload, now),
+            "tool.call_finished" => self.finish_tool_step_locked(tx, run_id, payload, now),
+            _ => Err(RequestError::new("not a tool event", 500)),
+        }
+    }
+
+    /// Locked: project a `tool.call_started` event onto `tool_steps`. A
+    /// retried start with the same `call_key` returns the existing row (the
+    /// worker's stable UUID makes the retry the same call); the first write
+    /// wins and differing fields on the retry are ignored.
+    fn start_tool_step_locked(
+        &self,
+        tx: &rusqlite::Transaction,
+        run_id: &str,
+        payload: &serde_json::Value,
+        now: i64,
+    ) -> Result<(), RequestError> {
+        let bounded = |key: &str, max: usize| -> Result<String, RequestError> {
+            let v = payload.get(key).and_then(|v| v.as_str()).ok_or_else(|| {
+                RequestError::new(format!("tool.call_started requires {key}"), 400)
+            })?;
+            if v.is_empty() || v.len() > max {
+                return Err(RequestError::new(
+                    format!("tool.call_started: {key} must be 1..={max} chars"),
+                    400,
+                ));
+            }
+            Ok(v.to_string())
+        };
+        let call_key = bounded("call_key", 128)?;
+        let tool_name = bounded("tool_name", 128)?;
+        let title = bounded("title", 256)?;
+        let parent_step_id: Option<String> = match payload.get("parent_call_key") {
+            None | Some(serde_json::Value::Null) => None,
+            Some(v) => {
+                let pk = v.as_str().ok_or_else(|| {
+                    RequestError::new("tool.call_started: parent_call_key must be a string", 400)
+                })?;
+                let id: Option<String> = tx
+                    .query_row(
+                        "SELECT id FROM tool_steps
+                         WHERE workspace_id='default' AND run_id=?1 AND call_key=?2",
+                        rusqlite::params![run_id, pk],
+                        |r| r.get(0),
+                    )
+                    .optional()
+                    .map_err(|e| RequestError::new(format!("db: {e}"), 500))?;
+                Some(id.ok_or_else(|| {
+                    RequestError::new("tool.call_started: unknown parent_call_key", 400)
+                })?)
+            }
+        };
+        // Gated tool: the referenced approval must exist, be approved, and
+        // have had its single-use execution ticket consumed (dispatched).
+        // Approvals are the authorization authority; the step is only the
+        // execution record. A start without that proof fails closed.
+        let approval_id = payload.get("approval_id").and_then(|v| v.as_str());
+        if let Some(aid) = approval_id {
+            let row: Option<(String, Option<i64>)> = tx
+                .query_row(
+                    "SELECT state, consumed_at FROM approvals
+                     WHERE workspace_id='default' AND id=?1",
+                    rusqlite::params![aid],
+                    |r| Ok((r.get(0)?, r.get(1)?)),
+                )
+                .optional()
+                .map_err(|e| RequestError::new(format!("db: {e}"), 500))?;
+            let (state, consumed) = row
+                .ok_or_else(|| RequestError::new("tool.call_started: unknown approval_id", 400))?;
+            if state != ApprovalState::Approved.as_str() || consumed.is_none() {
+                return Err(RequestError::new(
+                    "tool.call_started: gated tool start requires an approved, consumed approval",
+                    400,
+                ));
+            }
+        }
+        let ordinal: i64 = tx
+            .query_row(
+                "SELECT COALESCE(MAX(ordinal),0)+1 FROM tool_steps
+                 WHERE workspace_id='default' AND run_id=?1",
+                rusqlite::params![run_id],
+                |r| r.get(0),
+            )
+            .map_err(|e| RequestError::new(format!("db: {e}"), 500))?;
+        tx.execute(
+            "INSERT INTO tool_steps
+             (workspace_id, run_id, id, call_key, parent_step_id, ordinal,
+              tool_name, title, approval_id, state, started_at)
+             VALUES ('default', ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, 'running', ?9)
+             ON CONFLICT(workspace_id, run_id, call_key) DO NOTHING",
+            rusqlite::params![
+                run_id,
+                crate::domain::new_uuid(),
+                call_key,
+                parent_step_id,
+                ordinal,
+                tool_name,
+                title,
+                approval_id,
+                now
+            ],
+        )
+        .map_err(|e| RequestError::new(format!("start tool step: {e}"), 500))?;
+        Ok(())
+    }
+
+    /// Locked: project a `tool.call_finished` event onto `tool_steps`. An
+    /// unknown `call_key` fails closed — the projection is the execution
+    /// record, and a finish with no start is a worker bug, not a row to
+    /// invent. A finish for an already-terminal step is a no-op: the first
+    /// write wins (exact redelivery is already deduped at the event layer
+    /// by event id).
+    fn finish_tool_step_locked(
+        &self,
+        tx: &rusqlite::Transaction,
+        run_id: &str,
+        payload: &serde_json::Value,
+        now: i64,
+    ) -> Result<(), RequestError> {
+        let call_key = payload
+            .get("call_key")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| RequestError::new("tool.call_finished requires call_key", 400))?;
+        let state = payload
+            .get("state")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| RequestError::new("tool.call_finished requires state", 400))?;
+        if !matches!(state, "completed" | "failed" | "cancelled") {
+            return Err(RequestError::new(
+                "tool.call_finished: state must be completed, failed, or cancelled",
+                400,
+            ));
+        }
+        let result_json: Option<String> = match payload.get("result_json") {
+            None | Some(serde_json::Value::Null) => None,
+            Some(v) => {
+                let s = serde_json::to_string(v)
+                    .map_err(|_| RequestError::new("tool.call_finished: bad result_json", 400))?;
+                if s.len() > 65536 {
+                    return Err(RequestError::new(
+                        "tool.call_finished: result_json exceeds 65536 bytes",
+                        400,
+                    ));
+                }
+                Some(s)
+            }
+        };
+        let output_blob_id = payload.get("output_blob_id").and_then(|v| v.as_str());
+        if let Some(bid) = output_blob_id {
+            let exists: Option<i64> = tx
+                .query_row(
+                    "SELECT 1 FROM blobs WHERE workspace_id='default' AND id=?1",
+                    rusqlite::params![bid],
+                    |r| r.get(0),
+                )
+                .optional()
+                .map_err(|e| RequestError::new(format!("db: {e}"), 500))?;
+            if exists.is_none() {
+                return Err(RequestError::new(
+                    "tool.call_finished: unknown output_blob_id",
+                    400,
+                ));
+            }
+        }
+        let existing: Option<(String, String)> = tx
+            .query_row(
+                "SELECT id, state FROM tool_steps
+                 WHERE workspace_id='default' AND run_id=?1 AND call_key=?2",
+                rusqlite::params![run_id, call_key],
+                |r| Ok((r.get(0)?, r.get(1)?)),
+            )
+            .optional()
+            .map_err(|e| RequestError::new(format!("db: {e}"), 500))?;
+        let (id, current) = existing
+            .ok_or_else(|| RequestError::new("tool.call_finished: unknown_call_key", 400))?;
+        if current != "running" {
+            return Ok(());
+        }
+        tx.execute(
+            "UPDATE tool_steps SET state=?1, result_json=?2, output_blob_id=?3, finished_at=?4
+             WHERE workspace_id='default' AND run_id=?5 AND id=?6 AND state='running'",
+            rusqlite::params![state, result_json, output_blob_id, now, run_id, id],
+        )
+        .map_err(|e| RequestError::new(format!("finish tool step: {e}"), 500))?;
+        Ok(())
+    }
+
+    /// Locked: (tool_name, title) for a service-written approval step,
+    /// derived from the approval's proposed action.
+    fn approval_step_source_locked(
+        &self,
+        tx: &rusqlite::Transaction,
+        approval_id: &str,
+    ) -> Result<(String, String), String> {
+        let (action_json, description_user): (String, String) = tx
+            .query_row(
+                "SELECT action_json, description_user FROM approvals
+                 WHERE workspace_id='default' AND id=?1",
+                rusqlite::params![approval_id],
+                |r| Ok((r.get(0)?, r.get(1)?)),
+            )
+            .map_err(|e| format!("approval step source: {e}"))?;
+        let tool_name = serde_json::from_str::<serde_json::Value>(&action_json)
+            .ok()
+            .and_then(|v| {
+                v.get("tool")
+                    .and_then(|t| t.as_str())
+                    .filter(|t| !t.is_empty())
+                    .map(|t| t.to_string())
+            })
+            .unwrap_or_else(|| "tool".to_string());
+        let title = crate::domain::truncate_chars(description_user.trim(), 256);
+        let title = if title.is_empty() {
+            "(approval)".to_string()
+        } else {
+            title
+        };
+        Ok((crate::domain::truncate_chars(&tool_name, 128), title))
+    }
+
+    /// Locked: project a service-written terminal step for a settled
+    /// approval — `denied` on an explicit decision, `cancelled` on expiry,
+    /// takeover, revoke, or restart recovery. The caller settles the
+    /// approval in the same transaction, so the authorization record and
+    /// the execution-history record commit together. Idempotent on
+    /// (workspace_id, run_id, call_key): concurrent settlement paths (a
+    /// decision racing the expiry sweep) can never create two steps for one
+    /// approval.
+    #[allow(clippy::too_many_arguments)]
+    fn record_approval_step_locked(
+        &self,
+        tx: &rusqlite::Transaction,
+        run_id: &str,
+        approval_id: &str,
+        tool_name: &str,
+        title: &str,
+        state: &str,
+        now: i64,
+    ) -> Result<(), String> {
+        debug_assert!(matches!(state, "denied" | "cancelled"));
+        let ordinal: i64 = tx
+            .query_row(
+                "SELECT COALESCE(MAX(ordinal),0)+1 FROM tool_steps
+                 WHERE workspace_id='default' AND run_id=?1",
+                rusqlite::params![run_id],
+                |r| r.get(0),
+            )
+            .map_err(|e| format!("step ordinal: {e}"))?;
+        let result_json = serde_json::json!({"approval_state": state}).to_string();
+        tx.execute(
+            "INSERT INTO tool_steps
+             (workspace_id, run_id, id, call_key, parent_step_id, ordinal,
+              tool_name, title, approval_id, state, result_json, started_at, finished_at)
+             VALUES ('default', ?1, ?2, ?3, NULL, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?10)
+             ON CONFLICT(workspace_id, run_id, call_key) DO NOTHING",
+            rusqlite::params![
+                run_id,
+                crate::domain::new_uuid(),
+                format!("approval:{approval_id}"),
+                ordinal,
+                tool_name,
+                title,
+                approval_id,
+                state,
+                result_json,
+                now
+            ],
+        )
+        .map_err(|e| format!("record approval step: {e}"))?;
         Ok(())
     }
 
@@ -2589,7 +3041,7 @@ impl crate::db::Db {
         for (name, bytes) in &entries {
             self.attach_artifact_locked(&tx, run_id, name, bytes)?;
         }
-        self.record_milestone_locked(&tx, run_id, "run.artifacts_delivered")?;
+        self.record_milestone_locked(&tx, run_id, "run.artifacts_delivered", Some("worker"))?;
         tx.commit()
             .map_err(|e| RequestError::new(format!("commit artifacts: {e}"), 500))?;
         Ok(())
@@ -2606,7 +3058,7 @@ impl crate::db::Db {
         if !run.status.is_terminal() {
             self.set_run_status_locked(&tx, run_id, RunStatus::Interrupted, Some(error))
                 .map_err(|e| format!("mark interrupted: {e}"))?;
-            self.record_milestone_locked(&tx, run_id, "run.interrupted")
+            self.record_milestone_locked(&tx, run_id, "run.interrupted", Some("service"))
                 .map_err(|e| format!("record milestone: {e}"))?;
             self.finalize_response_message_locked(&tx, run_id, "failed")
                 .map_err(|e| format!("finalize message: {e}"))?;
@@ -2877,7 +3329,7 @@ impl crate::db::Db {
             rusqlite::params![activity, run_id],
         )
         .map_err(|e| RequestError::new(format!("set activity: {e}"), 500))?;
-        self.record_milestone_locked(&tx, run_id, "run.failed")?;
+        self.record_milestone_locked(&tx, run_id, "run.failed", Some("service"))?;
         tx.commit()
             .map_err(|e| RequestError::new(format!("commit precheck: {e}"), 500))?;
         Ok(())
@@ -3542,6 +3994,49 @@ impl Db {
         Ok(())
     }
 
+    /// Locked: journal the run_events projection of a run-affecting lease
+    /// transition. The event stream serves run_events rows only (one
+    /// sequence space, one cursor); this is that projection, written in the
+    /// same transaction as the lease change so the two can never disagree.
+    /// Idle-host transitions (auto-release) pass no run and stay
+    /// lease_events / GET /lease only, by design — the streamed invariant
+    /// is that every row belongs to a run.
+    fn journal_lease_stream_row_locked(
+        &self,
+        tx: &rusqlite::Transaction,
+        run_id: &str,
+        kind: &str,
+        generation: i64,
+        actor: &str,
+        payload: &serde_json::Value,
+    ) -> Result<(), String> {
+        let conversation_id: String = tx
+            .query_row(
+                "SELECT conversation_id FROM runs WHERE workspace_id='default' AND id=?1",
+                params![run_id],
+                |r| r.get(0),
+            )
+            .map_err(|e| format!("lease stream run lookup: {e}"))?;
+        let id = format!("{run_id}:{kind}:{generation}");
+        tx.execute(
+            "INSERT OR IGNORE INTO run_events
+             (id, workspace_id, conversation_id, run_id, version, kind, source_key,
+              visibility, actor, payload_json, created_at)
+             VALUES (?1, 'default', ?2, ?3, 1, ?4, ?1, 'user', ?5, ?6, ?7)",
+            params![
+                id,
+                conversation_id,
+                run_id,
+                kind,
+                actor,
+                payload.to_string(),
+                self.clock_now()
+            ],
+        )
+        .map_err(|e| format!("lease stream row: {e}"))?;
+        Ok(())
+    }
+
     /// Locked: release a stale hold (heartbeat older than the TTL). Returns
     /// true when it released one. The generation bumps so a zombie holder's
     /// next heartbeat is rejected as stale, not silently re-accepted.
@@ -3610,10 +4105,15 @@ impl Db {
     /// against is gone), and when the lease was `pausing` the caller must
     /// cancel the live turn. Anyone may take over — seizing control from a
     /// stuck holder is the point.
+    /// `stream_run`: the run the takeover cancels, if any. Its
+    /// `lease.takeover` row is journalled into run_events (the stream
+    /// projection) in the same transaction; `None` journals the lease
+    /// event only.
     pub fn lease_takeover(
         &self,
         device_id: &str,
         has_active_turn: bool,
+        stream_run: Option<&str>,
     ) -> Result<LeaseOutcome, LeaseError> {
         let mut conn = self.lock_conn()?;
         let tx = conn
@@ -3651,8 +4151,14 @@ impl Db {
                 id,
                 "approval.revoked",
                 &serde_json::json!({"reason": "lease_takeover", "by": device_id}),
+                "service",
             )
             .map_err(LeaseError::Internal)?;
+            let (tool_name, title) = self
+                .approval_step_source_locked(&tx, id)
+                .map_err(LeaseError::Internal)?;
+            self.record_approval_step_locked(&tx, run_id, id, &tool_name, &title, "cancelled", now)
+                .map_err(LeaseError::Internal)?;
         }
         self.record_lease_event_locked(
             &tx,
@@ -3665,6 +4171,21 @@ impl Db {
                 "had_active_turn": has_active_turn,
             }),
         )?;
+        if let Some(run_id) = stream_run {
+            self.journal_lease_stream_row_locked(
+                &tx,
+                run_id,
+                "lease.takeover",
+                generation,
+                &format!("device:{device_id}"),
+                &serde_json::json!({
+                    "from_state": lease.state.as_str(),
+                    "to_state": state.as_str(),
+                    "had_active_turn": has_active_turn,
+                }),
+            )
+            .map_err(LeaseError::Internal)?;
+        }
         tx.commit()
             .map_err(|e| LeaseError::Internal(format!("commit takeover: {e}")))?;
         Ok(LeaseOutcome {
@@ -3691,6 +4212,7 @@ impl Db {
         &self,
         device_id: &str,
         expected_generation: i64,
+        stream_run: Option<&str>,
     ) -> Result<LeaseOutcome, LeaseError> {
         let mut conn = self.lock_conn()?;
         let tx = conn
@@ -3726,6 +4248,17 @@ impl Db {
             Some(device_id),
             &serde_json::json!({}),
         )?;
+        if let Some(run_id) = stream_run {
+            self.journal_lease_stream_row_locked(
+                &tx,
+                run_id,
+                "lease.takeover_ack",
+                generation,
+                &format!("device:{device_id}"),
+                &serde_json::json!({"generation": generation}),
+            )
+            .map_err(LeaseError::Internal)?;
+        }
         tx.commit()
             .map_err(|e| LeaseError::Internal(format!("commit takeover ack: {e}")))?;
         Ok(LeaseOutcome::plain(LeaseRow {
@@ -3762,6 +4295,7 @@ impl Db {
         &self,
         device_id: &str,
         expected_generation: i64,
+        stream_run: Option<&str>,
     ) -> Result<LeaseOutcome, LeaseError> {
         let mut conn = self.lock_conn()?;
         let tx = conn
@@ -3797,6 +4331,17 @@ impl Db {
             Some(device_id),
             &serde_json::json!({}),
         )?;
+        if let Some(run_id) = stream_run {
+            self.journal_lease_stream_row_locked(
+                &tx,
+                run_id,
+                "lease.private_begin",
+                generation,
+                &format!("device:{device_id}"),
+                &serde_json::json!({"generation": generation}),
+            )
+            .map_err(LeaseError::Internal)?;
+        }
         tx.commit()
             .map_err(|e| LeaseError::Internal(format!("commit private begin: {e}")))?;
         Ok(LeaseOutcome::plain(LeaseRow {
@@ -3813,6 +4358,7 @@ impl Db {
         &self,
         device_id: &str,
         expected_generation: i64,
+        stream_run: Option<&str>,
     ) -> Result<LeaseOutcome, LeaseError> {
         let mut conn = self.lock_conn()?;
         let tx = conn
@@ -3848,6 +4394,17 @@ impl Db {
             Some(device_id),
             &serde_json::json!({}),
         )?;
+        if let Some(run_id) = stream_run {
+            self.journal_lease_stream_row_locked(
+                &tx,
+                run_id,
+                "lease.private_end",
+                generation,
+                &format!("device:{device_id}"),
+                &serde_json::json!({"generation": generation}),
+            )
+            .map_err(LeaseError::Internal)?;
+        }
         tx.commit()
             .map_err(|e| LeaseError::Internal(format!("commit private end: {e}")))?;
         Ok(LeaseOutcome::plain(LeaseRow {
@@ -3865,6 +4422,7 @@ impl Db {
         &self,
         device_id: &str,
         expected_generation: i64,
+        stream_run: Option<&str>,
     ) -> Result<LeaseOutcome, LeaseError> {
         let mut conn = self.lock_conn()?;
         let tx = conn
@@ -3905,6 +4463,17 @@ impl Db {
             Some(device_id),
             &serde_json::json!({}),
         )?;
+        if let Some(run_id) = stream_run {
+            self.journal_lease_stream_row_locked(
+                &tx,
+                run_id,
+                "lease.resume",
+                generation,
+                &format!("device:{device_id}"),
+                &serde_json::json!({"generation": generation}),
+            )
+            .map_err(LeaseError::Internal)?;
+        }
         tx.commit()
             .map_err(|e| LeaseError::Internal(format!("commit resume: {e}")))?;
         Ok(LeaseOutcome::plain(LeaseRow {
@@ -3979,7 +4548,7 @@ impl Db {
             .transaction()
             .map_err(|e| LeaseError::Internal(format!("db: {e}")))?;
         let now = self.clock_now();
-        let generation = self.lease_note_observed_locked(&tx, observation_digest, now)?;
+        let generation = self.lease_note_observed_locked(&tx, observation_digest, now, None)?;
         tx.commit()
             .map_err(|e| LeaseError::Internal(format!("commit observed: {e}")))?;
         Ok(LeaseOutcome::plain(LeaseRow {
@@ -3998,6 +4567,7 @@ impl Db {
         tx: &rusqlite::Transaction,
         observation_digest: &str,
         now: i64,
+        stream_run: Option<&str>,
     ) -> Result<i64, LeaseError> {
         self.lease_auto_release_locked(tx, now)?;
         let lease = self.lease_row_locked(tx)?;
@@ -4029,6 +4599,29 @@ impl Db {
             None,
             &serde_json::json!({}),
         )?;
+        if let Some(run_id) = stream_run {
+            self.journal_lease_stream_row_locked(
+                tx,
+                run_id,
+                "lease.observed",
+                generation,
+                "worker",
+                &serde_json::json!({
+                    "observation_digest": observation_digest,
+                    "generation": generation,
+                }),
+            )
+            .map_err(LeaseError::Internal)?;
+            self.journal_lease_stream_row_locked(
+                tx,
+                run_id,
+                "lease.resumed",
+                generation,
+                "worker",
+                &serde_json::json!({"generation": generation}),
+            )
+            .map_err(LeaseError::Internal)?;
+        }
         Ok(generation)
     }
 
@@ -4037,11 +4630,15 @@ impl Db {
     /// generation still bumps — fencing is monotonic, never reused. This
     /// never deletes a device; re-pairing stays the explicit on-host CLI
     /// path.
+    /// `stream_run`: the run affected by the revoke, if any — journalled
+    /// into run_events (kind `lease.released`, the lease event's kind) in
+    /// the same transaction.
     pub fn lease_revoke(
         &self,
         device_id: &str,
         reason: &str,
         expected_generation: i64,
+        stream_run: Option<&str>,
     ) -> Result<LeaseOutcome, LeaseError> {
         let mut conn = self.lock_conn()?;
         let tx = conn
@@ -4071,8 +4668,14 @@ impl Db {
                 id,
                 "approval.revoked",
                 &serde_json::json!({"reason": "lease_revoked", "by": device_id}),
+                "service",
             )
             .map_err(LeaseError::Internal)?;
+            let (tool_name, title) = self
+                .approval_step_source_locked(&tx, id)
+                .map_err(LeaseError::Internal)?;
+            self.record_approval_step_locked(&tx, run_id, id, &tool_name, &title, "cancelled", now)
+                .map_err(LeaseError::Internal)?;
         }
         tx.execute(
             "UPDATE computer_leases SET generation=?1, holder_device_id=NULL, state='agent',
@@ -4092,6 +4695,20 @@ impl Db {
                 "previous_holder": lease.holder_device_id,
             }),
         )?;
+        if let Some(run_id) = stream_run {
+            self.journal_lease_stream_row_locked(
+                &tx,
+                run_id,
+                "lease.released",
+                generation,
+                &format!("device:{device_id}"),
+                &serde_json::json!({
+                    "reason": reason,
+                    "previous_state": lease.state.as_str(),
+                }),
+            )
+            .map_err(LeaseError::Internal)?;
+        }
         tx.commit()
             .map_err(|e| LeaseError::Internal(format!("commit lease revoke: {e}")))?;
         Ok(LeaseOutcome {
@@ -4148,6 +4765,7 @@ impl Db {
         approval_id: &str,
         kind: &str,
         payload: &serde_json::Value,
+        actor: &str,
     ) -> Result<(), String> {
         let conversation_id: String = tx
             .query_row(
@@ -4160,13 +4778,14 @@ impl Db {
         tx.execute(
             "INSERT OR IGNORE INTO run_events
              (id, workspace_id, conversation_id, run_id, version, kind, source_key,
-              visibility, payload_json, created_at)
-             VALUES (?1, 'default', ?2, ?3, 1, ?4, ?1, 'user', ?5, ?6)",
+              visibility, actor, payload_json, created_at)
+             VALUES (?1, 'default', ?2, ?3, 1, ?4, ?1, 'user', ?5, ?6, ?7)",
             params![
                 id,
                 conversation_id,
                 run_id,
                 kind,
+                actor,
                 payload.to_string(),
                 self.clock_now()
             ],
@@ -4274,6 +4893,7 @@ impl Db {
                 "expires_at_ms": expires_at,
                 "ttl_ms": proposal.ttl_ms,
             }),
+            "worker",
         )
         .map_err(ProposeError::Internal)?;
         tx.commit()
@@ -4364,6 +4984,22 @@ impl Db {
                 approval_id,
                 "approval.revoked",
                 &serde_json::json!({"reason": "digest_mismatch", "by": device_id}),
+                "service",
+            )
+            .map_err(DecideError::Internal)?;
+            // The revoked proposal gets a cancelled step: the tool it
+            // described will never execute.
+            let (tool_name, title) = self
+                .approval_step_source_locked(&tx, approval_id)
+                .map_err(DecideError::Internal)?;
+            self.record_approval_step_locked(
+                &tx,
+                &row.run_id,
+                approval_id,
+                &tool_name,
+                &title,
+                "cancelled",
+                now,
             )
             .map_err(DecideError::Internal)?;
             tx.commit().map_err(|e| {
@@ -4453,8 +5089,26 @@ impl Db {
                 "action_digest": row.action_digest,
                 "lease_generation": lease.generation,
             }),
+            &format!("device:{device_id}"),
         )
         .map_err(DecideError::Internal)?;
+        // A denial settles exactly one service-written step, linked by
+        // approval_id, in the same transaction as the decision.
+        if state == ApprovalState::Denied {
+            let (tool_name, title) = self
+                .approval_step_source_locked(&tx, approval_id)
+                .map_err(DecideError::Internal)?;
+            self.record_approval_step_locked(
+                &tx,
+                &row.run_id,
+                approval_id,
+                &tool_name,
+                &title,
+                "denied",
+                now,
+            )
+            .map_err(DecideError::Internal)?;
+        }
         tx.commit()
             .map_err(|e| DecideError::Internal(format!("commit decide: {e}")))?;
         Ok(DecidedApproval {
@@ -4499,6 +5153,19 @@ impl Db {
             approval_id,
             "approval.request_timed_out",
             &serde_json::json!({"expired_at_ms": now}),
+            "service",
+        )?;
+        // The expired proposal gets a cancelled step: the tool it described
+        // will never execute.
+        let (tool_name, title) = self.approval_step_source_locked(tx, approval_id)?;
+        self.record_approval_step_locked(
+            tx,
+            &run_id,
+            approval_id,
+            &tool_name,
+            &title,
+            "cancelled",
+            now,
         )?;
         // The run dies closed: a turn that waited on an expired approval is
         // abandoned, not resumed. The supervisor's waiter resolution is the
@@ -4740,6 +5407,17 @@ impl Db {
                 id,
                 "approval.revoked",
                 &serde_json::json!({"reason": "service_restart"}),
+                "service",
+            )?;
+            let (tool_name, title) = self.approval_step_source_locked(&tx, id)?;
+            self.record_approval_step_locked(
+                &tx,
+                run_id,
+                id,
+                &tool_name,
+                &title,
+                "cancelled",
+                now,
             )?;
         }
         // Whatever pending remains gets the normal deadline treatment.
@@ -4794,6 +5472,17 @@ impl Db {
                 id,
                 "approval.revoked",
                 &serde_json::json!({"reason": "service_restart"}),
+                "service",
+            )?;
+            let (tool_name, title) = self.approval_step_source_locked(&tx, id)?;
+            self.record_approval_step_locked(
+                &tx,
+                run_id,
+                id,
+                &tool_name,
+                &title,
+                "cancelled",
+                now,
             )?;
             self.set_run_status_locked(
                 &tx,
@@ -4879,6 +5568,17 @@ impl Db {
                 id,
                 "approval.revoked",
                 &serde_json::json!({"reason": "device_revoked", "device_id": device_id}),
+                "service",
+            )?;
+            let (tool_name, title) = self.approval_step_source_locked(&tx, id)?;
+            self.record_approval_step_locked(
+                &tx,
+                run_id,
+                id,
+                &tool_name,
+                &title,
+                "cancelled",
+                now,
             )?;
         }
         let lease = self

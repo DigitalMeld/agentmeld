@@ -20,6 +20,7 @@ pub fn test_db() -> (Arc<Db>, PathBuf) {
     (Arc::new(db), dir)
 }
 
+#[allow(dead_code)]
 pub fn cleanup(dir: &PathBuf) {
     let _ = std::fs::remove_dir_all(dir);
 }

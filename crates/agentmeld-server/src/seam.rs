@@ -1,14 +1,25 @@
-// worker-seam/1 protocol codec.
+// worker-seam protocol codec (v1 and v2).
 //
 // JSON-lines framing over the Unix socket (1 MiB frame cap) and the typed
 // message inventory from docs/specs/worker-service-seam.md. Worker->service
 // shapes deny unknown fields, matching the schemas' additionalProperties:
 // false (the M0 journal's deny_unknown_fields spirit).
+//
+// worker-seam/2 adds the tool-call event types (`tool.call_started`,
+// `tool.call_finished`) that project onto the `tool_steps` table. The
+// session speaks the version negotiated in the hello (negotiate down,
+// never up); every post-hello frame must carry the negotiated version
+// verbatim.
 
 use serde::{Deserialize, Serialize};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt};
 
-pub const PROTOCOL: &str = "worker-seam/1";
+/// Back-compat alias for the original protocol version.
+pub const PROTOCOL: &str = PROTOCOL_V1;
+pub const PROTOCOL_V1: &str = "worker-seam/1";
+pub const PROTOCOL_V2: &str = "worker-seam/2";
+/// Highest worker-seam version this service speaks.
+pub const MAX_PROTOCOL: &str = PROTOCOL_V2;
 pub const MAX_FRAME_BYTES: usize = 1024 * 1024;
 pub const INPUT_CHUNK_BYTES: usize = 256 * 1024;
 pub const ARTIFACT_TOTAL_CAP_BYTES: u64 = 8 * 1024 * 1024;
@@ -99,8 +110,18 @@ impl<R: tokio::io::AsyncRead + Unpin> FrameReader<R> {
 
 // ------------------------------------------------------------- wire messages
 
-fn protocol_is(v: &str) -> bool {
-    v == PROTOCOL
+/// Negotiate the session protocol from the worker's hello offer. Returns
+/// the version both sides will speak: the offered version when this
+/// service speaks it, otherwise our max when the offer is a newer
+/// worker-seam version (negotiate down, never up). Anything else is a
+/// mismatch and the session is rejected.
+pub fn negotiate_protocol(offered: &str) -> Result<&'static str, String> {
+    match offered {
+        v if v == PROTOCOL_V1 => Ok(PROTOCOL_V1),
+        v if v == PROTOCOL_V2 => Ok(PROTOCOL_V2),
+        v if v.starts_with("worker-seam/") => Ok(MAX_PROTOCOL),
+        _ => Err("protocol mismatch".to_string()),
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -114,14 +135,15 @@ pub struct WorkerHello {
 }
 
 impl WorkerHello {
-    pub fn check(self) -> Result<Self, String> {
-        if !protocol_is(&self.protocol) {
-            return Err("protocol mismatch".to_string());
-        }
+    /// Check the hello and negotiate the session protocol. Returns the
+    /// hello and the negotiated version, which every subsequent frame of
+    /// the session must carry verbatim.
+    pub fn check(self) -> Result<(Self, &'static str), String> {
+        let negotiated = negotiate_protocol(&self.protocol)?;
         if self.msg_type != "worker.session.hello" {
             return Err("bad worker hello".to_string());
         }
-        Ok(self)
+        Ok((self, negotiated))
     }
 }
 
@@ -369,7 +391,6 @@ pub struct ServiceTurnCancel {
 /// Route an incoming worker frame to its typed shape by msg_type.
 #[derive(Debug)]
 pub enum WorkerMessage {
-    Hello(WorkerHello),
     EventsAppend(WorkerEventsAppend),
     InputsFetch(WorkerInputsFetch),
     ArtifactsDeliver(WorkerArtifactsDeliver),
@@ -381,7 +402,25 @@ pub enum WorkerMessage {
 }
 
 impl WorkerMessage {
-    pub fn parse(value: serde_json::Value) -> Result<Self, String> {
+    /// Parse the session hello: negotiates the protocol from the worker's
+    /// offer and returns the hello with the negotiated version.
+    pub fn parse_hello(value: serde_json::Value) -> Result<(WorkerHello, &'static str), String> {
+        let msg_type = value
+            .get("msg_type")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| "missing msg_type".to_string())?;
+        if msg_type != "worker.session.hello" {
+            return Err("bad worker hello".to_string());
+        }
+        let hello =
+            serde_json::from_value::<WorkerHello>(value).map_err(|e| format!("bad hello: {e}"))?;
+        hello.check()
+    }
+
+    /// Parse a post-hello frame. `expected` is the session's negotiated
+    /// protocol: every frame must carry it verbatim, so a worker cannot
+    /// smuggle v2 event types into a v1 session (or vice versa).
+    pub fn parse(value: serde_json::Value, expected: &str) -> Result<Self, String> {
         let msg_type = value
             .get("msg_type")
             .and_then(|v| v.as_str())
@@ -392,15 +431,13 @@ impl WorkerMessage {
             .and_then(|v| v.as_str())
             .map(|s| s.to_string());
         let protocol = value.get("protocol").and_then(|v| v.as_str()).unwrap_or("");
-        if !protocol_is(protocol) {
+        if protocol != expected {
             return Err("protocol mismatch".to_string());
         }
         let parsed = match msg_type.as_str() {
-            "worker.session.hello" => WorkerMessage::Hello(
-                serde_json::from_value::<WorkerHello>(value)
-                    .map_err(|e| format!("bad hello: {e}"))?
-                    .check()?,
-            ),
+            "worker.session.hello" => {
+                return Err("duplicate worker hello".to_string());
+            }
             "worker.events.append" => WorkerMessage::EventsAppend(
                 serde_json::from_value(value).map_err(|e| format!("bad events.append: {e}"))?,
             ),

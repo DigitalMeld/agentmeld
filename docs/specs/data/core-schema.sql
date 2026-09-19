@@ -118,10 +118,10 @@ CREATE TABLE artifact_versions (
 CREATE TABLE tool_steps (
  workspace_id TEXT NOT NULL, run_id TEXT NOT NULL, id TEXT NOT NULL,
  call_key TEXT NOT NULL, parent_step_id TEXT, ordinal INTEGER NOT NULL CHECK(ordinal>0),
- tool_name TEXT NOT NULL, title TEXT NOT NULL,
- state TEXT NOT NULL CHECK(state IN ('proposed','running','completed','failed','denied','cancelled','unknown')),
- result_json TEXT CHECK(result_json IS NULL OR json_valid(result_json)),
- output_blob_id TEXT, started_at INTEGER, finished_at INTEGER,
+ tool_name TEXT NOT NULL, title TEXT NOT NULL, approval_id TEXT,
+ state TEXT NOT NULL CHECK(state IN ('running','completed','failed','denied','cancelled','unknown')),
+ result_json TEXT CHECK(result_json IS NULL OR (json_valid(result_json) AND length(result_json)<=65536)),
+ output_blob_id TEXT, started_at INTEGER NOT NULL, finished_at INTEGER,
  PRIMARY KEY(workspace_id,run_id,id), UNIQUE(workspace_id,run_id,call_key),
  FOREIGN KEY(workspace_id,run_id) REFERENCES runs(workspace_id,id),
  FOREIGN KEY(workspace_id,run_id,parent_step_id) REFERENCES tool_steps(workspace_id,run_id,id),
@@ -131,7 +131,7 @@ CREATE TABLE approvals (
  workspace_id TEXT NOT NULL, run_id TEXT NOT NULL, id TEXT NOT NULL,
  action_digest TEXT NOT NULL, target_json TEXT NOT NULL CHECK(json_valid(target_json)),
  policy_revision INTEGER NOT NULL, grant_revision INTEGER NOT NULL, lease_generation INTEGER NOT NULL,
- state TEXT NOT NULL CHECK(state IN ('pending','approved','denied','expired','consumed','revoked')),
+ state TEXT NOT NULL CHECK(state IN ('pending','approved','denied','expired','revoked')),
  expires_at INTEGER NOT NULL, decided_by TEXT REFERENCES principals(id), decided_at INTEGER,
  created_at INTEGER NOT NULL,
  PRIMARY KEY(workspace_id,id), FOREIGN KEY(workspace_id,run_id) REFERENCES runs(workspace_id,id)

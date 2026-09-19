@@ -22,7 +22,7 @@ use crate::seam::{
     self, ArtifactFile, Binding, FrameReader, ServiceApprovalDecision, ServiceArtifactsStored,
     ServiceError, ServiceEventsStored, ServiceInputsData, ServiceTurnCancel, ServiceTurnStart,
     ServiceWelcome, StoredEvent, StoredFile, TurnStart, WorkerMessage, ARTIFACT_MAX_FILES,
-    ARTIFACT_TOTAL_CAP_BYTES, INPUT_CHUNK_BYTES, MAX_FRAME_BYTES, PROTOCOL,
+    ARTIFACT_TOTAL_CAP_BYTES, INPUT_CHUNK_BYTES, MAX_FRAME_BYTES, PROTOCOL_V1, PROTOCOL_V2,
 };
 
 const HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(15);
@@ -65,6 +65,9 @@ struct ActiveTurn {
     turn_started: bool,
     pending_cancel: bool,
     writer: Option<tokio::net::unix::OwnedWriteHalf>,
+    /// Session protocol negotiated in the worker hello (v1 until the hello
+    /// arrives). Out-of-band frames (e.g. cancel_active_turn) must speak it.
+    protocol: &'static str,
 }
 
 pub struct Supervisor {
@@ -143,7 +146,7 @@ impl Supervisor {
                 return Ok(());
             }
             ServiceTurnCancel {
-                protocol: PROTOCOL,
+                protocol: active.protocol,
                 msg_id: new_msg_id(),
                 msg_type: "service.turn.cancel",
                 run_id: active.run_id.clone(),
@@ -174,6 +177,7 @@ impl Supervisor {
                 turn_started: false,
                 pending_cancel: false,
                 writer: None,
+                protocol: PROTOCOL_V1,
             });
         }
         let outcome = self.run_turn_inner(&ctx).await;
@@ -445,10 +449,7 @@ impl Supervisor {
                 )));
             }
         };
-        let hello = match WorkerMessage::parse(hello_value).map_err(fail)? {
-            WorkerMessage::Hello(h) => h,
-            _ => return Err(fail("bad worker hello".to_string())),
-        };
+        let (hello, negotiated) = WorkerMessage::parse_hello(hello_value).map_err(fail)?;
         // Transport auth: the token is boot-issued (spawn environment,
         // constant-time compare) and the pid must be the spawned child.
         if !constant_time_eq(hello.worker_token.as_bytes(), token.as_bytes()) {
@@ -463,18 +464,18 @@ impl Supervisor {
         }
 
         self.send(&ServiceWelcome {
-            protocol: PROTOCOL,
+            protocol: negotiated,
             in_reply_to: hello.msg_id.clone(),
             msg_type: "service.session.welcome",
             ok: true,
             worker_id: new_uuid(),
-            negotiated_protocol: PROTOCOL,
+            negotiated_protocol: negotiated,
             max_frame_bytes: MAX_FRAME_BYTES,
         })
         .await?;
 
         self.send(&ServiceTurnStart {
-            protocol: PROTOCOL,
+            protocol: negotiated,
             msg_id: new_msg_id(),
             msg_type: "service.turn.start",
             run_id: run_id.to_string(),
@@ -496,6 +497,7 @@ impl Supervisor {
             if let Some(active) = guard.as_mut() {
                 active.turn_started = true;
                 active.pending_cancel = false;
+                active.protocol = negotiated;
             }
             p
         };
@@ -503,7 +505,7 @@ impl Supervisor {
         // turn.start, so the worker winds down through run.cancelled.
         if pending {
             self.send(&ServiceTurnCancel {
-                protocol: PROTOCOL,
+                protocol: negotiated,
                 msg_id: new_msg_id(),
                 msg_type: "service.turn.cancel",
                 run_id: run_id.to_string(),
@@ -527,13 +529,10 @@ impl Supervisor {
                 .await
                 .map_err(|e| fail(format!("turn transport: {e}")))?
                 .ok_or_else(|| fail("worker exited mid-turn".to_string()))?;
-            let msg = WorkerMessage::parse(value).map_err(fail)?;
+            let msg = WorkerMessage::parse(value, negotiated).map_err(fail)?;
             // Wrong run or stale generation is an explicit rejection, never
             // silence; without in_reply_to the worker fails the turn closed.
             let (msg_run, msg_gen, msg_id) = match &msg {
-                WorkerMessage::Hello(_) => {
-                    return Err(fail("unexpected hello mid-turn".to_string()))
-                }
                 WorkerMessage::EventsAppend(m) => {
                     (m.run_id.clone(), m.generation, Some(m.msg_id.clone()))
                 }
@@ -548,7 +547,7 @@ impl Supervisor {
                 }
                 WorkerMessage::Unknown { msg_id, .. } => {
                     self.send(&ServiceError {
-                        protocol: PROTOCOL,
+                        protocol: negotiated,
                         in_reply_to: msg_id.clone(),
                         msg_type: "service.error",
                         code: "malformed".to_string(),
@@ -560,7 +559,7 @@ impl Supervisor {
             };
             if msg_run != run_id || msg_gen != generation {
                 self.send(&ServiceError {
-                    protocol: PROTOCOL,
+                    protocol: negotiated,
                     in_reply_to: msg_id,
                     msg_type: "service.error",
                     code: if msg_run != run_id {
@@ -604,6 +603,7 @@ impl Supervisor {
                             binding,
                             &m.events,
                             listing.as_deref(),
+                            negotiated == PROTOCOL_V2,
                         )
                         .map_err(|e| fail(format!("apply events: {}", e.message)))?;
                     let stored: Vec<StoredEvent> = outcome
@@ -616,7 +616,7 @@ impl Supervisor {
                         })
                         .collect();
                     self.send(&ServiceEventsStored {
-                        protocol: PROTOCOL,
+                        protocol: negotiated,
                         in_reply_to: m.msg_id,
                         msg_type: "service.events.stored",
                         server_time_ms: now_ms(),
@@ -646,13 +646,13 @@ impl Supervisor {
                     }
                 }
                 WorkerMessage::InputsFetch(m) => {
-                    self.on_inputs_fetch(blobs, &m).await?;
+                    self.on_inputs_fetch(negotiated, blobs, &m).await?;
                 }
                 WorkerMessage::ArtifactsDeliver(m) => {
                     match self.on_artifacts_deliver(run_id, staging_dir, &m).await {
                         Ok(files) => {
                             self.send(&ServiceArtifactsStored {
-                                protocol: PROTOCOL,
+                                protocol: negotiated,
                                 in_reply_to: m.msg_id,
                                 msg_type: "service.artifacts.stored",
                                 accepted: true,
@@ -672,7 +672,7 @@ impl Supervisor {
                         }
                         Err((code, message)) => {
                             self.send(&ServiceArtifactsStored {
-                                protocol: PROTOCOL,
+                                protocol: negotiated,
                                 in_reply_to: m.msg_id,
                                 msg_type: "service.artifacts.stored",
                                 accepted: false,
@@ -689,9 +689,10 @@ impl Supervisor {
                     // decision. The reply carries the single-use ticket on
                     // approval — over this seam message ONLY, never over
                     // HTTP. Expiry/revocation fail the turn closed.
-                    self.on_approval_request(run_id, generation, &m).await?;
+                    self.on_approval_request(negotiated, run_id, generation, &m)
+                        .await?;
                 }
-                WorkerMessage::Hello(_) | WorkerMessage::Unknown { .. } => unreachable!(),
+                WorkerMessage::Unknown { .. } => unreachable!(),
             }
         }
     }
@@ -706,6 +707,7 @@ impl Supervisor {
     /// revocation fail the turn closed (the run is already terminal).
     async fn on_approval_request(
         &self,
+        negotiated: &'static str,
         run_id: &str,
         generation: i64,
         m: &seam::WorkerApprovalRequest,
@@ -735,7 +737,7 @@ impl Supervisor {
                 // out-of-turn proposal fails the turn closed: the worker
                 // asked for permission it cannot be granted.
                 self.send(&ServiceError {
-                    protocol: PROTOCOL,
+                    protocol: negotiated,
                     in_reply_to: Some(m.msg_id.clone()),
                     msg_type: "service.error",
                     code: e.seam_code().to_string(),
@@ -768,7 +770,7 @@ impl Supervisor {
             ApprovalOutcome::Revoked => ("revoked", proposed.digest.clone(), now_ms(), None),
         };
         self.send(&ServiceApprovalDecision {
-            protocol: PROTOCOL,
+            protocol: negotiated,
             in_reply_to: m.msg_id.clone(),
             msg_type: "service.approval.decision",
             approval_id: proposed.id.clone(),
@@ -806,6 +808,7 @@ impl Supervisor {
 
     async fn on_inputs_fetch(
         &self,
+        negotiated: &'static str,
         blobs: &HashMap<String, Vec<u8>>,
         m: &seam::WorkerInputsFetch,
     ) -> Result<(), SupervisorError> {
@@ -814,7 +817,7 @@ impl Supervisor {
             Some(b) => b,
             None => {
                 self.send(&ServiceError {
-                    protocol: PROTOCOL,
+                    protocol: negotiated,
                     in_reply_to: Some(m.msg_id.clone()),
                     msg_type: "service.error",
                     code: "internal".to_string(),
@@ -832,7 +835,7 @@ impl Supervisor {
         };
         if m.offset < 0 || m.offset > bytes.len() as i64 || length < 1 {
             self.send(&ServiceError {
-                protocol: PROTOCOL,
+                protocol: negotiated,
                 in_reply_to: Some(m.msg_id.clone()),
                 msg_type: "service.error",
                 code: "malformed".to_string(),
@@ -845,7 +848,7 @@ impl Supervisor {
         let end = (m.offset + length).min(bytes.len() as i64) as usize;
         let chunk = &bytes[m.offset as usize..end];
         self.send(&ServiceInputsData {
-            protocol: PROTOCOL,
+            protocol: negotiated,
             in_reply_to: m.msg_id.clone(),
             msg_type: "service.inputs.data",
             digest: m.digest.clone(),
