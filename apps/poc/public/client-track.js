@@ -56,6 +56,8 @@ export function initClientTrack(ctx) {
   let deciding = null;     // approval id with a decision in flight
   const seenSeq = new Set();
   const steps = new Map(); // runId -> Map(callKey -> step)
+  const hydratedRuns = new Set(); // runIds whose persisted steps were fetched
+  const hydrating = new Map(); // runId -> in-flight hydration Promise<boolean>
   let refreshTimer = 0;
   let countdownTimer = 0;
 
@@ -85,6 +87,48 @@ export function initClientTrack(ctx) {
     if (!s) return; // finish-before-start is a worker bug; fail closed, show nothing
     s.state = ['completed', 'failed', 'cancelled'].includes(p.state) ? p.state : 'unknown';
     paintSteps();
+  }
+  // ---- tool-step hydration ------------------------------------------------
+  // After a reload the persisted SSE cursor skips historical tool events,
+  // so the per-run step map starts empty. Backfill it once per run from
+  // the persisted projection (GET /api/v1/runs/{id}/tool_steps). The merge
+  // is insert-if-absent on the worker-stable call_key, so live SSE state
+  // always wins for in-flight steps; the fetch only completes what the
+  // resumed stream skipped. Resolves true when the map gained entries.
+  // A completed fetch is never retried this page load — the SSE stream
+  // stays the live source of truth.
+  async function hydrateSteps(runId) {
+    if (!runId || hydratedRuns.has(runId)) return false;
+    let inflight = hydrating.get(runId);
+    if (!inflight) {
+      inflight = (async () => {
+        try {
+          const res = await api('/api/v1/runs/' + encodeURIComponent(runId) + '/tool_steps');
+          const rows = Array.isArray(res.steps) ? res.steps : [];
+          const m = stepMap(runId, true);
+          let added = false;
+          for (const s of rows) {
+            const key = s && typeof s.call_key === 'string' ? s.call_key : '';
+            if (!key || m.has(key)) continue;
+            m.set(key, {
+              key,
+              tool: String(s.tool || 'tool'),
+              title: String(s.title || ''),
+              state: STEP_STATE_LABEL[s.state] ? s.state : 'unknown',
+            });
+            added = true;
+          }
+          return added;
+        } catch (e) {
+          return false; // keep the SSE-only projection on failure
+        } finally {
+          hydratedRuns.add(runId);
+          hydrating.delete(runId);
+        }
+      })();
+      hydrating.set(runId, inflight);
+    }
+    return inflight;
   }
   // The denied/cancelled projection steps are service-written to the
   // tool_steps table but never streamed; the approval poll carries the
@@ -118,7 +162,11 @@ export function initClientTrack(ctx) {
   }
   function paintSteps() {
     for (const el of document.querySelectorAll('[data-steps-for]')) {
-      const html = stepsHtml(el.getAttribute('data-steps-for'));
+      const runId = el.getAttribute('data-steps-for');
+      // Backfill persisted steps once per run (no-op after the first fetch);
+      // a re-paint applies whatever the fetch added.
+      void hydrateSteps(runId).then(added => { if (added) paintSteps(); });
+      const html = stepsHtml(runId);
       if (el.innerHTML !== html) el.innerHTML = html;
     }
   }
@@ -539,5 +587,5 @@ export function initClientTrack(ctx) {
     }
   });
 
-  return { start, stop, poll, paintAll, stepsHtml };
+  return { start, stop, poll, paintAll, stepsHtml, hydrateSteps };
 }

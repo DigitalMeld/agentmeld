@@ -441,3 +441,140 @@ fn result_size_cap_and_ordinal_monotonic() {
     // The step is still running: the failed finish changed nothing.
     assert_eq!(steps(&db, &run_id)[0].state, "running");
 }
+
+// ------------------------------------------------- HTTP: GET /runs/{id}/tool_steps.
+//
+// The browser hydrates its inline tool-step view from this endpoint after
+// a reload, when the persisted SSE cursor has already skipped the
+// historical tool events.
+
+use agentmeld_server::api::{router, AppState};
+use agentmeld_server::approvals::PendingApprovals;
+use agentmeld_server::auth::Auth;
+use agentmeld_server::supervisor::Supervisor;
+use tower::ServiceExt;
+
+fn http_state(db: Arc<Db>, dir: &std::path::Path) -> AppState {
+    let auth = Arc::new(Auth::new(db.clone()));
+    let pending = Arc::new(PendingApprovals::new());
+    let supervisor = Arc::new(Supervisor::new(
+        db.clone(),
+        dir.to_path_buf(),
+        dir.to_path_buf(),
+        dir.to_path_buf(),
+        pending.clone(),
+    ));
+    let (pump_kick, _rx) = tokio::sync::mpsc::channel(1);
+    AppState {
+        db,
+        auth,
+        supervisor,
+        pending,
+        public_dir: dir.to_path_buf(),
+        host: "127.0.0.1:1".to_string(),
+        origin: "http://127.0.0.1:1".to_string(),
+        pump_kick,
+    }
+}
+
+fn authed_app(state: &AppState) -> (axum::Router, String) {
+    let pairing = state.auth.mint_pairing_token().expect("mint");
+    let (_device, session) = state
+        .auth
+        .pair(&pairing, "hydration probe", None)
+        .expect("pair");
+    (router(state.clone()), session)
+}
+
+async fn get_tool_steps(
+    app: axum::Router,
+    session: &str,
+    run_id: &str,
+) -> (u16, serde_json::Value) {
+    let req = axum::http::Request::builder()
+        .uri(format!("/api/v1/runs/{run_id}/tool_steps"))
+        .header("host", "127.0.0.1:1")
+        .header("authorization", format!("Bearer {session}"))
+        .body(axum::body::Body::empty())
+        .unwrap();
+    let res = app.oneshot(req).await.expect("oneshot");
+    let status = res.status().as_u16();
+    let body = axum::body::to_bytes(res.into_body(), 64 * 1024)
+        .await
+        .expect("body");
+    (status, serde_json::from_slice(&body).expect("json"))
+}
+
+#[tokio::test]
+async fn run_tool_steps_returns_persisted_steps_in_ordinal_order() {
+    let (db, dir) = common::test_db();
+    let (run_id, binding, generation) = setup_running(&db);
+    journal_v2(
+        &db,
+        &run_id,
+        generation,
+        &binding,
+        &[
+            started("k1", "read_file"),
+            finished("k1", "completed"),
+            started("k2", "run_query"),
+        ],
+    );
+
+    let state = http_state(db, &dir);
+    let (app, session) = authed_app(&state);
+    let (status, json) = get_tool_steps(app, &session, &run_id).await;
+    assert_eq!(status, 200);
+    assert_eq!(json["run_id"], run_id);
+    let steps = json["steps"].as_array().expect("steps array");
+    assert_eq!(steps.len(), 2);
+    // Service-assigned ordinal order: k1 finished before k2 started.
+    assert_eq!(steps[0]["call_key"], "k1");
+    assert_eq!(steps[0]["tool"], "read_file");
+    assert_eq!(steps[0]["title"], "run read_file");
+    assert_eq!(steps[0]["state"], "completed");
+    assert_eq!(steps[1]["call_key"], "k2");
+    assert_eq!(steps[1]["tool"], "run_query");
+    assert_eq!(steps[1]["state"], "running");
+    common::cleanup(&dir);
+}
+
+#[tokio::test]
+async fn run_tool_steps_empty_for_run_without_steps() {
+    let (db, dir) = common::test_db();
+    let (run_id, _binding, _generation) = setup_running(&db);
+
+    let state = http_state(db, &dir);
+    let (app, session) = authed_app(&state);
+    let (status, json) = get_tool_steps(app, &session, &run_id).await;
+    assert_eq!(status, 200);
+    assert_eq!(json["run_id"], run_id);
+    assert_eq!(json["steps"].as_array().expect("steps array").len(), 0);
+    common::cleanup(&dir);
+}
+
+#[tokio::test]
+async fn run_tool_steps_unknown_run_is_404() {
+    let (db, dir) = common::test_db();
+    let state = http_state(db, &dir);
+    let (app, session) = authed_app(&state);
+    let (status, json) = get_tool_steps(app, &session, "no-such-run").await;
+    assert_eq!(status, 404);
+    assert_eq!(json["error"], "unknown_run");
+    common::cleanup(&dir);
+}
+
+#[tokio::test]
+async fn run_tool_steps_requires_auth() {
+    let (db, dir) = common::test_db();
+    let state = http_state(db, &dir);
+    let app = router(state);
+    let req = axum::http::Request::builder()
+        .uri("/api/v1/runs/whatever/tool_steps")
+        .header("host", "127.0.0.1:1")
+        .body(axum::body::Body::empty())
+        .unwrap();
+    let res = app.oneshot(req).await.expect("oneshot");
+    assert_eq!(res.status(), 401);
+    common::cleanup(&dir);
+}
