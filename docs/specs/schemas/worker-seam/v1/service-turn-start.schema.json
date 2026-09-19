@@ -1,1 +1,146 @@
-{"$comment":"Traceability: runs and provider_sessions table contracts, the provider start/resume transaction rule, and the contract-map row 'controller lease, generation fencing' (data-model.md; control-core-unification.md §4). Assigns one turn to the worker. Replaces the PoC executeTask(task, changed, control, conversation) arguments: everything the worker needs arrives here, because over IPC it can no longer read the service's in-memory objects. The worker asserts expected_binding against its environment before driving the turn (fail-closed; the PoC's assert block, moved across the seam). Binding verification against the recorded provider_sessions row happens service-side before this message is sent. One turn at a time per worker; turn.start while a turn is active is rejected with turn_in_progress.","$defs":{"uuid":{"pattern":"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$","type":"string"}},"$id":"https://raw.githubusercontent.com/DigitalMeld/agentmeld/main/docs/specs/schemas/worker-seam/v1/service-turn-start.schema.json","$schema":"https://json-schema.org/draft/2020-12/schema","additionalProperties":false,"properties":{"generation":{"description":"Turn generation. Every subsequent worker message carries it; stale generations are rejected, never retried.","minimum":0,"type":"integer"},"msg_id":{"$ref":"#/$defs/uuid"},"protocol":{"const":"worker-seam/1"},"run_id":{"$ref":"#/$defs/uuid"},"turn":{"additionalProperties":false,"properties":{"agent_context":{"description":"Replaces control.agentContext: owner-configured agent instructions prepended to the prompt. 0-8 KiB.","maxLength":8192,"type":"string"},"expected_binding":{"additionalProperties":false,"description":"The exact execution binding the worker must assert before starting (PoC: image digest, store instance, model, policy digest asserts). Mismatch: refuse the turn, append run.failed.","properties":{"image_digest":{"pattern":"^[a-f0-9]{64}$","type":"string"},"model":{"maxLength":64,"minLength":1,"type":"string"},"policy_digest":{"pattern":"^[a-f0-9]{64}$","type":"string"},"store_instance":{"maxLength":128,"minLength":1,"type":"string"}},"required":["image_digest","store_instance","model","policy_digest"],"type":"object"},"inputs_manifest":{"description":"Workspace files and task inputs the worker restores into the container (PoC: [...conversation.workspace, ...task.inputs]). Fetched by digest via worker.inputs.fetch.","items":{"additionalProperties":false,"properties":{"digest":{"pattern":"^[a-f0-9]{64}$","type":"string"},"kind":{"enum":["workspace","attachment"],"type":"string"},"name":{"maxLength":256,"minLength":1,"type":"string"},"size":{"minimum":0,"type":"integer"}},"required":["name","digest","size","kind"],"type":"object"},"maxItems":256,"type":"array"},"lease_generation":{"description":"Current controller-lease generation the turn runs under.","minimum":0,"type":"integer"},"staging_dir":{"description":"Service-created, run-scoped staging directory for artifact output bytes. Worker-writable, service-readable.","maxLength":512,"minLength":1,"type":"string"},"turn_timeout_ms":{"description":"Hard wall-clock budget for the turn; the worker treats expiry as cancellation.","minimum":0,"type":"integer"}},"required":["agent_context","expected_binding","lease_generation","inputs_manifest","staging_dir","turn_timeout_ms"],"type":"object"}},"required":["protocol","msg_id","run_id","generation","turn"],"title":"service.turn.start","type":"object"}
+{
+  "$comment": "Traceability: runs and provider_sessions table contracts, the provider start/resume transaction rule, and the contract-map row 'controller lease, generation fencing' (data-model.md; control-core-unification.md §4). Assigns one turn to the worker. Replaces the PoC executeTask(task, changed, control, conversation) arguments: everything the worker needs arrives here, because over IPC it can no longer read the service's in-memory objects. The worker asserts expected_binding against its environment before driving the turn (fail-closed; the PoC's assert block, moved across the seam). Binding verification against the recorded provider_sessions row happens service-side before this message is sent. One turn at a time per worker; turn.start while a turn is active is rejected with turn_in_progress.",
+  "$defs": {
+    "uuid": {
+      "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+      "type": "string"
+    }
+  },
+  "$id": "https://raw.githubusercontent.com/DigitalMeld/agentmeld/main/docs/specs/schemas/worker-seam/v1/service-turn-start.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "msg_type": {
+      "type": "string",
+      "const": "service.turn.start",
+      "description": "Wire discriminator: names the message type. Added in the Phase 1 edit (2026-09-18); the Phase 0 schemas pinned no discriminator, and service.error already used \"message\" for human-readable text, so routing on \"message\" was impossible."
+    },
+    "generation": {
+      "description": "Turn generation. Every subsequent worker message carries it; stale generations are rejected, never retried.",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "msg_id": {
+      "$ref": "#/$defs/uuid"
+    },
+    "protocol": {
+      "const": "worker-seam/1"
+    },
+    "run_id": {
+      "$ref": "#/$defs/uuid"
+    },
+    "turn": {
+      "additionalProperties": false,
+      "properties": {
+        "agent_context": {
+          "description": "Replaces control.agentContext: owner-configured agent instructions prepended to the prompt. 0-8 KiB.",
+          "maxLength": 8192,
+          "type": "string"
+        },
+        "expected_binding": {
+          "additionalProperties": false,
+          "description": "The exact execution binding the worker must assert before starting (PoC: image digest, store instance, model, policy digest asserts). Mismatch: refuse the turn, append run.failed.",
+          "properties": {
+            "image_digest": {
+              "pattern": "^[a-f0-9]{64}$",
+              "type": "string"
+            },
+            "model": {
+              "maxLength": 64,
+              "minLength": 1,
+              "type": "string"
+            },
+            "policy_digest": {
+              "pattern": "^[a-f0-9]{64}$",
+              "type": "string"
+            },
+            "store_instance": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "image_digest",
+            "store_instance",
+            "model",
+            "policy_digest"
+          ],
+          "type": "object"
+        },
+        "inputs_manifest": {
+          "description": "Workspace files and task inputs the worker restores into the container (PoC: [...conversation.workspace, ...task.inputs]). Fetched by digest via worker.inputs.fetch.",
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "digest": {
+                "pattern": "^[a-f0-9]{64}$",
+                "type": "string"
+              },
+              "kind": {
+                "enum": [
+                  "workspace",
+                  "attachment"
+                ],
+                "type": "string"
+              },
+              "name": {
+                "maxLength": 256,
+                "minLength": 1,
+                "type": "string"
+              },
+              "size": {
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "name",
+              "digest",
+              "size",
+              "kind"
+            ],
+            "type": "object"
+          },
+          "maxItems": 256,
+          "type": "array"
+        },
+        "lease_generation": {
+          "description": "Current controller-lease generation the turn runs under.",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "staging_dir": {
+          "description": "Service-created, run-scoped staging directory for artifact output bytes. Worker-writable, service-readable.",
+          "maxLength": 512,
+          "minLength": 1,
+          "type": "string"
+        },
+        "turn_timeout_ms": {
+          "description": "Hard wall-clock budget for the turn; the worker treats expiry as cancellation.",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "agent_context",
+        "expected_binding",
+        "lease_generation",
+        "inputs_manifest",
+        "staging_dir",
+        "turn_timeout_ms"
+      ],
+      "type": "object"
+    }
+  },
+  "required": [
+    "msg_type",
+    "protocol",
+    "msg_id",
+    "run_id",
+    "generation",
+    "turn"
+  ],
+  "title": "service.turn.start",
+  "type": "object"
+}

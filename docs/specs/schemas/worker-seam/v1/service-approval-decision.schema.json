@@ -1,1 +1,72 @@
-{"$comment":"Traceability: approvals table single-transaction consumption (data-model.md, tool/approval rule). Exactly one reply per request-decision. On approved, ticket is the single-use execution ticket the worker must present when reporting dispatch (approval.dispatched event). The worker verifies action_digest against its own computation; a mismatch is treated as denied and the turn fails (ChangedAction). On expired or denied the worker must not perform the action; the worker's LiveClient onRequest callback answers accordingly and the turn continues or fails per the worker's fail-closed policy.","$defs":{"uuid":{"pattern":"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$","type":"string"}},"$id":"https://raw.githubusercontent.com/DigitalMeld/agentmeld/main/docs/specs/schemas/worker-seam/v1/service-approval-decision.schema.json","$schema":"https://json-schema.org/draft/2020-12/schema","additionalProperties":false,"properties":{"action_digest":{"description":"Service-computed digest of the canonical action. The worker must verify it matches its own computation.","pattern":"^[a-f0-9]{64}$","type":"string"},"approval_id":{"$ref":"#/$defs/uuid"},"decided_at_ms":{"description":"Server time of the decision, informational.","minimum":0,"type":"integer"},"decision":{"enum":["approved","denied","expired"],"type":"string"},"generation":{"minimum":0,"type":"integer"},"in_reply_to":{"$ref":"#/$defs/uuid"},"protocol":{"const":"worker-seam/1"},"run_id":{"$ref":"#/$defs/uuid"},"ticket":{"description":"Present if and only if decision is approved. Single-use; the service rejects reuse.","maxLength":256,"minLength":1,"type":"string"}},"required":["protocol","in_reply_to","approval_id","run_id","generation","decision","action_digest","decided_at_ms"],"title":"service.approval.decision","type":"object"}
+{
+  "$comment": "Traceability: approvals table single-transaction consumption (data-model.md, tool/approval rule). Exactly one reply per request-decision. On approved, ticket is the single-use execution ticket the worker must present when reporting dispatch (approval.dispatched event). The worker verifies action_digest against its own computation; a mismatch is treated as denied and the turn fails (ChangedAction). On expired or denied the worker must not perform the action; the worker's LiveClient onRequest callback answers accordingly and the turn continues or fails per the worker's fail-closed policy.",
+  "$defs": {
+    "uuid": {
+      "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+      "type": "string"
+    }
+  },
+  "$id": "https://raw.githubusercontent.com/DigitalMeld/agentmeld/main/docs/specs/schemas/worker-seam/v1/service-approval-decision.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "msg_type": {
+      "type": "string",
+      "const": "service.approval.decision",
+      "description": "Wire discriminator: names the message type. Added in the Phase 1 edit (2026-09-18); the Phase 0 schemas pinned no discriminator, and service.error already used \"message\" for human-readable text, so routing on \"message\" was impossible."
+    },
+    "action_digest": {
+      "description": "Service-computed digest of the canonical action. The worker must verify it matches its own computation.",
+      "pattern": "^[a-f0-9]{64}$",
+      "type": "string"
+    },
+    "approval_id": {
+      "$ref": "#/$defs/uuid"
+    },
+    "decided_at_ms": {
+      "description": "Server time of the decision, informational.",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "decision": {
+      "enum": [
+        "approved",
+        "denied",
+        "expired"
+      ],
+      "type": "string"
+    },
+    "generation": {
+      "minimum": 0,
+      "type": "integer"
+    },
+    "in_reply_to": {
+      "$ref": "#/$defs/uuid"
+    },
+    "protocol": {
+      "const": "worker-seam/1"
+    },
+    "run_id": {
+      "$ref": "#/$defs/uuid"
+    },
+    "ticket": {
+      "description": "Present if and only if decision is approved. Single-use; the service rejects reuse.",
+      "maxLength": 256,
+      "minLength": 1,
+      "type": "string"
+    }
+  },
+  "required": [
+    "msg_type",
+    "protocol",
+    "in_reply_to",
+    "approval_id",
+    "run_id",
+    "generation",
+    "decision",
+    "action_digest",
+    "decided_at_ms"
+  ],
+  "title": "service.approval.decision",
+  "type": "object"
+}

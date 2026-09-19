@@ -1,1 +1,710 @@
-{"$comment":"Traceability: run_events table (data-model.md) and contract-map rows 'host-issued cursors / bounded replay / at-least-once' and 'honest offline' (control-core-unification.md §4). This is verb 1 of 4: append run events. event_id is worker-generated and stable across retries, making append idempotent: the service stores by event_id and reports duplicates in service.events.stored. The worker never sets actor or server time; the service derives both.","$defs":{"event":{"additionalProperties":false,"properties":{"dedupe_key":{"description":"Optional milestone dedupe key, e.g. '<run_id>:restored'. Preserves the PoC recordEvent() per-kind dedupe across the seam.","maxLength":128,"minLength":1,"type":"string"},"event_id":{"pattern":"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$","type":"string"},"event_type":{"enum":["run.started","run.restored","run.thinking","run.answer_delta","run.activity_changed","run.saving","run.artifacts_delivered","run.completed","run.failed","run.cancelled","run.interrupted","run.terminated","provider_session.bound","approval.requested","approval.dispatched","approval.settled","approval.request_timed_out","run.resumed"],"type":"string"},"payload":{"description":"Type-specific payload; exact shape is selected by event_type via oneOf.","oneOf":[{"additionalProperties":false,"properties":{"event_type":{"const":"run.started"},"payload":{"additionalProperties":false,"properties":{"turn_config_digest":{"pattern":"^[a-f0-9]{64}$","type":"string"}},"required":["turn_config_digest"],"type":"object"}},"required":["event_type","payload"]},{"additionalProperties":false,"properties":{"event_type":{"const":"run.restored"},"payload":{"additionalProperties":false,"properties":{"bytes":{"minimum":0,"type":"integer"},"file_count":{"minimum":0,"type":"integer"}},"required":["file_count","bytes"],"type":"object"}},"required":["event_type","payload"]},{"additionalProperties":false,"properties":{"event_type":{"const":"run.thinking"},"payload":{"additionalProperties":false,"properties":{},"type":"object"}},"required":["event_type","payload"]},{"additionalProperties":false,"properties":{"event_type":{"const":"run.answer_delta"},"payload":{"additionalProperties":false,"properties":{"batch_seq":{"description":"Worker-side monotonic batch counter; lets the service order deltas from a retrying worker.","minimum":0,"type":"integer"},"text":{"description":"Bounded streamed text batch. Persisted before the replay cursor advances (data-model, streaming rule).","maxLength":4096,"minLength":1,"type":"string"}},"required":["text","batch_seq"],"type":"object"}},"required":["event_type","payload"]},{"additionalProperties":false,"properties":{"event_type":{"const":"run.activity_changed"},"payload":{"additionalProperties":false,"properties":{"activity":{"maxLength":128,"minLength":1,"type":"string"}},"required":["activity"],"type":"object"}},"required":["event_type","payload"]},{"additionalProperties":false,"properties":{"event_type":{"const":"run.saving"},"payload":{"additionalProperties":false,"properties":{},"type":"object"}},"required":["event_type","payload"]},{"additionalProperties":false,"properties":{"event_type":{"const":"run.artifacts_delivered"},"payload":{"additionalProperties":false,"properties":{"bytes":{"minimum":0,"type":"integer"},"file_count":{"minimum":0,"type":"integer"},"manifest_digest":{"pattern":"^[a-f0-9]{64}$","type":"string"}},"required":["manifest_digest","file_count","bytes"],"type":"object"}},"required":["event_type","payload"]},{"additionalProperties":false,"properties":{"event_type":{"const":"run.completed"},"payload":{"additionalProperties":false,"properties":{"answer_digest":{"pattern":"^[a-f0-9]{64}$","type":"string"},"artifact_manifest_digest":{"pattern":"^[a-f0-9]{64}$","type":"string"}},"required":["answer_digest"],"type":"object"}},"required":["event_type","payload"]},{"additionalProperties":false,"properties":{"event_type":{"const":"run.failed"},"payload":{"additionalProperties":false,"properties":{"error_user":{"description":"User-safe error string only. Raw provider/process errors and credentials are never published (PoC rule, preserved).","maxLength":512,"minLength":1,"type":"string"},"stage":{"description":"Worker phase at failure: setup, restore, continuation, execution, snapshot.","maxLength":64,"minLength":1,"type":"string"}},"required":["stage","error_user"],"type":"object"}},"required":["event_type","payload"]},{"additionalProperties":false,"properties":{"event_type":{"const":"run.cancelled"},"payload":{"additionalProperties":false,"properties":{"stage":{"maxLength":64,"minLength":1,"type":"string"}},"required":["stage"],"type":"object"}},"required":["event_type","payload"]},{"additionalProperties":false,"properties":{"event_type":{"const":"run.interrupted"},"payload":{"additionalProperties":false,"properties":{"evidence":{"maxLength":512,"minLength":1,"type":"string"}},"required":["evidence"],"type":"object"}},"required":["event_type","payload"]},{"additionalProperties":false,"properties":{"event_type":{"const":"run.terminated"},"payload":{"additionalProperties":false,"properties":{"cleanup_ok":{"type":"boolean"},"evidence":{"maxLength":512,"type":"string"}},"required":["cleanup_ok"],"type":"object"}},"required":["event_type","payload"]},{"additionalProperties":false,"properties":{"event_type":{"const":"provider_session.bound"},"payload":{"additionalProperties":false,"properties":{"binding":{"additionalProperties":false,"properties":{"image_digest":{"pattern":"^[a-f0-9]{64}$","type":"string"},"model":{"maxLength":64,"minLength":1,"type":"string"},"policy_digest":{"pattern":"^[a-f0-9]{64}$","type":"string"},"store_instance":{"maxLength":128,"minLength":1,"type":"string"},"thread_id":{"maxLength":128,"minLength":1,"type":"string"}},"required":["image_digest","store_instance","model","policy_digest","thread_id"],"type":"object"}},"required":["binding"],"type":"object"}},"required":["event_type","payload"]},{"additionalProperties":false,"properties":{"event_type":{"const":"approval.requested"},"payload":{"additionalProperties":false,"properties":{"action_digest":{"pattern":"^[a-f0-9]{64}$","type":"string"},"approval_id":{"pattern":"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$","type":"string"}},"required":["approval_id","action_digest"],"type":"object"}},"required":["event_type","payload"]},{"additionalProperties":false,"properties":{"event_type":{"const":"approval.dispatched"},"payload":{"additionalProperties":false,"properties":{"action_digest":{"pattern":"^[a-f0-9]{64}$","type":"string"},"approval_id":{"pattern":"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$","type":"string"},"ticket":{"description":"Single-use execution ticket from service.approval.decision; binds this dispatch to the consumed approval.","maxLength":256,"minLength":1,"type":"string"}},"required":["approval_id","ticket","action_digest"],"type":"object"}},"required":["event_type","payload"]},{"additionalProperties":false,"properties":{"event_type":{"const":"approval.settled"},"payload":{"additionalProperties":false,"properties":{"approval_id":{"pattern":"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$","type":"string"},"evidence":{"maxLength":512,"type":"string"},"outcome":{"enum":["executed","failed"],"type":"string"}},"required":["approval_id","outcome"],"type":"object"}},"required":["event_type","payload"]},{"additionalProperties":false,"properties":{"event_type":{"const":"approval.request_timed_out"},"payload":{"additionalProperties":false,"properties":{"approval_id":{"pattern":"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$","type":"string"}},"required":["approval_id"],"type":"object"}},"required":["event_type","payload"]},{"additionalProperties":false,"properties":{"event_type":{"const":"run.resumed"},"payload":{"additionalProperties":false,"properties":{"observation_digest":{"description":"Fresh workspace observation digest after a lease resume; mirrors durable.rs Observed.","pattern":"^[a-f0-9]{64}$","type":"string"}},"required":["observation_digest"],"type":"object"}},"required":["event_type","payload"]}]}},"required":["event_id","event_type","payload"],"type":"object"}},"$id":"https://raw.githubusercontent.com/DigitalMeld/agentmeld/main/docs/specs/schemas/worker-seam/v1/worker-events-append.schema.json","$schema":"https://json-schema.org/draft/2020-12/schema","additionalProperties":false,"properties":{"events":{"description":"1-64 events per frame. The PoC notify() 1/sec throttle becomes the worker's batching policy; the two critical awaits (session persist, snapshot persist) use this verb and wait for service.events.stored.","maxItems":64,"minItems":1,"type":"array","items":{"$ref":"#/$defs/event"}},"generation":{"description":"Turn generation from service.turn.start. Stale generations are rejected with stale_generation, never retried.","minimum":0,"type":"integer"},"msg_id":{"pattern":"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$","type":"string"},"protocol":{"const":"worker-seam/1"},"run_id":{"pattern":"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$","type":"string"}},"required":["protocol","msg_id","run_id","generation","events"],"title":"worker.events.append","type":"object"}
+{
+  "$comment": "Traceability: run_events table (data-model.md) and contract-map rows 'host-issued cursors / bounded replay / at-least-once' and 'honest offline' (control-core-unification.md §4). This is verb 1 of 4: append run events. event_id is worker-generated and stable across retries, making append idempotent: the service stores by event_id and reports duplicates in service.events.stored. The worker never sets actor or server time; the service derives both.",
+  "$defs": {
+    "event": {
+      "additionalProperties": false,
+      "properties": {
+        "dedupe_key": {
+          "description": "Optional milestone dedupe key, e.g. '<run_id>:restored'. Preserves the PoC recordEvent() per-kind dedupe across the seam.",
+          "maxLength": 128,
+          "minLength": 1,
+          "type": "string"
+        },
+        "event_id": {
+          "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+          "type": "string"
+        },
+        "event_type": {
+          "enum": [
+            "run.started",
+            "run.restored",
+            "run.thinking",
+            "run.answer_delta",
+            "run.activity_changed",
+            "run.saving",
+            "run.artifacts_delivered",
+            "run.completed",
+            "run.failed",
+            "run.cancelled",
+            "run.interrupted",
+            "run.terminated",
+            "provider_session.bound",
+            "approval.requested",
+            "approval.dispatched",
+            "approval.settled",
+            "approval.request_timed_out",
+            "run.resumed"
+          ],
+          "type": "string"
+        },
+        "payload": {
+          "description": "Type-specific payload; exact shape is selected by event_type via the allOf/if-then rules on the event. (Phase 1 edit: the Phase 0 schema nested {event_type, payload} inside payload, which could never validate a real event.)",
+          "type": "object"
+        }
+      },
+      "required": [
+        "event_id",
+        "event_type",
+        "payload"
+      ],
+      "type": "object",
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "event_type": {
+                "const": "run.started"
+              }
+            },
+            "required": [
+              "event_type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "payload": {
+                "additionalProperties": false,
+                "properties": {
+                  "turn_config_digest": {
+                    "pattern": "^[a-f0-9]{64}$",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "turn_config_digest"
+                ],
+                "type": "object"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "event_type": {
+                "const": "run.restored"
+              }
+            },
+            "required": [
+              "event_type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "payload": {
+                "additionalProperties": false,
+                "properties": {
+                  "bytes": {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "file_count": {
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "file_count",
+                  "bytes"
+                ],
+                "type": "object"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "event_type": {
+                "const": "run.thinking"
+              }
+            },
+            "required": [
+              "event_type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "payload": {
+                "additionalProperties": false,
+                "properties": {},
+                "type": "object"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "event_type": {
+                "const": "run.answer_delta"
+              }
+            },
+            "required": [
+              "event_type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "payload": {
+                "additionalProperties": false,
+                "properties": {
+                  "batch_seq": {
+                    "description": "Worker-side monotonic batch counter; lets the service order deltas from a retrying worker.",
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "text": {
+                    "description": "Bounded streamed text batch. Persisted before the replay cursor advances (data-model, streaming rule).",
+                    "maxLength": 4096,
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "text",
+                  "batch_seq"
+                ],
+                "type": "object"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "event_type": {
+                "const": "run.activity_changed"
+              }
+            },
+            "required": [
+              "event_type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "payload": {
+                "additionalProperties": false,
+                "properties": {
+                  "activity": {
+                    "maxLength": 128,
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "activity"
+                ],
+                "type": "object"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "event_type": {
+                "const": "run.saving"
+              }
+            },
+            "required": [
+              "event_type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "payload": {
+                "additionalProperties": false,
+                "properties": {},
+                "type": "object"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "event_type": {
+                "const": "run.artifacts_delivered"
+              }
+            },
+            "required": [
+              "event_type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "payload": {
+                "additionalProperties": false,
+                "properties": {
+                  "bytes": {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "file_count": {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "manifest_digest": {
+                    "pattern": "^[a-f0-9]{64}$",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "manifest_digest",
+                  "file_count",
+                  "bytes"
+                ],
+                "type": "object"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "event_type": {
+                "const": "run.completed"
+              }
+            },
+            "required": [
+              "event_type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "payload": {
+                "additionalProperties": false,
+                "properties": {
+                  "answer_digest": {
+                    "pattern": "^[a-f0-9]{64}$",
+                    "type": "string"
+                  },
+                  "artifact_manifest_digest": {
+                    "pattern": "^[a-f0-9]{64}$",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "answer_digest"
+                ],
+                "type": "object"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "event_type": {
+                "const": "run.failed"
+              }
+            },
+            "required": [
+              "event_type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "payload": {
+                "additionalProperties": false,
+                "properties": {
+                  "error_user": {
+                    "description": "User-safe error string only. Raw provider/process errors and credentials are never published (PoC rule, preserved).",
+                    "maxLength": 512,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "stage": {
+                    "description": "Worker phase at failure: setup, restore, continuation, execution, snapshot.",
+                    "maxLength": 64,
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "stage",
+                  "error_user"
+                ],
+                "type": "object"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "event_type": {
+                "const": "run.cancelled"
+              }
+            },
+            "required": [
+              "event_type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "payload": {
+                "additionalProperties": false,
+                "properties": {
+                  "stage": {
+                    "maxLength": 64,
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "stage"
+                ],
+                "type": "object"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "event_type": {
+                "const": "run.interrupted"
+              }
+            },
+            "required": [
+              "event_type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "payload": {
+                "additionalProperties": false,
+                "properties": {
+                  "evidence": {
+                    "maxLength": 512,
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "evidence"
+                ],
+                "type": "object"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "event_type": {
+                "const": "run.terminated"
+              }
+            },
+            "required": [
+              "event_type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "payload": {
+                "additionalProperties": false,
+                "properties": {
+                  "cleanup_ok": {
+                    "type": "boolean"
+                  },
+                  "evidence": {
+                    "maxLength": 512,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "cleanup_ok"
+                ],
+                "type": "object"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "event_type": {
+                "const": "provider_session.bound"
+              }
+            },
+            "required": [
+              "event_type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "payload": {
+                "additionalProperties": false,
+                "properties": {
+                  "binding": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "image_digest": {
+                        "pattern": "^[a-f0-9]{64}$",
+                        "type": "string"
+                      },
+                      "model": {
+                        "maxLength": 64,
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      "policy_digest": {
+                        "pattern": "^[a-f0-9]{64}$",
+                        "type": "string"
+                      },
+                      "store_instance": {
+                        "maxLength": 128,
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      "thread_id": {
+                        "maxLength": 128,
+                        "minLength": 1,
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "image_digest",
+                      "store_instance",
+                      "model",
+                      "policy_digest",
+                      "thread_id"
+                    ],
+                    "type": "object"
+                  }
+                },
+                "required": [
+                  "binding"
+                ],
+                "type": "object"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "event_type": {
+                "const": "approval.requested"
+              }
+            },
+            "required": [
+              "event_type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "payload": {
+                "additionalProperties": false,
+                "properties": {
+                  "action_digest": {
+                    "pattern": "^[a-f0-9]{64}$",
+                    "type": "string"
+                  },
+                  "approval_id": {
+                    "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "approval_id",
+                  "action_digest"
+                ],
+                "type": "object"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "event_type": {
+                "const": "approval.dispatched"
+              }
+            },
+            "required": [
+              "event_type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "payload": {
+                "additionalProperties": false,
+                "properties": {
+                  "action_digest": {
+                    "pattern": "^[a-f0-9]{64}$",
+                    "type": "string"
+                  },
+                  "approval_id": {
+                    "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+                    "type": "string"
+                  },
+                  "ticket": {
+                    "description": "Single-use execution ticket from service.approval.decision; binds this dispatch to the consumed approval.",
+                    "maxLength": 256,
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "approval_id",
+                  "ticket",
+                  "action_digest"
+                ],
+                "type": "object"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "event_type": {
+                "const": "approval.settled"
+              }
+            },
+            "required": [
+              "event_type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "payload": {
+                "additionalProperties": false,
+                "properties": {
+                  "approval_id": {
+                    "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+                    "type": "string"
+                  },
+                  "evidence": {
+                    "maxLength": 512,
+                    "type": "string"
+                  },
+                  "outcome": {
+                    "enum": [
+                      "executed",
+                      "failed"
+                    ],
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "approval_id",
+                  "outcome"
+                ],
+                "type": "object"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "event_type": {
+                "const": "approval.request_timed_out"
+              }
+            },
+            "required": [
+              "event_type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "payload": {
+                "additionalProperties": false,
+                "properties": {
+                  "approval_id": {
+                    "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "approval_id"
+                ],
+                "type": "object"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "event_type": {
+                "const": "run.resumed"
+              }
+            },
+            "required": [
+              "event_type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "payload": {
+                "additionalProperties": false,
+                "properties": {
+                  "observation_digest": {
+                    "description": "Fresh workspace observation digest after a lease resume; mirrors durable.rs Observed.",
+                    "pattern": "^[a-f0-9]{64}$",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "observation_digest"
+                ],
+                "type": "object"
+              }
+            }
+          }
+        }
+      ]
+    }
+  },
+  "$id": "https://raw.githubusercontent.com/DigitalMeld/agentmeld/main/docs/specs/schemas/worker-seam/v1/worker-events-append.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "msg_type": {
+      "type": "string",
+      "const": "worker.events.append",
+      "description": "Wire discriminator: names the message type. Added in the Phase 1 edit (2026-09-18); the Phase 0 schemas pinned no discriminator, and service.error already used \"message\" for human-readable text, so routing on \"message\" was impossible."
+    },
+    "events": {
+      "description": "1-64 events per frame. The PoC notify() 1/sec throttle becomes the worker's batching policy; the two critical awaits (session persist, snapshot persist) use this verb and wait for service.events.stored.",
+      "maxItems": 64,
+      "minItems": 1,
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/event"
+      }
+    },
+    "generation": {
+      "description": "Turn generation from service.turn.start. Stale generations are rejected with stale_generation, never retried.",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "msg_id": {
+      "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+      "type": "string"
+    },
+    "protocol": {
+      "const": "worker-seam/1"
+    },
+    "run_id": {
+      "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+      "type": "string"
+    }
+  },
+  "required": [
+    "msg_type",
+    "protocol",
+    "msg_id",
+    "run_id",
+    "generation",
+    "events"
+  ],
+  "title": "worker.events.append",
+  "type": "object"
+}

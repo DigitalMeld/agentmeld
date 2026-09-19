@@ -1,1 +1,60 @@
-{"$comment":"Traceability: computer_leases table and the journal's Takeover/HumanReady/Resume/Observed sequence, ported per control-core-unification.md §4 ('controller lease, generation fencing, explicit re-acquire'). The worker never initiates lease commands. pause: stop dispatching new actions (the journal's pausing); resume: re-observe and continue. When observation_required is true, the worker must append run.resumed with a fresh workspace observation_digest before the service treats the turn as live again.","$defs":{"uuid":{"pattern":"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$","type":"string"}},"$id":"https://raw.githubusercontent.com/DigitalMeld/agentmeld/main/docs/specs/schemas/worker-seam/v1/service-lease-command.schema.json","$schema":"https://json-schema.org/draft/2020-12/schema","additionalProperties":false,"properties":{"command":{"enum":["pause","resume"],"type":"string"},"generation":{"minimum":0,"type":"integer"},"lease_generation":{"description":"The new controller-lease generation. The worker records it; any in-flight worker message under the old generation is rejected service-side from here on.","minimum":0,"type":"integer"},"msg_id":{"$ref":"#/$defs/uuid"},"observation_required":{"description":"On resume: the worker must re-observe the workspace and report run.resumed with a fresh digest (durable.rs Observed).","type":"boolean"},"protocol":{"const":"worker-seam/1"},"run_id":{"$ref":"#/$defs/uuid"}},"required":["protocol","msg_id","run_id","generation","command","lease_generation","observation_required"],"title":"service.lease.command","type":"object"}
+{
+  "$comment": "Traceability: computer_leases table and the journal's Takeover/HumanReady/Resume/Observed sequence, ported per control-core-unification.md §4 ('controller lease, generation fencing, explicit re-acquire'). The worker never initiates lease commands. pause: stop dispatching new actions (the journal's pausing); resume: re-observe and continue. When observation_required is true, the worker must append run.resumed with a fresh workspace observation_digest before the service treats the turn as live again.",
+  "$defs": {
+    "uuid": {
+      "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+      "type": "string"
+    }
+  },
+  "$id": "https://raw.githubusercontent.com/DigitalMeld/agentmeld/main/docs/specs/schemas/worker-seam/v1/service-lease-command.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "msg_type": {
+      "type": "string",
+      "const": "service.lease.command",
+      "description": "Wire discriminator: names the message type. Added in the Phase 1 edit (2026-09-18); the Phase 0 schemas pinned no discriminator, and service.error already used \"message\" for human-readable text, so routing on \"message\" was impossible."
+    },
+    "command": {
+      "enum": [
+        "pause",
+        "resume"
+      ],
+      "type": "string"
+    },
+    "generation": {
+      "minimum": 0,
+      "type": "integer"
+    },
+    "lease_generation": {
+      "description": "The new controller-lease generation. The worker records it; any in-flight worker message under the old generation is rejected service-side from here on.",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "msg_id": {
+      "$ref": "#/$defs/uuid"
+    },
+    "observation_required": {
+      "description": "On resume: the worker must re-observe the workspace and report run.resumed with a fresh digest (durable.rs Observed).",
+      "type": "boolean"
+    },
+    "protocol": {
+      "const": "worker-seam/1"
+    },
+    "run_id": {
+      "$ref": "#/$defs/uuid"
+    }
+  },
+  "required": [
+    "msg_type",
+    "protocol",
+    "msg_id",
+    "run_id",
+    "generation",
+    "command",
+    "lease_generation",
+    "observation_required"
+  ],
+  "title": "service.lease.command",
+  "type": "object"
+}

@@ -1,1 +1,89 @@
-{"$comment":"Traceability: reply to worker.artifacts.deliver. accepted:true means the service hashed, promoted, and committed the blob/version metadata; only then may the worker append run.completed. accepted:false carries a machine-readable rejection code; the worker surfaces a user-safe error and fails the turn (the PoC snapshot-failure path).","$defs":{"uuid":{"pattern":"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$","type":"string"}},"$id":"https://raw.githubusercontent.com/DigitalMeld/agentmeld/main/docs/specs/schemas/worker-seam/v1/service-artifacts-stored.schema.json","$schema":"https://json-schema.org/draft/2020-12/schema","additionalProperties":false,"properties":{"accepted":{"type":"boolean"},"in_reply_to":{"$ref":"#/$defs/uuid"},"manifest_digest":{"pattern":"^[a-f0-9]{64}$","type":"string"},"protocol":{"const":"worker-seam/1"},"rejection":{"additionalProperties":false,"description":"Present if and only if accepted is false.","properties":{"code":{"enum":["digest_mismatch","over_size_limit","unsafe_name","staging_missing"],"type":"string"},"message":{"maxLength":256,"minLength":1,"type":"string"}},"required":["code","message"],"type":"object"},"stored_files":{"description":"Present if and only if accepted is true: the promoted blobs.","items":{"additionalProperties":false,"properties":{"blob_digest":{"pattern":"^[a-f0-9]{64}$","type":"string"},"name":{"maxLength":256,"minLength":1,"type":"string"}},"required":["name","blob_digest"],"type":"object"},"type":"array"}},"required":["protocol","in_reply_to","accepted","manifest_digest"],"title":"service.artifacts.stored","type":"object"}
+{
+  "$comment": "Traceability: reply to worker.artifacts.deliver. accepted:true means the service hashed, promoted, and committed the blob/version metadata; only then may the worker append run.completed. accepted:false carries a machine-readable rejection code; the worker surfaces a user-safe error and fails the turn (the PoC snapshot-failure path).",
+  "$defs": {
+    "uuid": {
+      "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+      "type": "string"
+    }
+  },
+  "$id": "https://raw.githubusercontent.com/DigitalMeld/agentmeld/main/docs/specs/schemas/worker-seam/v1/service-artifacts-stored.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "msg_type": {
+      "type": "string",
+      "const": "service.artifacts.stored",
+      "description": "Wire discriminator: names the message type. Added in the Phase 1 edit (2026-09-18); the Phase 0 schemas pinned no discriminator, and service.error already used \"message\" for human-readable text, so routing on \"message\" was impossible."
+    },
+    "accepted": {
+      "type": "boolean"
+    },
+    "in_reply_to": {
+      "$ref": "#/$defs/uuid"
+    },
+    "manifest_digest": {
+      "pattern": "^[a-f0-9]{64}$",
+      "type": "string"
+    },
+    "protocol": {
+      "const": "worker-seam/1"
+    },
+    "rejection": {
+      "additionalProperties": false,
+      "description": "Present if and only if accepted is false.",
+      "properties": {
+        "code": {
+          "enum": [
+            "digest_mismatch",
+            "over_size_limit",
+            "unsafe_name",
+            "staging_missing"
+          ],
+          "type": "string"
+        },
+        "message": {
+          "maxLength": 256,
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "code",
+        "message"
+      ],
+      "type": "object"
+    },
+    "stored_files": {
+      "description": "Present if and only if accepted is true: the promoted blobs.",
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "blob_digest": {
+            "pattern": "^[a-f0-9]{64}$",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 256,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "blob_digest"
+        ],
+        "type": "object"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "msg_type",
+    "protocol",
+    "in_reply_to",
+    "accepted",
+    "manifest_digest"
+  ],
+  "title": "service.artifacts.stored",
+  "type": "object"
+}

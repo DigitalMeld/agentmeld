@@ -1,1 +1,51 @@
-{"$comment":"Traceability: version negotiation, worker-service-seam.md §4. Reply to worker.session.hello.","$defs":{"uuid":{"pattern":"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$","type":"string"}},"$id":"https://raw.githubusercontent.com/DigitalMeld/agentmeld/main/docs/specs/schemas/worker-seam/v1/service-session-welcome.schema.json","$schema":"https://json-schema.org/draft/2020-12/schema","additionalProperties":false,"properties":{"in_reply_to":{"$ref":"#/$defs/uuid"},"max_frame_bytes":{"const":1048576,"description":"Hard frame cap: 1 MiB per JSON-lines frame. Larger frames are rejected with payload_too_large."},"negotiated_protocol":{"const":"worker-seam/1","description":"The protocol version both sides use from here on. The service may negotiate down, never up."},"ok":{"const":true},"protocol":{"const":"worker-seam/1"},"worker_id":{"$ref":"#/$defs/uuid","description":"Service-assigned session id for this worker; informational."}},"required":["protocol","in_reply_to","ok","worker_id","negotiated_protocol","max_frame_bytes"],"title":"service.session.welcome","type":"object"}
+{
+  "$comment": "Traceability: version negotiation, worker-service-seam.md §4. Reply to worker.session.hello.",
+  "$defs": {
+    "uuid": {
+      "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+      "type": "string"
+    }
+  },
+  "$id": "https://raw.githubusercontent.com/DigitalMeld/agentmeld/main/docs/specs/schemas/worker-seam/v1/service-session-welcome.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "msg_type": {
+      "type": "string",
+      "const": "service.session.welcome",
+      "description": "Wire discriminator: names the message type. Added in the Phase 1 edit (2026-09-18); the Phase 0 schemas pinned no discriminator, and service.error already used \"message\" for human-readable text, so routing on \"message\" was impossible."
+    },
+    "in_reply_to": {
+      "$ref": "#/$defs/uuid"
+    },
+    "max_frame_bytes": {
+      "const": 1048576,
+      "description": "Hard frame cap: 1 MiB per JSON-lines frame. Larger frames are rejected with payload_too_large."
+    },
+    "negotiated_protocol": {
+      "const": "worker-seam/1",
+      "description": "The protocol version both sides use from here on. The service may negotiate down, never up."
+    },
+    "ok": {
+      "const": true
+    },
+    "protocol": {
+      "const": "worker-seam/1"
+    },
+    "worker_id": {
+      "$ref": "#/$defs/uuid",
+      "description": "Service-assigned session id for this worker; informational."
+    }
+  },
+  "required": [
+    "msg_type",
+    "protocol",
+    "in_reply_to",
+    "ok",
+    "worker_id",
+    "negotiated_protocol",
+    "max_frame_bytes"
+  ],
+  "title": "service.session.welcome",
+  "type": "object"
+}

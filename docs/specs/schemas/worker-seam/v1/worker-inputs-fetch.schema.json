@@ -1,1 +1,60 @@
-{"$comment":"Traceability: blobs / message_attachments and conversation_workspaces table contracts (data-model.md). This is verb 3 of 4: fetch inputs. The worker restores workspace files and task inputs into the container (PoC: [...conversation.workspace, ...task.inputs]); over the seam it pulls bytes by content digest from the service instead of receiving them in-process. Bytes travel over the socket in bounded chunks, not via shared-filesystem reads: the worker reads only what the service hands it. The input manifest arrives in service.turn.start.","$defs":{"uuid":{"pattern":"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$","type":"string"}},"$id":"https://raw.githubusercontent.com/DigitalMeld/agentmeld/main/docs/specs/schemas/worker-seam/v1/worker-inputs-fetch.schema.json","$schema":"https://json-schema.org/draft/2020-12/schema","additionalProperties":false,"properties":{"digest":{"description":"Content digest of the input, from the turn.start inputs_manifest.","pattern":"^[a-f0-9]{64}$","type":"string"},"generation":{"minimum":0,"type":"integer"},"length":{"description":"Requested chunk length, 1 byte to 256 KiB. Larger requests are rejected with payload_too_large.","maximum":262144,"minimum":1,"type":"integer"},"msg_id":{"$ref":"#/$defs/uuid"},"offset":{"description":"Byte offset into the input. Sequential chunking; the worker reassembles and verifies the digest.","minimum":0,"type":"integer"},"protocol":{"const":"worker-seam/1"},"run_id":{"$ref":"#/$defs/uuid"}},"required":["protocol","msg_id","run_id","generation","digest","offset","length"],"title":"worker.inputs.fetch","type":"object"}
+{
+  "$comment": "Traceability: blobs / message_attachments and conversation_workspaces table contracts (data-model.md). This is verb 3 of 4: fetch inputs. The worker restores workspace files and task inputs into the container (PoC: [...conversation.workspace, ...task.inputs]); over the seam it pulls bytes by content digest from the service instead of receiving them in-process. Bytes travel over the socket in bounded chunks, not via shared-filesystem reads: the worker reads only what the service hands it. The input manifest arrives in service.turn.start.",
+  "$defs": {
+    "uuid": {
+      "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+      "type": "string"
+    }
+  },
+  "$id": "https://raw.githubusercontent.com/DigitalMeld/agentmeld/main/docs/specs/schemas/worker-seam/v1/worker-inputs-fetch.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "msg_type": {
+      "type": "string",
+      "const": "worker.inputs.fetch",
+      "description": "Wire discriminator: names the message type. Added in the Phase 1 edit (2026-09-18); the Phase 0 schemas pinned no discriminator, and service.error already used \"message\" for human-readable text, so routing on \"message\" was impossible."
+    },
+    "digest": {
+      "description": "Content digest of the input, from the turn.start inputs_manifest.",
+      "pattern": "^[a-f0-9]{64}$",
+      "type": "string"
+    },
+    "generation": {
+      "minimum": 0,
+      "type": "integer"
+    },
+    "length": {
+      "description": "Requested chunk length, 1 byte to 256 KiB. Larger requests are rejected with payload_too_large.",
+      "maximum": 262144,
+      "minimum": 1,
+      "type": "integer"
+    },
+    "msg_id": {
+      "$ref": "#/$defs/uuid"
+    },
+    "offset": {
+      "description": "Byte offset into the input. Sequential chunking; the worker reassembles and verifies the digest.",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "protocol": {
+      "const": "worker-seam/1"
+    },
+    "run_id": {
+      "$ref": "#/$defs/uuid"
+    }
+  },
+  "required": [
+    "msg_type",
+    "protocol",
+    "msg_id",
+    "run_id",
+    "generation",
+    "digest",
+    "offset",
+    "length"
+  ],
+  "title": "worker.inputs.fetch",
+  "type": "object"
+}

@@ -1,7 +1,7 @@
 import { recordEvent, publicEvents } from './events.mjs';
 import { randomUUID, createHash } from 'node:crypto';
 import { readFile, writeFile, mkdir, rename } from 'node:fs/promises';
-import { safeName } from './runtime.mjs';
+import { safeName } from '../worker/binding.mjs';
 
 export class RequestError extends Error { constructor(message, status=400) { super(message); this.status=status; } }
 export async function openStore(directory) {
