@@ -30,7 +30,7 @@ Alpha is **Codex-only using ChatGPT subscription authentication**, with macOS, l
 
 ## Evidence and history
 
-- [Client track UI check 2026-09-19](progress/2026-09-19-client-track-ui-check.md): browser UI wired to the approval + event-stream APIs (issue #92) — approval prompts with server-time countdown, live SSE run view, lease pill, inline tool steps; verified against a real server run (screenshots pending live-browser session).
+- [Client track UI check 2026-09-19](progress/2026-09-19-client-track-ui-check.md): browser UI wired to the approval + event-stream APIs (issue #92) — approval prompts with server-time countdown, live SSE run view, lease pill, inline tool steps; verified against a real server run with screenshots, including the `#`-selector no-op bug this check caught and fixed.
 - [Phase 3 approval-path progress 2026-09-19](progress/2026-09-19-phase3-approval-path.md): approval semantics, controller lease, and revocation implemented in the Rust service (issue #86) — 13-test deterministic harness, full check suite green; semantically complete, callback-unproven.
 - [Phase 2 UI progress check 2026-09-19](progress/2026-09-19-phase2-ui-check.md): screenshots of the frozen PoC UI served by the Rust service (chat, files, agent settings), plus the static-asset allowlist bug this check caught and fixed.
 - [M0 evidence](m0/results.md) and [reproduction instructions](m0/README.md): completed checks and remaining limits.

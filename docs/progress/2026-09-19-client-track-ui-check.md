@@ -105,3 +105,51 @@ match + 401 without auth + no credential leakage).
 - `crates/agentmeld-server/src/bin/seed_client_track.rs` (demo seeder)
 - `crates/agentmeld-server/tests/event_stream.rs` (hello time assertion)
 - `crates/agentmeld-server/tests/session.rs` (new, 2 tests)
+
+## Screenshots (verified 2026-09-19 UTC, headless Firefox 1440×900)
+
+Captured against a real `agentmeld-server` run on loopback with the seeded
+demo (pending `demo-approval-1`, 5-min TTL; denied `demo-approval-2`; running
+run with two tool steps).
+
+### Approval prompt
+
+![Approval prompt with digest, countdown, and Approve/Deny](assets/client-track-01-approval-prompt.png)
+
+The approval bar renders at the top of the chat surface: "Approval needed —
+Delete the stale staging table staging.sales_2024_draft", the
+`delete_table` action with target and arguments, the short action digest
+(`1def1ce5…c21b`), a live "Expires in 4m 53s" countdown anchored to server
+time, and one-tap **Approve** / **Deny** plus **View run**. The header shows
+the lease pill reading **Observing**, and the device footer reads **Live**
+(the SSE stream is connected).
+
+### After approving
+
+![Run view after the approval was granted](assets/client-track-02-after-approve.png)
+
+Clicking **Approve** POSTs the decision, the bar dismisses, and an
+"Approved." notice confirms. The run flips to `running` in the chat list and
+the Activity panel moves it to **Working**.
+
+### Tool steps in the run-details dialog
+
+![Run-details dialog with inline tool steps](assets/client-track-03-tool-steps.png)
+
+The run-details dialog lists inline tool steps under the request:
+`read_file` (Reading sales_q3.csv) **DONE**, `run_query` (Aggregating by
+region) **RUNNING**, above the recorded milestones.
+
+## Bug found and fixed by this check
+
+The first capture round showed **no approval bar at all** despite a pending
+approval: the module polled `GET /api/v1/approvals` successfully (HTTP 200,
+pending row present), updated its state, and threw no errors — but never
+painted. Root cause: `client-track.js` called `$('#approvalBar')` with a
+`#`-prefixed selector, while the `$` it receives from `app.js` is
+`document.getElementById`, which takes a bare id. Every lookup returned
+`null`, so `paintApprovals`, `paintLease`, `paintStream`, and the approvals
+panel all silently no-op'd. Fixed in commit `9f2b85d` (five call sites plus
+a contract note at `initClientTrack`); the screenshots above were captured
+after the fix and show the prompt rendering, the decision POST succeeding,
+and the lease pill reading "Observing".
