@@ -25,6 +25,8 @@ fn main() {
     let mode = args.get(1).map(|s| s.as_str()).unwrap_or("serve");
     let result = match mode {
         "serve" => cmd_serve(&args[2..]),
+        "backup" => cmd_backup(&args[2..]),
+        "restore" => cmd_restore(&args[2..]),
         "pair" => cmd_pair(&args[2..]),
         "import" => cmd_import(&args[2..]),
         "-h" | "--help" | "help" => {
@@ -45,7 +47,7 @@ fn main() {
 
 fn print_usage(argv0: &str) {
     eprintln!(
-        "usage:\n  {argv0} serve [--dir DIR] [--port PORT] [--repo-root PATH] [--node PATH]\n  {argv0} pair [--dir DIR] [--port PORT]\n  {argv0} import --from STATE.JSON [--dir DIR]"
+        "usage:\n  {argv0} serve [--dir DIR] [--port PORT] [--repo-root PATH] [--node PATH]\n  {argv0} backup [--dir DIR] [--out FILE]\n  {argv0} restore --from FILE [--dir DIR]\n  {argv0} pair [--dir DIR] [--port PORT]\n  {argv0} import --from STATE.JSON [--dir DIR]"
     );
 }
 
@@ -200,6 +202,59 @@ fn find_repo_root(flag: Option<String>) -> Result<PathBuf, String> {
     Err("could not locate the agentmeld repo (apps/worker); pass --repo-root PATH".to_string())
 }
 
+// ----------------------------------------------------- backup/restore.
+//
+// `agentmeld-server backup` takes an online, consistent snapshot of the
+// journal via SQLite `VACUUM INTO` (safe while serving: it snapshots the
+// WAL content without blocking writers for long). `restore` validates the
+// snapshot (integrity_check) and refuses to proceed while a live server
+// holds the startup lock, or when the snapshot is corrupt — it never
+// overwrites the live DB with a bad file.
+
+/// A live server holds the startup lock with a live PID in it; a stale
+/// lock (dead PID) is treated as no server, matching acquire_startup_lock.
+fn server_running(dir: &std::path::Path) -> bool {
+    let path = dir.join("service.lock");
+    let content = match std::fs::read_to_string(&path) {
+        Ok(c) => c,
+        Err(_) => return false,
+    };
+    match content.trim().parse::<i32>() {
+        Ok(pid) => pid_alive(pid),
+        Err(_) => true, // unparseable lock: fail closed, assume a server
+    }
+}
+
+fn cmd_backup(args: &[String]) -> Result<(), String> {
+    let dir = state_dir_from(args);
+    ensure_state_dir(&dir)?;
+    let db_path = dir.join("agentmeld.db");
+    let out = match flag_value(args, "--out") {
+        Some(o) => PathBuf::from(o),
+        None => agentmeld_server::backup::default_backup_path(&dir)?,
+    };
+    agentmeld_server::backup::backup_db(&db_path, &out)?;
+    println!("backup written: {}", out.display());
+    Ok(())
+}
+
+fn cmd_restore(args: &[String]) -> Result<(), String> {
+    let from = flag_value(args, "--from")
+        .map(PathBuf::from)
+        .ok_or_else(|| "restore requires --from FILE".to_string())?;
+    let dir = state_dir_from(args);
+    ensure_state_dir(&dir)?;
+    if server_running(&dir) {
+        return Err("refusing restore: a server is running in this state dir".to_string());
+    }
+    agentmeld_server::backup::validate_backup(&from)?;
+    let path = agentmeld_server::backup::restore_db(&dir, &from)?;
+    println!("restored: {}", path.display());
+    Ok(())
+}
+
+// ------------------------------------------------------------------ serve.
+
 fn cmd_serve(args: &[String]) -> Result<(), String> {
     let dir = state_dir_from(args);
     ensure_state_dir(&dir)?;
@@ -215,7 +270,16 @@ fn cmd_serve(args: &[String]) -> Result<(), String> {
     let db_path = dir.join("agentmeld.db");
     let blob_root = dir.join("blobs");
     std::fs::create_dir_all(&blob_root).map_err(|e| format!("create blob root: {e}"))?;
-    let db = Arc::new(Db::open(&db_path, &blob_root)?);
+    // Loud corruption failure: never silently boot an empty server on top of
+    // a damaged journal — the operator must restore from a backup.
+    let db = Arc::new(Db::open(&db_path, &blob_root).map_err(|e| {
+        format!(
+            "open database {}: {e}. If the journal is corrupt, restore from a backup: \
+             agentmeld-server restore --from <backup.db> --dir {}",
+            db_path.display(),
+            dir.display()
+        )
+    })?);
     db.run_migrations()?;
     db.seed_bootstrap()?;
     let interrupted = db.mark_interrupted_on_startup()?;
@@ -296,11 +360,17 @@ fn cmd_serve(args: &[String]) -> Result<(), String> {
                 }
             }
             _ = shutdown => {
-                eprintln!("[serve] shutting down");
+                eprintln!("[serve] shutting down: draining workers");
             }
         }
         pump.abort();
         sweeper.abort();
+        // Flush the WAL so the on-disk state is a single self-contained
+        // file; the next boot does not need to replay anything.
+        match db.checkpoint() {
+            Ok(()) => eprintln!("[serve] WAL checkpointed; shutdown complete"),
+            Err(e) => eprintln!("[serve] WAL checkpoint failed: {e}"),
+        }
         Ok::<(), String>(())
     })
 }

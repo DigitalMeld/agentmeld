@@ -224,6 +224,16 @@ impl Db {
         Ok(n > 0)
     }
 
+    /// Flush the WAL into the main database file (TRUNCATE mode), so the
+    /// on-disk state is a single self-contained file. Called at graceful
+    /// shutdown; errors are surfaced to the caller for logging.
+    pub fn checkpoint(&self) -> Result<(), String> {
+        let conn = self.conn.lock().map_err(|e| format!("db lock: {e}"))?;
+        conn.pragma_update(None, "wal_checkpoint", "TRUNCATE")
+            .map_err(|e| format!("checkpoint WAL: {e}"))?;
+        Ok(())
+    }
+
     pub fn run_count(&self) -> Result<i64, String> {
         let conn = self.conn.lock().map_err(|e| format!("db lock: {e}"))?;
         conn.query_row(

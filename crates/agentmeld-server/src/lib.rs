@@ -7,6 +7,7 @@
 pub mod api;
 pub mod approvals;
 pub mod auth;
+pub mod backup;
 pub mod db;
 pub mod domain;
 pub mod events;
