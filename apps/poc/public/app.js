@@ -5,12 +5,14 @@ import { browseWorkspace, fileKind, breadcrumbs, readPreferences } from './file-
 import { chatInfo, orderedChats, outputEntries, visibleOutputs, conversationExport } from './organization.js';
 import { formatBytes, validateAttachments } from './composer.js';
 import { icon } from './icons.js';
+import { initClientTrack } from './client-track.js';
 import './tooltips.js';
 const $=id=>document.getElementById(id);
 let token=location.hash.slice(1)||sessionStorage.getItem('agentmeld-token')||'';
 if(token){sessionStorage.setItem('agentmeld-token',token);history.replaceState(null,'',location.pathname);}
-window.addEventListener('hashchange',()=>{if(location.hash.length>1){token=location.hash.slice(1);sessionStorage.setItem('agentmeld-token',token);history.replaceState(null,'',location.pathname);error();refresh();}});
+window.addEventListener('hashchange',()=>{if(location.hash.length>1){token=location.hash.slice(1);sessionStorage.setItem('agentmeld-token',token);history.replaceState(null,'',location.pathname);error();ensureTrack();refresh();}});
 let state={tasks:[],conversations:[],active:null},selected=null,files=[],view='chat',lastRender='';
+let track=null; // client-track module: approvals, event stream, lease, tool steps
 let preferences;try{preferences=readPreferences(localStorage);}catch{preferences=readPreferences({getItem:()=>null});}
 let fileCategory='all',fileLayout=preferences.layouts.all||'grid',fileSort=preferences.sort,fileChatOpen=false;
 function saveFilePreferences(){try{localStorage.setItem('agentmeld-files',JSON.stringify(preferences));}catch{}}
@@ -93,7 +95,7 @@ function renderDetails(){
  const task=state.tasks.find(t=>t.id===detailId);if(!task)return;
  const title=state.conversations.find(c=>c.id===task.conversationId)?.title||'Conversation';
  $('runTitle').textContent=title;$('runTitle').title=title;
- const content='<div class="runFacts"><span class="statusBadge" data-status="'+esc(task.status)+'">'+esc(statusLabel(task.status))+'</span><span>Queue wait: '+elapsedLabel(queueWait(task))+'</span><span>'+countLabel(task.inputs.length,'input')+' · '+countLabel(task.artifacts.length,'output')+' · '+formatBytes(task.artifacts.reduce((n,f)=>n+f.size,0))+'</span></div><p class="muted">'+esc(new Date(task.createdAt).toLocaleString())+' · Duration: '+elapsedLabel(duration(task))+'</p><h3>Request</h3><p class="runPrompt">'+esc(task.prompt)+'</p>'+((task.error||!['Finished','Completed','Done',statusLabel(task.status)].includes(task.activity))?'<p>'+esc(task.error||task.activity)+'</p>':'')+'<h3>Recorded milestones ('+(task.events||[]).length+')</h3>'+((task.events||[]).length?'<ol class="milestones">'+task.events.map((e,i)=>'<li><strong>'+esc(e.label)+'</strong><time>'+esc(new Date(e.at).toLocaleString())+(i?' · '+elapsedLabel(Date.parse(e.at)-Date.parse(task.events[i-1].at))+' since previous':'')+'</time></li>').join('')+'</ol>':'<p class="muted">Milestones were not recorded for this older turn.</p>')+'<p class="muted">These are run milestones, not a complete command history.</p>'+(task.inputs.length?'<h3>Inputs</h3>'+task.inputs.map(f=>'<button class="inputFile" data-input="'+task.id+'" data-name="'+esc(f.name)+'">'+esc(f.name)+' · '+formatBytes(f.size||0)+'</button>').join(''):'')+(task.artifacts.length?'<h3>Outputs</h3>'+task.artifacts.map(f=>fileButton(task,f)).join(''):'')+(task.answer?'<details class="runAnswer"><summary>Reply</summary>'+markdown(task.answer)+'</details>':'');
+ const content='<div class="runFacts"><span class="statusBadge" data-status="'+esc(task.status)+'">'+esc(statusLabel(task.status))+'</span><span>Queue wait: '+elapsedLabel(queueWait(task))+'</span><span>'+countLabel(task.inputs.length,'input')+' · '+countLabel(task.artifacts.length,'output')+' · '+formatBytes(task.artifacts.reduce((n,f)=>n+f.size,0))+'</span></div><p class="muted">'+esc(new Date(task.createdAt).toLocaleString())+' · Duration: '+elapsedLabel(duration(task))+'</p><h3>Request</h3><p class="runPrompt">'+esc(task.prompt)+'</p>'+((task.error||!['Finished','Completed','Done',statusLabel(task.status)].includes(task.activity))?'<p>'+esc(task.error||task.activity)+'</p>':'')+(track&&track.stepsHtml(task.id)?'<h3>Tool steps</h3><div data-steps-for="'+task.id+'">'+track.stepsHtml(task.id)+'</div>':'')+'<h3>Recorded milestones ('+(task.events||[]).length+')</h3>'+((task.events||[]).length?'<ol class="milestones">'+task.events.map((e,i)=>'<li><strong>'+esc(e.label)+'</strong><time>'+esc(new Date(e.at).toLocaleString())+(i?' · '+elapsedLabel(Date.parse(e.at)-Date.parse(task.events[i-1].at))+' since previous':'')+'</time></li>').join('')+'</ol>':'<p class="muted">Milestones were not recorded for this older turn.</p>')+'<p class="muted">These are run milestones, not a complete command history.</p>'+(task.inputs.length?'<h3>Inputs</h3>'+task.inputs.map(f=>'<button class="inputFile" data-input="'+task.id+'" data-name="'+esc(f.name)+'">'+esc(f.name)+' · '+formatBytes(f.size||0)+'</button>').join(''):'')+(task.artifacts.length?'<h3>Outputs</h3>'+task.artifacts.map(f=>fileButton(task,f)).join(''):'')+(task.answer?'<details class="runAnswer"><summary>Reply</summary>'+markdown(task.answer)+'</details>':'');
  if(content!==lastDetail){const expanded=$('runBody').querySelector('.runAnswer')?.open;$('runBody').innerHTML=content;if(expanded&&$('runBody').querySelector('.runAnswer'))$('runBody').querySelector('.runAnswer').open=true;lastDetail=content;}
  $('copyRunReply').disabled=!task.answer;$('copyMilestones').disabled=!task.events?.length;
  const tasks=detailTasks(),index=tasks.findIndex(t=>t.id===detailId);$('previousRun').disabled=index<=0;$('nextRun').disabled=index<0||index>=tasks.length-1;$('runPosition').textContent=index<0?'':(index+1)+' / '+tasks.length;
@@ -126,7 +128,8 @@ function renderTurn(task,index,turns){
  const status=showTurnStatus(task,index===turns.length-1)?'<div class="runStatus"'+(task.error||['failed','cancelled','interrupted'].includes(task.status)?' data-attention':'')+'><div class="pending">'+(active?'<span class="pulse"></span>':'')+esc(task.error||(task.status==='completed'&&!task.answer?'No reply recorded':task.activity))+'</div>'+(!task.answer?'<div class="messageActions">'+details+'</div>':'')+'</div>':'';
  const date=new Date(task.createdAt),previous=turns[index-1];
  const heading=!previous||new Date(previous.createdAt).toLocaleDateString()!==date.toLocaleDateString()?'<div class="daySeparator">'+esc(dayLabel(task.createdAt))+'</div>':'';
- return heading+'<div class="time"><time datetime="'+esc(task.createdAt)+'" title="'+esc(date.toLocaleString())+'">'+esc(date.toLocaleTimeString([], {hour:'numeric',minute:'2-digit'}))+'</time></div><div class="turn" id="turn-'+task.id+'" tabindex="-1">'+request+reply+status+task.artifacts.map(f=>fileButton(task,f)).join('')+'</div>';
+ const steps='<div data-steps-for="'+task.id+'">'+(track?track.stepsHtml(task.id):'')+'</div>';
+ return heading+'<div class="time"><time datetime="'+esc(task.createdAt)+'" title="'+esc(date.toLocaleString())+'">'+esc(date.toLocaleTimeString([], {hour:'numeric',minute:'2-digit'}))+'</time></div><div class="turn" id="turn-'+task.id+'" tabindex="-1">'+request+reply+status+steps+task.artifacts.map(f=>fileButton(task,f)).join('')+'</div>';
 }
 function render(){
   const inFiles=view==='files',chatVisible=!inFiles||fileChatOpen;
@@ -188,6 +191,7 @@ function render(){
   $('attachmentHint').hidden=!files.length;$('attachmentLoading').hidden=!uploading;
   $('composer').setAttribute('aria-busy',String(submitting||uploading));
   updateComposer();updateLatest();
+  if(track)track.paintAll();
 }
 
 function updateWorkspaceChoices(){
@@ -394,6 +398,8 @@ async function refresh(){
   }catch(e){connected=false;sessionExpired=e.status===401;}finally{
     refreshing=false;$('connectionMessage').textContent=sessionExpired?'Local session expired. Reopen the current app link from the server to reconnect. Your saved work is preserved.':'Connection interrupted. Your saved work is preserved.';
     $('connectionStatus').textContent=connected?'Connected':sessionExpired?'Session expired':'Disconnected';$('connectionDot').classList.toggle('offline',!connected);$('retryConnection').hidden=connected;$('connectionBanner').hidden=connected;
+    if(sessionExpired&&track){track.stop();track=null;}
+    if(track)void track.poll();
     render();
   }
 }
@@ -456,4 +462,9 @@ $('copyRunReply').onclick=()=>{const t=selectedRun();if(t?.answer)copyText(t.ans
 $('copyMilestones').onclick=()=>{const t=selectedRun();if(t)copyText((t.events||[]).map(e=>e.at+' · '+e.label).join('\n'));};
 $('runDetails').addEventListener('keydown',e=>{if(e.target.matches('input,textarea,select')||e.ctrlKey||e.metaKey||e.altKey||e.shiftKey)return;if(['ArrowLeft','ArrowRight'].includes(e.key)){e.preventDefault();moveRun(e.key==='ArrowLeft'?-1:1);}});
 $('previousRun').onclick=()=>moveRun(-1);$('nextRun').onclick=()=>moveRun(1);
-render();await refresh();setInterval(refresh,1000);
+function ensureTrack(){
+  if(track||!token)return;
+  track=initClientTrack({api:async(path,opts)=>(await api(path,opts)).json(),esc,$,notice,icon,token:()=>token,getState:()=>state,requestRefresh:()=>{refresh().catch(()=>{});},selectConversation});
+  track.start();
+}
+render();await refresh();ensureTrack();setInterval(refresh,1000);

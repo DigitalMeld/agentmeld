@@ -127,7 +127,7 @@ const server=http.createServer(async(req,res)=>{
       }
       return send(res,404,{error:'Not found.'});
     }
-    const assets={'/agent-settings.js':'agent-settings.js','/':'index.html','/app.js':'app.js','/style.css':'style.css','/brain.svg':'brain.svg','/icons.js':'icons.js','/tooltips.js':'tooltips.js','/composer.js':'composer.js','/organization.js':'organization.js','/file-browser.js':'file-browser.js','/artifact-tools.js':'artifact-tools.js','/conversation-tools.js':'conversation-tools.js','/preview-reader.js':'preview-reader.js'};
+    const assets={'/agent-settings.js':'agent-settings.js','/':'index.html','/app.js':'app.js','/style.css':'style.css','/brain.svg':'brain.svg','/icons.js':'icons.js','/tooltips.js':'tooltips.js','/composer.js':'composer.js','/organization.js':'organization.js','/file-browser.js':'file-browser.js','/artifact-tools.js':'artifact-tools.js','/conversation-tools.js':'conversation-tools.js','/preview-reader.js':'preview-reader.js','/client-track.js':'client-track.js','/sse-parse.js':'sse-parse.js'};
     if(req.method!=='GET'||!assets[url.pathname])return send(res,404,{error:'Not found.'});
     const file=assets[url.pathname];res.setHeader('Content-Type',file.endsWith('.svg')?'image/svg+xml':file.endsWith('.css')?'text/css':file.endsWith('.js')?'text/javascript':'text/html');
     res.end(await readFile(new URL('./public/'+file,import.meta.url)));

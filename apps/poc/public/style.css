@@ -99,3 +99,53 @@ dialog{color:var(--text);background:#1c1c1f;border:1px solid #3b3b42;border-radi
 #previewLoadError{padding:16px 24px;color:#edbdc6;font-size:14px}#previewLoadError button{margin-left:8px;border-radius:8px;padding:7px 12px;background:#353540;color:var(--text)}#previewLoadError{flex-shrink:0}
 
 #agentDialog[open]{display:flex;flex-direction:column;overflow:hidden}#agentDialog header{flex-shrink:0}#agentDialog{width:min(620px,calc(100vw - 32px));max-height:90vh}#agentDialog .dialogBody{overflow-y:auto;min-height:0}#agentForm,#memoryForm{display:grid;gap:10px}#agentDialog textarea{min-height:80px;resize:vertical;padding:12px;color:var(--text);background:#252528;border:1px solid #424248;border-radius:10px;font:inherit}#agentDialog input{width:100%;box-sizing:border-box;padding:12px;border:1px solid #424248;border-radius:10px;background:#252528;color:var(--text);font:inherit}#agentMemories article{padding:12px 0;border-bottom:1px solid #38383c}#agentMemories p{white-space:pre-wrap;overflow-wrap:anywhere}#agentMemories small{color:var(--muted)}#agentMemories button{float:right}#agentDialog hr{border:0;border-top:1px solid #38383c;margin:24px 0}
+
+/* Client track: approval prompts, lease pill, stream status, tool steps.
+   Matches the existing palette (monochrome + periwinkle accent); no
+   Roboto retheme — the approved UI is the source of truth. */
+.leasePill{display:block;font-size:11px;color:var(--muted);margin-top:5px;cursor:default;white-space:nowrap}
+.leaseDot{display:inline-block;width:6px;height:6px;border-radius:50%;background:#6a6a75;margin-right:6px;vertical-align:1px}
+.leasePill--human{color:#c9d4ff}
+.leasePill--human .leaseDot{background:#adc2ff}
+.streamStatus{opacity:.9}
+.streamDot{display:inline-block;width:6px;height:6px;border-radius:50%;background:#6a6a75;margin-right:6px;vertical-align:1px}
+.streamDot--live{background:#8a9fe1}
+.streamDot--connecting,.streamDot--reconnecting{animation:pulse 1.4s infinite}
+#approvalBar{border-bottom:1px solid var(--line);background:#141416}
+.approvalCard{padding:16px max(24px,calc((100% - 740px)/2))}
+.approvalCardHead{display:flex;align-items:center;gap:8px;font-size:13px}
+.approvalCardHead .outlineIcon{width:16px;height:16px;color:#adc2ff}
+.approvalCardHead strong{font-weight:600}
+.approvalCardConv{margin-left:auto;color:var(--muted);font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.approvalCardDesc{font-size:14px;line-height:1.6;margin:10px 0;overflow-wrap:anywhere}
+.approvalCardMeta{display:flex;gap:14px;align-items:baseline;font-size:12px;color:var(--muted);margin:6px 0;min-width:0}
+.approvalCardMeta code{font:12px ui-monospace,SFMono-Regular,monospace;color:#c6c6d0}
+.approvalCardArgs{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.approvalCountdown{font-variant-numeric:tabular-nums;white-space:nowrap}
+.approvalCardActions{display:flex;gap:10px;margin-top:12px;flex-wrap:wrap}
+.approvalBtn{padding:9px 22px;border-radius:10px;font-size:13px;font-weight:600;border:1px solid #42424b}
+.approvalBtn--approve{background:#496edb;border-color:#496edb;color:#fff}
+.approvalBtn--approve:hover{background:#3d5fc4}
+.approvalBtn--deny{background:transparent}
+.approvalBtn--deny:hover{background:#2a2a2f}
+.approvalBtn--ghost{border-color:transparent;color:var(--muted);font-weight:400}
+.approvalCardNote{font-size:12px;color:var(--muted);margin:10px 0 0}
+.toolSteps{list-style:none;margin:14px 0 0;padding:0;display:flex;flex-direction:column;gap:7px}
+.toolStep{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);min-width:0}
+.toolStepDot{width:6px;height:6px;border-radius:50%;background:#6a6a75;flex-shrink:0}
+.toolStep--running .toolStepDot{background:#8a9fe1;animation:pulse 1.4s infinite}
+.toolStep--completed .toolStepDot{background:#8a9fe1}
+.toolStep--failed .toolStepDot{background:#e5a3a8}
+.toolStepTool{font:11px ui-monospace,SFMono-Regular,monospace;color:#aeb6cd;flex-shrink:0}
+.toolStepTitle{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0}
+.toolStepState{font-size:10px;letter-spacing:.4px;text-transform:uppercase;flex-shrink:0}
+.approvalsHead{font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin:18px 0 10px}
+#approvalsBody .approvalCard{padding:14px;border:1px solid var(--line);border-radius:12px;margin-bottom:12px;background:#1b1b1e}
+#approvalsBody .approvalCardHead .outlineIcon{width:15px;height:15px}
+.approvalHistory{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
+.approvalHistoryItem{font-size:12px;display:flex;flex-wrap:wrap;gap:4px 8px;align-items:baseline;line-height:1.5}
+.approvalHistoryState{font-weight:600}
+.approvalHistoryItem--approved .approvalHistoryState{color:#8a9fe1}
+.approvalHistoryItem--denied .approvalHistoryState{color:#e5a3a8}
+.approvalHistoryDesc{color:var(--text);overflow-wrap:anywhere}
+.approvalHistoryMeta{color:var(--muted);font-size:11px}
