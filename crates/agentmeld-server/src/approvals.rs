@@ -13,8 +13,10 @@ use tokio::sync::oneshot;
 
 use crate::domain::sha256_hex;
 
-/// Bounds from the seam schema (worker-approvals-request-decision) and the
-/// M0 journal: ttl 1–300000 ms.
+/// Proposal bounds from the seam schema (`worker-approvals-request-decision`)
+/// and the M0 journal: approval TTL window, user-description length, tool and
+/// target name lengths, and the argument object shape (property count and
+/// scalar value length). Enforced service-side by `validate_proposal`.
 pub const APPROVAL_TTL_MIN_MS: i64 = 1;
 pub const APPROVAL_TTL_MAX_MS: i64 = 300_000;
 pub const DESCRIPTION_MAX_CHARS: usize = 512;
@@ -215,6 +217,7 @@ pub struct PendingApprovals {
 }
 
 impl PendingApprovals {
+    /// An empty waiter registry.
     pub fn new() -> Self {
         PendingApprovals {
             inner: Mutex::new(HashMap::new()),
@@ -300,6 +303,7 @@ pub enum ApprovalState {
 }
 
 impl ApprovalState {
+    /// The row string stored in SQLite and served over the API.
     pub fn as_str(self) -> &'static str {
         match self {
             ApprovalState::Pending => "pending",
@@ -310,6 +314,7 @@ impl ApprovalState {
         }
     }
 
+    /// Parse a row string back into the state; `None` for anything else.
     pub fn parse(s: &str) -> Option<ApprovalState> {
         Some(match s {
             "pending" => ApprovalState::Pending,
@@ -321,6 +326,8 @@ impl ApprovalState {
         })
     }
 
+    /// Terminal states never leave: no path returns a settled approval to
+    /// `pending` — a changed action is a new proposal.
     pub fn is_terminal(self) -> bool {
         !matches!(self, ApprovalState::Pending)
     }
@@ -350,6 +357,7 @@ pub struct ApprovalRow {
 impl ApprovalRow {
     /// The human-facing receipt. Never includes the ticket hash: the
     /// ticket is a worker-bound execution credential, not a client field.
+    /// The operator-facing receipt. Never includes the ticket or its hash.
     pub fn public_json(&self) -> serde_json::Value {
         serde_json::json!({
             "id": self.id,
@@ -380,6 +388,7 @@ pub enum LeaseState {
 }
 
 impl LeaseState {
+    /// The row string stored in SQLite and served over the API.
     pub fn as_str(self) -> &'static str {
         match self {
             LeaseState::Agent => "agent",
@@ -391,6 +400,7 @@ impl LeaseState {
         }
     }
 
+    /// Parse a row string back into the state; `None` for anything else.
     pub fn parse(s: &str) -> Option<LeaseState> {
         Some(match s {
             "agent" => LeaseState::Agent,
@@ -405,6 +415,8 @@ impl LeaseState {
 }
 
 #[derive(Debug, Clone)]
+/// One row of the controller lease: who holds the computer, at which
+/// generation, in which state.
 pub struct LeaseRow {
     pub generation: i64,
     pub state: LeaseState,
@@ -416,6 +428,8 @@ pub struct LeaseRow {
 }
 
 impl LeaseRow {
+    /// The operator-facing receipt: state, generation, holder, heartbeat.
+    /// Never includes credentials or private-bracket contents.
     pub fn public_json(&self) -> serde_json::Value {
         serde_json::json!({
             "state": self.state.as_str(),
@@ -447,6 +461,8 @@ pub struct LeaseOutcome {
 }
 
 impl LeaseOutcome {
+    /// A lease outcome that revoked no approvals (the common case for
+    /// holder mutations that leave the approval surface untouched).
     pub fn plain(lease: LeaseRow) -> Self {
         LeaseOutcome {
             lease,
@@ -484,6 +500,7 @@ pub enum ProposeError {
 }
 
 impl ProposeError {
+    /// The `service.error` code the supervisor sends on the seam.
     pub fn seam_code(&self) -> &'static str {
         match self {
             ProposeError::PendingExists => "propose_while_pending",
@@ -511,6 +528,8 @@ impl ProposeError {
     }
 }
 
+/// The proposal receipt: the id the supervisor's waiter is registered
+/// under, the service-computed digest, and the server-time deadline.
 #[derive(Debug)]
 pub struct ProposedApproval {
     pub id: String,
@@ -519,6 +538,7 @@ pub struct ProposedApproval {
     pub lease_generation: i64,
 }
 
+/// The human's verdict on a pending approval.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DecideKind {
     Approve,
@@ -548,6 +568,7 @@ pub enum DecideError {
 }
 
 impl DecideError {
+    /// The HTTP status for the failure.
     pub fn status(&self) -> u16 {
         match self {
             DecideError::NotFound => 404,
@@ -558,6 +579,7 @@ impl DecideError {
         }
     }
 
+    /// The machine-readable error code for the `{"error": code}` envelope.
     pub fn code(&self) -> &'static str {
         match self {
             DecideError::NotFound => "unknown_approval",
@@ -604,6 +626,9 @@ impl DecideError {
     }
 }
 
+/// The decision receipt. `outcome` wakes the supervisor's blocked waiter;
+/// `ticket` is `Some` only on approval and travels to the worker in the
+/// seam reply — never in the HTTP response.
 #[derive(Debug)]
 pub struct DecidedApproval {
     pub approval_id: String,
@@ -632,6 +657,7 @@ pub enum LeaseError {
 }
 
 impl LeaseError {
+    /// The HTTP status for the failure.
     pub fn status(&self) -> u16 {
         match self {
             LeaseError::NotHolder => 403,
@@ -642,6 +668,7 @@ impl LeaseError {
         }
     }
 
+    /// The machine-readable error code for the `{"error": code}` envelope.
     pub fn code(&self) -> &'static str {
         match self {
             LeaseError::NotHolder => "not_lease_holder",
@@ -652,6 +679,9 @@ impl LeaseError {
         }
     }
 
+    /// User-safe message for the error envelope. Tells the caller what
+    /// moved and what to do (re-read the lease and retry); never includes
+    /// row internals.
     pub fn message(&self) -> String {
         match self {
             LeaseError::NotHolder => "Only the device holding the lease can do that.".to_string(),
@@ -677,6 +707,7 @@ pub enum TicketError {
 }
 
 impl TicketError {
+    /// The `service.error` code for a failed ticket redemption.
     pub fn seam_code(&self) -> &'static str {
         match self {
             TicketError::UnknownApproval => "unknown_approval",
@@ -686,6 +717,7 @@ impl TicketError {
         }
     }
 
+    /// The HTTP status for the failure (surfaced via the seam error path).
     pub fn status(&self) -> u16 {
         match self {
             TicketError::UnknownApproval => 404,

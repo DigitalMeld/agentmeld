@@ -66,6 +66,32 @@ ticket all rejected), and the register-before-propose waiter ordering. Full suit
 `cargo test --locked --workspace` (47 tests), `cargo build --locked
 --workspace`, `scripts/check-docs.py`, `scripts/check-local.sh`.
 
+## Quality audit (standing directives)
+
+The owner's standing directives — *quality code, quality docs* and *best
+practice is how we roll* — were audited against the Phase 3 delta after
+the verification run above:
+
+- **Doc comments:** 19 public items in `src/approvals.rs` gained doc
+  comments (state/lease helpers, `LeaseRow`, outcome structs, the
+  error-code/status/message mappers, the waiter registry constructor);
+  all new `src/db.rs` methods were already documented. The shared-bound
+  constants got a group doc that names what each bound covers.
+- **Error handling:** no `unwrap`/`expect`/`panic` in the new library
+  paths (the remaining hits are pre-existing: `/dev/urandom` seeding,
+  signal handlers, JSON frame serialization). User-facing messages were
+  re-read against the bar — they state what happened and what to do
+  (e.g. `StaleLease`: "Control of the computer changed since this was
+  proposed. Ask again.").
+- **Migrations:** v4 is forward-only with the existing checksum-guarded
+  `schema_migrations` runner — replayable and tamper-evident.
+- **Dead code:** none found; `wait_for` was already removed, `sweep_once`
+  is shared by `sweep_loop` and the tests, and `-D warnings` Clippy is
+  clean.
+- **Docs:** design doc §12 stays accurate (doc-only change); this log
+  updated. Full suite re-run after the audit: fmt, Clippy, 52 tests,
+  build, `check-docs.py` (84 files), `check-local.sh` — all green.
+
 ## Status
 
 **Semantically complete, callback-unproven.** The service semantics are
