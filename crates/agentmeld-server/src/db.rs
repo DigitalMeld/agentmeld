@@ -2123,6 +2123,22 @@ impl Db {
         Ok(n)
     }
 
+    /// True if the device's sessions are revoked (revocation version bumped
+    /// or all sessions revoked). The SSE producer uses this for its
+    /// heartbeat-time recheck without retaining the bearer's raw value.
+    pub fn device_revoked(&self, device_id: &str) -> Result<bool, String> {
+        let conn = self.conn.lock().map_err(|e| format!("db lock: {e}"))?;
+        let revoked: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM device_sessions
+                 WHERE device_id = ?1 AND revoked_at IS NULL",
+                rusqlite::params![device_id],
+                |r| r.get(0),
+            )
+            .map_err(|e| format!("db: {e}"))?;
+        Ok(revoked == 0)
+    }
+
     pub fn touch_device(&self, device_id: &str) -> Result<(), String> {
         let conn = self.conn.lock().map_err(|e| format!("db lock: {e}"))?;
         conn.execute(

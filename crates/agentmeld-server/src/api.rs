@@ -501,7 +501,7 @@ struct EventsQuery {
 }
 
 async fn get_events(
-    Authed(_): Authed,
+    Authed(session): Authed,
     State(state): State<AppState>,
     Query(query): Query<EventsQuery>,
     headers: HeaderMap,
@@ -531,18 +531,11 @@ async fn get_events(
         }
     };
 
-    // The raw Authorization header feeds the heartbeat-time revocation
-    // recheck inside the producer; the device already authenticated above.
-    // The token lives only for this connection's lifetime.
-    let authorization = headers
-        .get(header::AUTHORIZATION)
-        .and_then(|v| v.to_str().ok())
-        .unwrap_or("")
-        .to_string();
+    // The producer rechecks revocation by device id on heartbeat; the raw
+    // bearer is not retained past this connect-time authentication.
     let frames = spawn_event_stream(
         state.db.clone(),
-        state.auth.clone(),
-        authorization,
+        session.device_id,
         cursor,
         StreamConfig::default(),
     );

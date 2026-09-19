@@ -38,7 +38,6 @@ use std::time::Duration;
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
 
-use crate::auth::Auth;
 use crate::db::{Db, StreamRow};
 
 /// A cursor more than this many rows behind the max is rejected (HTTP 410).
@@ -55,6 +54,9 @@ pub const RETRY_MS: u64 = 3000;
 pub const HEARTBEAT: Duration = Duration::from_secs(15);
 /// Live-row poll interval.
 pub const POLL_INTERVAL: Duration = Duration::from_millis(250);
+/// A client that accepts no frame for this long is considered stalled; the
+/// producer closes the stream and the client resumes via Last-Event-ID.
+pub const STALL_TIMEOUT: Duration = Duration::from_secs(45);
 
 /// Tuning knobs for the stream producer. Production uses the defaults;
 /// deterministic tests shrink the queue and heartbeat.
@@ -67,6 +69,10 @@ pub struct StreamConfig {
     pub heartbeat: Duration,
     /// Live-row poll interval.
     pub poll_interval: Duration,
+    /// How long a single frame send may block on a stalled client before
+    /// the producer gives up and closes the stream. The client reconnects
+    /// with Last-Event-ID and resumes at-least-once.
+    pub stall_timeout: Duration,
 }
 
 impl Default for StreamConfig {
@@ -75,6 +81,7 @@ impl Default for StreamConfig {
             queue_cap: DEFAULT_QUEUE_CAP,
             heartbeat: HEARTBEAT,
             poll_interval: POLL_INTERVAL,
+            stall_timeout: STALL_TIMEOUT,
         }
     }
 }
@@ -205,25 +212,37 @@ pub fn resolve_cursor(
 
 /// Spawn the per-connection producer task and return the frame receiver.
 /// The task ends (dropping the sender, which closes the body) when the
-/// client disconnects, the device is revoked, the queue overflows after
-/// emitting `stream.resync_required`, or the journal becomes unreadable
-/// (the client reconnects and resumes at-least-once).
+/// client disconnects, is stalled past [`StreamConfig::stall_timeout`], the
+/// device is revoked, the queue overflows after emitting
+/// `stream.resync_required`, or the journal becomes unreadable (the client
+/// reconnects and resumes at-least-once).
 pub fn spawn_event_stream(
     db: Arc<Db>,
-    auth: Arc<Auth>,
-    authorization: String,
+    device_id: String,
     cursor: i64,
     config: StreamConfig,
 ) -> ReceiverStream<String> {
     let (tx, rx) = mpsc::channel::<String>(config.queue_cap);
-    tokio::spawn(run_producer(db, auth, authorization, cursor, config, tx));
+    tokio::spawn(run_producer(db, device_id, cursor, config, tx));
     ReceiverStream::new(rx)
+}
+
+/// Send a frame, giving up if the client stalls past the configured
+/// timeout. A stalled client holds its SSE connection open without reading;
+/// without this bound the producer would block forever on a dead peer.
+async fn send_frame(
+    tx: &mpsc::Sender<String>,
+    frame: String,
+    stall_timeout: std::time::Duration,
+) -> bool {
+    tokio::time::timeout(stall_timeout, tx.send(frame))
+        .await
+        .is_ok()
 }
 
 async fn run_producer(
     db: Arc<Db>,
-    auth: Arc<Auth>,
-    authorization: String,
+    device_id: String,
     mut cursor: i64,
     config: StreamConfig,
     tx: mpsc::Sender<String>,
@@ -231,14 +250,14 @@ async fn run_producer(
     // Fresh-connection hello: retry hint, then the current max sequence so
     // the client can persist a cursor without reading to the end.
     let max_seq = db.max_event_sequence().unwrap_or(0);
-    if tx.send(retry_frame()).await.is_err() {
+    if !send_frame(&tx, retry_frame(), config.stall_timeout).await {
         return;
     }
     let hello = named_frame(
         "stream.hello",
         &serde_json::json!({ "current_seq": max_seq }).to_string(),
     );
-    if tx.send(hello).await.is_err() {
+    if !send_frame(&tx, hello, config.stall_timeout).await {
         return;
     }
 
@@ -253,7 +272,7 @@ async fn run_producer(
         let caught_up = rows.len() as i64 <= REPLAY_BATCH;
         for row in rows.into_iter().take(REPLAY_BATCH as usize) {
             cursor = row.seq;
-            if tx.send(data_frame(&row)).await.is_err() {
+            if !send_frame(&tx, data_frame(&row), config.stall_timeout).await {
                 return;
             }
         }
@@ -284,22 +303,27 @@ async fn run_producer(
                         })
                         .to_string(),
                     );
-                    let _ = tx.try_send(control);
+                    // Bounded wait: a stalled client still gets the close
+                    // and resumes at-least-once via Last-Event-ID.
+                    let _ = send_frame(&tx, control, config.stall_timeout).await;
                     return;
                 }
                 for row in rows {
                     cursor = row.seq;
-                    if tx.send(data_frame(&row)).await.is_err() {
+                    if !send_frame(&tx, data_frame(&row), config.stall_timeout).await {
                         return;
                     }
                 }
             }
             _ = beat.tick() => {
-                if tx.send(ping_frame().to_string()).await.is_err() {
+                if !send_frame(&tx, ping_frame().to_string(), config.stall_timeout).await {
                     return;
                 }
-                if auth.authenticate(Some(&authorization)).is_err() {
-                    return;
+                // Revocation recheck by device id: the raw bearer is not
+                // retained past connect-time authentication.
+                match db.device_revoked(&device_id) {
+                    Ok(true) | Err(_) => return,
+                    Ok(false) => {}
                 }
             }
         }

@@ -139,14 +139,12 @@ async fn stream_envelope_shape_order_and_hello() {
             event("e3", "run.answer_delta", serde_json::json!({"text": "yo"})),
         ],
     );
-    let (authz, _device) = bearer(&db);
-    let auth = Arc::new(Auth::new(db.clone()));
+    let (_authz, device_id) = bearer(&db);
     let cursor = db.max_event_sequence().unwrap() - 3;
 
     let mut rx = agentmeld_server::events::spawn_event_stream(
         db.clone(),
-        auth,
-        authz,
+        device_id.clone(),
         cursor,
         StreamConfig::default(),
     );
@@ -203,13 +201,11 @@ async fn stream_replay_is_bounded_and_live_rows_follow() {
     journal(&db, &run_id, generation, &binding, &batch);
     let max = db.max_event_sequence().unwrap();
 
-    let (authz, _device) = bearer(&db);
-    let auth = Arc::new(Auth::new(db.clone()));
+    let (_authz, device_id) = bearer(&db);
     // The no-cursor default replays the latest 200: cursor = max - 200.
     let mut rx = agentmeld_server::events::spawn_event_stream(
         db.clone(),
-        auth,
-        authz,
+        device_id.clone(),
         max - 200,
         StreamConfig::default(),
     );
@@ -255,14 +251,14 @@ async fn stream_replay_is_bounded_and_live_rows_follow() {
 async fn stream_heartbeat_ping_and_revocation_close() {
     let (db, dir) = common::test_db();
     let (_run, _conv, _binding, _gen) = setup_running(&db);
-    let (authz, device_id) = bearer(&db);
-    let auth = Arc::new(Auth::new(db.clone()));
+    let (_authz, device_id) = bearer(&db);
     let config = StreamConfig {
         heartbeat: Duration::from_millis(50),
         poll_interval: Duration::from_millis(20),
         ..StreamConfig::default()
     };
-    let mut rx = agentmeld_server::events::spawn_event_stream(db.clone(), auth, authz, 0, config);
+    let mut rx =
+        agentmeld_server::events::spawn_event_stream(db.clone(), device_id.clone(), 0, config);
 
     assert!(next_frame(&mut rx).await.starts_with("retry:"));
     assert!(next_frame(&mut rx).await.starts_with("event: stream.hello"));
@@ -305,15 +301,15 @@ async fn stream_heartbeat_ping_and_revocation_close() {
 async fn stream_queue_overflow_sends_resync_and_closes() {
     let (db, dir) = common::test_db();
     let (run_id, _conv, binding, generation) = setup_running(&db);
-    let (authz, _device) = bearer(&db);
-    let auth = Arc::new(Auth::new(db.clone()));
+    let (_authz, device_id) = bearer(&db);
     // Tiny queue: 10 pending rows must trigger resync, not silent drops.
     let config = StreamConfig {
         queue_cap: 4,
         poll_interval: Duration::from_millis(20),
         ..StreamConfig::default()
     };
-    let mut rx = agentmeld_server::events::spawn_event_stream(db.clone(), auth, authz, 0, config);
+    let mut rx =
+        agentmeld_server::events::spawn_event_stream(db.clone(), device_id.clone(), 0, config);
 
     assert!(next_frame(&mut rx).await.starts_with("retry:"));
     assert!(next_frame(&mut rx).await.starts_with("event: stream.hello"));
@@ -414,16 +410,14 @@ async fn stream_excludes_diagnostic_rows_and_never_leaks_tickets() {
         )],
     );
 
-    let (authz, _device) = bearer(&db);
-    let auth = Arc::new(Auth::new(db.clone()));
+    let (_authz, device_id) = bearer(&db);
     // Start the cursor after the admit rows. The propose/decide flow
     // journalled approval.requested + approval.settled (both legitimately
     // streamable); the three worker rows follow: five rows total.
     let cursor = db.max_event_sequence().unwrap() - 5;
     let mut rx = agentmeld_server::events::spawn_event_stream(
         db.clone(),
-        auth,
-        authz,
+        device_id.clone(),
         cursor,
         StreamConfig::default(),
     );
@@ -476,8 +470,8 @@ use tower::ServiceExt as _;
 /// A full app stack for HTTP-level stream tests. The supervisor is never
 /// started; only the router + db + auth are exercised.
 fn http_app(db: &Arc<Db>, dir: &std::path::Path) -> (axum::Router, String) {
-    let auth = Arc::new(Auth::new(db.clone()));
     let pending = Arc::new(PendingApprovals::new());
+    let auth = Arc::new(Auth::new(db.clone()));
     let supervisor = Arc::new(Supervisor::new(
         db.clone(),
         dir.to_path_buf(),
