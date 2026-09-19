@@ -36,6 +36,9 @@ function saveCursor(seq) {
 }
 
 export function initClientTrack(ctx) {
+  // NOTE: ctx.$ is getElementById — it takes a bare id, NOT a '#'-prefixed
+  // selector. Calling $('#approvalBar') silently resolves to null and every
+  // paint below becomes a no-op, with no error. Keep the '#' off.
   const { api, esc, $, notice, icon, token, getState, requestRefresh, selectConversation } = ctx;
 
   // ---- state ------------------------------------------------------------
@@ -212,7 +215,7 @@ export function initClientTrack(ctx) {
     // The prompt bar: the most urgent pending approval, anywhere. Re-renders
     // only when the set (or an expiry flip, or a decision in flight) changes;
     // the per-second countdown tick mutates the time text in place.
-    const bar = $('#approvalBar');
+    const bar = $('approvalBar');
     if (bar) {
       const sig = pendingSig();
       if (bar.dataset.sig !== sig) {
@@ -230,7 +233,7 @@ export function initClientTrack(ctx) {
       }
     }
     // The approvals panel: every pending request plus recent history.
-    const panel = $('#approvalsBody');
+    const panel = $('approvalsBody');
     if (panel) {
       const sig = fullSig();
       if (panel.dataset.sig !== sig) {
@@ -269,7 +272,7 @@ export function initClientTrack(ctx) {
       if (el.textContent !== text) el.textContent = text;
     }
     // An approval that just passed its deadline flips to the expired card.
-    const bar = $('#approvalBar');
+    const bar = $('approvalBar');
     if (bar && !bar.hidden && bar.dataset.sig !== pendingSig()) paintApprovals();
   }
 
@@ -332,7 +335,7 @@ export function initClientTrack(ctx) {
     paused: 'Paused',
   };
   function paintLease() {
-    const pill = $('#leasePill');
+    const pill = $('leasePill');
     if (!pill) return;
     if (!lease) { pill.hidden = true; return; }
     const human = lease.state === 'human';
@@ -355,7 +358,7 @@ export function initClientTrack(ctx) {
 
   // ---- event stream -----------------------------------------------------
   function paintStream() {
-    const el = $('#streamStatus');
+    const el = $('streamStatus');
     if (!el) return;
     const label = {
       idle: 'Updates paused',
