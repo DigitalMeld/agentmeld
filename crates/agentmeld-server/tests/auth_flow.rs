@@ -108,3 +108,35 @@ fn wrong_token_is_unauthorized() {
     assert_eq!(status_of(&err), 401);
     common::cleanup(&dir);
 }
+
+#[test]
+fn device_list_reports_sessions_and_revocation() {
+    let (db, dir) = common::test_db();
+    let auth = Auth::new(db.clone());
+
+    let pairing = auth.mint_pairing_token().expect("mint");
+    let (d1, _s1) = auth.pair(&pairing, "Browser", None).expect("pair 1");
+    let pairing2 = auth.mint_pairing_token().expect("mint");
+    let (d2, _s2) = auth.pair(&pairing2, "Phone", None).expect("pair 2");
+
+    let list = db.list_devices().expect("list");
+    assert_eq!(list.len(), 2);
+    // Oldest first.
+    assert_eq!(list[0].id, d1);
+    assert_eq!(list[0].name, "Browser");
+    assert_eq!(list[0].active_sessions, 1);
+    assert!(!list[0].revoked);
+    assert_eq!(list[1].id, d2);
+    assert_eq!(list[1].active_sessions, 1);
+
+    // The kill switch: sessions die and the device flags revoked.
+    db.revoke_device_and_settle(&d2).expect("revoke device");
+    let list = db.list_devices().expect("list after revoke");
+    let phone = list.iter().find(|d| d.id == d2).expect("phone listed");
+    assert_eq!(phone.active_sessions, 0);
+    assert!(phone.revoked);
+    let browser = list.iter().find(|d| d.id == d1).expect("browser listed");
+    assert_eq!(browser.active_sessions, 1);
+    assert!(!browser.revoked);
+    common::cleanup(&dir);
+}

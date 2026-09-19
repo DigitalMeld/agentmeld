@@ -205,6 +205,7 @@ pub fn router(state: AppState) -> Router {
         .route("/lease/resume", post(post_lease_resume))
         .route("/lease/heartbeat", post(post_lease_heartbeat))
         .route("/lease/revoke", post(post_lease_revoke))
+        .route("/devices", get(get_devices))
         .route("/devices/{id}/revoke", post(post_device_revoke));
 
     // The frozen UI calls /api/* (no version); the versioned API lives at
@@ -967,6 +968,32 @@ async fn post_lease_revoke(
 
 // -------------------------------------------- Phase 3: device revocation.
 //
+// GET /api/v1/devices — the paired-device list for the client UI. Each
+// entry carries its live session count and whether the kill switch was
+// pulled; `is_current_device` marks the caller's own device so the UI
+// can badge it (and warn before revoking it).
+async fn get_devices(Authed(ctx): Authed, State(state): State<AppState>) -> Response {
+    match state.db.list_devices() {
+        Ok(devices) => {
+            let out: Vec<serde_json::Value> = devices
+                .into_iter()
+                .map(|d| {
+                    serde_json::json!({
+                        "id": d.id,
+                        "name": d.name,
+                        "enrolled_at_ms": d.enrolled_at_ms,
+                        "active_sessions": d.active_sessions,
+                        "revoked": d.revoked,
+                        "is_current_device": d.id == ctx.device_id,
+                    })
+                })
+                .collect();
+            Json(serde_json::json!({ "devices": out })).into_response()
+        }
+        Err(e) => err(500, &format!("list devices: {e}")),
+    }
+}
+
 // POST /api/v1/devices/{id}/revoke — the operator kill switch for a
 // device: its sessions die, pending approvals are revoked
 // (device_revoked), and the lease is released if the device held it.

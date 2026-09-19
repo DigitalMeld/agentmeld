@@ -562,6 +562,19 @@ pub struct DeviceRow {
     pub revocation_version: i64,
 }
 
+/// One row of the device list: the device plus its live session count.
+/// `revoked` is true when the operator kill switch was pulled
+/// (revocation_version bumped); a device whose sessions merely expired is
+/// inactive, not revoked.
+#[derive(Debug, Clone)]
+pub struct DeviceListEntry {
+    pub id: String,
+    pub name: String,
+    pub enrolled_at_ms: i64,
+    pub active_sessions: i64,
+    pub revoked: bool,
+}
+
 #[derive(Debug, Clone)]
 pub struct SessionRow {
     pub id: String,
@@ -2023,6 +2036,38 @@ impl Db {
         let conn = self.conn.lock().map_err(|e| format!("db lock: {e}"))?;
         conn.query_row("SELECT COUNT(*) FROM devices", [], |r| r.get(0))
             .map_err(|e| format!("count devices: {e}"))
+    }
+
+    /// Every enrolled device with its live session count, oldest first.
+    /// A session is live when it is neither revoked nor past its expiry.
+    pub fn list_devices(&self) -> Result<Vec<DeviceListEntry>, String> {
+        let conn = self.conn.lock().map_err(|e| format!("db lock: {e}"))?;
+        let now = self.clock_now();
+        let mut stmt = conn
+            .prepare(
+                "SELECT d.id, d.name, d.enrolled_at, d.revocation_version,
+                        (SELECT COUNT(*) FROM device_sessions s
+                         WHERE s.device_id = d.id
+                           AND s.revoked_at IS NULL
+                           AND (s.expires_at IS NULL OR s.expires_at > ?1))
+                 FROM devices d
+                 ORDER BY d.enrolled_at ASC",
+            )
+            .map_err(|e| format!("list devices prepare: {e}"))?;
+        let rows = stmt
+            .query_map([now], |r| {
+                let version: i64 = r.get(3)?;
+                Ok(DeviceListEntry {
+                    id: r.get(0)?,
+                    name: r.get(1)?,
+                    enrolled_at_ms: r.get(2)?,
+                    active_sessions: r.get(4)?,
+                    revoked: version > 1,
+                })
+            })
+            .map_err(|e| format!("list devices query: {e}"))?;
+        rows.collect::<Result<Vec<_>, _>>()
+            .map_err(|e| format!("list devices rows: {e}"))
     }
 
     pub fn create_device(&self, name: &str) -> Result<DeviceRow, String> {
