@@ -31,7 +31,7 @@ REPO = Path(__file__).resolve().parents[1]
 TARGET = REPO / "target" / "debug"
 SERVER = TARGET / "agentmeld-server"
 SEEDER = TARGET / "seed_client_track"
-PWVENV = Path("/tmp/pwvenv")
+PWVENV = Path(os.environ.get("PWVENV", "/tmp/pwvenv"))
 
 # Playwright lives in the pinned venv; re-exec under it when needed so
 # `python3 scripts/e2e_browser.py` just works. (Check the sync_api import,
@@ -123,14 +123,6 @@ def main():
     ap.add_argument("--headed", action="store_true", help="show the browser (debugging)")
     args = ap.parse_args()
 
-    for name, path in (("agentmeld-server", SERVER), ("seed_client_track", SEEDER)):
-        if not path.exists():
-            raise Fail(f"{name} not built at {path}; run cargo build first")
-
-    pw_python = PWVENV / "bin" / "python"
-    if not pw_python.exists():
-        raise Fail(f"playwright venv missing at {PWVENV}")
-
     env = cargo_env()
     log("building server + seeder")
     subprocess.run(
@@ -139,6 +131,13 @@ def main():
         cwd=REPO, env=env, check=True,
         stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT,
     )
+    for name, path in (("agentmeld-server", SERVER), ("seed_client_track", SEEDER)):
+        if not path.exists():
+            raise Fail(f"{name} not built at {path} after cargo build; build failed silently?")
+
+    pw_python = PWVENV / "bin" / "python"
+    if not pw_python.exists():
+        raise Fail(f"playwright venv missing at {PWVENV} (set PWVENV to its path)")
 
     state_dir = Path(tempfile.mkdtemp(prefix="agentmeld-e2e-"))
     port = args.port or pick_port()
@@ -249,6 +248,31 @@ def main():
                 check("lease pill reads Observing", "Observing" in lease, lease.strip())
                 stream = page.text_content("#streamStatus") or ""
                 check("stream status reads Live", "Live" in stream, stream.strip())
+
+                # --- lease controls: take -> hold -> release ---
+                # Takeover arms in two steps (it cancels the live turn and
+                # revokes pending approvals). The seeder leaves no live turn,
+                # so takeover lands straight in human (no pausing ack needed).
+                lease_btns = page.locator("#leaseControls .leaseBtn")
+                check("Take control is offered while Observing",
+                      lease_btns.count() == 1 and "Take control" in (lease_btns.first.text_content() or ""))
+                lease_btns.first.click()
+                wait_for(lambda: "Confirm take control" in (page.text_content("#leaseControls") or ""),
+                         10, "takeover armed")
+                page.locator("#leaseControls .leaseBtn").first.click()
+                check("pill shows this device in control",
+                      wait_for(lambda: "Controlling on this device" in (page.text_content("#leasePill") or ""),
+                               10, "pill human"))
+                ctl = page.text_content("#leaseControls") or ""
+                check("Release + Private offered while holding",
+                      "Release control" in ctl and "Private session" in ctl)
+                page.locator("#leaseControls .leaseBtn", has_text="Release control").click()
+                # Resume parks the lease in "resuming"; only a live worker
+                # drives it back to observed/agent, so the honest assertion is
+                # that this device is no longer in control.
+                check("release ends this device's control",
+                      wait_for(lambda: "Controlling on this device" not in (page.text_content("#leasePill") or ""),
+                               10, "pill released"))
 
                 # --- run-details dialog via hydration ---
                 # Scope to the Q3 run's activity entry: the first .detailLink on
