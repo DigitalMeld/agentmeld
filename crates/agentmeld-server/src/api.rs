@@ -27,6 +27,7 @@ use serde::Deserialize;
 
 use crate::approvals::{
     ApprovalOutcome, ApprovalState, DecideKind, LeaseError, LeaseOutcome, PendingApprovals,
+    RevokeError,
 };
 use crate::auth::{Auth, AuthError, SessionContext};
 use crate::db::{AdmitInput, Db, StopOutcome, UploadFile};
@@ -191,6 +192,7 @@ pub fn router(state: AppState) -> Router {
         .route("/file", get(get_file))
         .route("/events", get(get_events))
         .route("/approvals/{id}/decision", post(post_approval_decision))
+        .route("/approvals/{id}/revoke", post(post_approval_revoke))
         .route("/approvals/{id}", get(get_approval))
         .route("/approvals", get(get_approvals))
         .route("/runs/{id}/tool_steps", get(get_run_tool_steps))
@@ -633,6 +635,56 @@ async fn post_approval_decision(
                     _ => ApprovalOutcome::Revoked,
                 };
                 state.pending.resolve(&id, outcome);
+            }
+            err_code(e.status(), e.code(), &e.message())
+        }
+    }
+}
+
+/// Strict revoke body: empty today — the reason is always `user_revoked`
+/// (the column is a closed enum; the actor is journalled in the event).
+/// Unknown fields are rejected, never ignored, so a future reason has a
+/// clean place to land.
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct RevokeRequest {}
+
+/// POST /api/v1/approvals/{id}/revoke — the human pulls back a grant.
+/// A pending approval settles to revoked (the blocked worker's waiter
+/// resolves with `Revoked` so the turn winds down); an approved one is
+/// revoked and its execution ticket dies with it (`claim_ticket` only
+/// honors `approved` rows). Unlike decisions this is not fenced on the
+/// lease generation: revocation is retrospective, not turn-gated.
+async fn post_approval_revoke(
+    Authed(ctx): Authed,
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+    Json(_body): Json<RevokeRequest>,
+) -> Response {
+    // The revoking device is the authenticated session's device — never a
+    // client-supplied value.
+    match state.db.revoke_approval(&id, &ctx.device_id) {
+        Ok(revoked) => {
+            if revoked.was_pending {
+                // Wake the blocked worker, if any: the approval it waited on
+                // is terminally revoked, so the action will not run.
+                state.pending.resolve(&id, ApprovalOutcome::Revoked);
+            }
+            Json(serde_json::json!({
+                "approval_id": revoked.approval_id,
+                "state": "revoked",
+                "revoked_reason": revoked.revoked_reason,
+                "revoked_at_ms": revoked.revoked_at_ms,
+                "revoked_by": ctx.device_id,
+                "already_dispatched": revoked.already_dispatched,
+            }))
+            .into_response()
+        }
+        Err(e) => {
+            // Lazy expiry settles the row inside the failed revoke: wake
+            // the blocked worker so it fails closed instead of hanging.
+            if matches!(e, RevokeError::Expired) {
+                state.pending.resolve(&id, ApprovalOutcome::Expired);
             }
             err_code(e.status(), e.code(), &e.message())
         }

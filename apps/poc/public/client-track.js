@@ -54,6 +54,9 @@ export function initClientTrack(ctx) {
   let lastFrameAt = 0;
   let lastPollAt = 0;
   let deciding = null;     // approval id with a decision in flight
+  let revoking = null;     // approval id with a revocation in flight
+  let revokeArmed = null;  // approval id armed for the two-step revoke confirm
+  let revokeArmTimer = 0;
   let leaseBusy = null;    // lease action in flight
   let armedTakeover = 0;   // timestamp: takeover two-step confirm arming
   const seenSeq = new Set();
@@ -258,7 +261,8 @@ export function initClientTrack(ctx) {
       '|' + (deciding || '') + '|' + (getState().selectedConversationId || '');
   }
   function fullSig() {
-    return pendingSig() + '|' + history.map(a => a.id + ':' + a.state).join(',');
+    return pendingSig() + '|' + history.map(a => a.id + ':' + a.state).join(',') +
+      '|' + (revoking || '') + '|' + (revokeArmed || '');
   }
 
   function paintApprovals() {
@@ -300,13 +304,24 @@ export function initClientTrack(ctx) {
           if (history.length) {
             const label = { approved: 'Approved', denied: 'Denied', expired: 'Expired', revoked: 'Revoked' };
             html += `<h4 class="approvalsHead">Recent</h4><ul class="approvalHistory">` +
-              history.map(a =>
-                `<li class="approvalHistoryItem approvalHistoryItem--${esc(a.state)}">` +
+              history.map(a => {
+                // A granted approval can be pulled back: the revoke button
+                // arms on first click and confirms on the second (six
+                // seconds), like the lease takeover control.
+                const revokeBtn = a.state === 'approved'
+                  ? (revoking === a.id
+                    ? `<button class="approvalHistoryRevoke" disabled>Working…</button>`
+                    : revokeArmed === a.id
+                      ? `<button class="approvalHistoryRevoke armed" data-revoke="${esc(a.id)}">Confirm revoke</button>`
+                      : `<button class="approvalHistoryRevoke" data-revoke="${esc(a.id)}">Revoke</button>`)
+                  : '';
+                return `<li class="approvalHistoryItem approvalHistoryItem--${esc(a.state)}">` +
                 `<span class="approvalHistoryState">${esc(label[a.state] || a.state)}</span>` +
                 `<span class="approvalHistoryDesc">${esc(a.description_user || actionSummary(a).tool)}</span>` +
                 (a.revoked_reason ? `<span class="approvalHistoryMeta">reason: ${esc(a.revoked_reason)}</span>` : '') +
-                `</li>`
-              ).join('') + `</ul>`;
+                revokeBtn +
+                `</li>`;
+              }).join('') + `</ul>`;
           }
         }
         panel.innerHTML = html;
@@ -356,6 +371,48 @@ export function initClientTrack(ctx) {
       notice('The decision could not be recorded. Check the connection and try again.');
     }
     deciding = null;
+    await pollApprovals();
+    requestRefresh();
+  }
+
+  // Pull back a granted approval. Two-step: the first click arms the
+  // button for six seconds, the second fires the revoke. Revoking an
+  // approved approval kills its execution ticket server-side; if the
+  // ticket was already consumed the action may have run and the receipt
+  // says so honestly.
+  async function revokeApproval(id) {
+    if (revoking) return;
+    if (revokeArmed !== id) {
+      revokeArmed = id;
+      clearTimeout(revokeArmTimer);
+      revokeArmTimer = setTimeout(() => { revokeArmed = null; paintApprovals(); }, 6000);
+      paintApprovals();
+      return;
+    }
+    clearTimeout(revokeArmTimer);
+    revokeArmed = null;
+    revoking = id;
+    paintApprovals();
+    try {
+      const res = await fetch('/api/v1/approvals/' + encodeURIComponent(id) + '/revoke', {
+        method: 'POST',
+        headers: { Authorization: 'Bearer ' + token(), 'Content-Type': 'application/json' },
+        body: '{}',
+      });
+      const body = await res.json().catch(() => ({}));
+      if (res.ok) {
+        notice(body.already_dispatched
+          ? 'Approval revoked. The action may have already run.'
+          : 'Approval revoked.');
+      } else if (body.error === 'already_settled' || body.error === 'expired') {
+        notice(body.message || 'That approval already settled.');
+      } else {
+        notice(body.message || 'The revocation could not be recorded.');
+      }
+    } catch (e) {
+      notice('The revocation could not be recorded. Check the connection and try again.');
+    }
+    revoking = null;
     await pollApprovals();
     requestRefresh();
   }
@@ -654,13 +711,19 @@ export function initClientTrack(ctx) {
     paintSteps();
   }
 
-  // Delegated clicks: approve/deny/view-run buttons and lease controls
-  // rendered by this module.
+  // Delegated clicks: approve/deny/revoke/view-run buttons and lease
+  // controls rendered by this module.
   document.addEventListener('click', e => {
     const decideBtn = e.target.closest('[data-decide]');
     if (decideBtn) {
       e.preventDefault();
       void decide(decideBtn.getAttribute('data-id'), decideBtn.getAttribute('data-decide'));
+      return;
+    }
+    const revokeBtn = e.target.closest('[data-revoke]');
+    if (revokeBtn) {
+      e.preventDefault();
+      void revokeApproval(revokeBtn.getAttribute('data-revoke'));
       return;
     }
     const leaseBtn = e.target.closest('[data-lease]');

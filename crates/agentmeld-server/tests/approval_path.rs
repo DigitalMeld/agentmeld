@@ -10,7 +10,7 @@ use std::sync::Arc;
 
 use agentmeld_server::approvals::{
     sweep_once, ApprovalOutcome, ApprovalState, DecideError, DecideKind, LeaseError, LeaseState,
-    PendingApprovals, ProposeError,
+    PendingApprovals, ProposeError, RevokeError,
 };
 use agentmeld_server::db::{AdmitInput, Db};
 use agentmeld_server::domain::{new_uuid, RunStatus};
@@ -629,5 +629,112 @@ fn ticket_redemption_is_exactly_once() {
         Err(e) => e,
     };
     assert_eq!(err.message, "ticket_mismatch");
+    common::cleanup(&dir);
+}
+
+#[test]
+fn revoke_pending_settles_and_records_reason() {
+    let (db, dir) = common::test_db();
+    let (run_id, generation, device_id) = setup_turn(&db);
+
+    let id = propose(&db, &run_id, generation, 60_000);
+    let revoked = db.revoke_approval(&id, &device_id).expect("revoke pending");
+    assert!(revoked.was_pending);
+    assert!(!revoked.already_dispatched);
+    assert_eq!(revoked.revoked_reason, "user_revoked");
+
+    let row = db.get_approval(&id).expect("read").expect("row");
+    assert_eq!(row.state, ApprovalState::Revoked);
+    assert_eq!(row.revoked_reason.as_deref(), Some("user_revoked"));
+
+    // The journal carries approval.revoked so the stream and the history
+    // UI observe the revocation.
+    let events = db.stream_events_after(0, 100).expect("stream");
+    assert!(
+        events
+            .iter()
+            .any(|e| e.kind == "approval.revoked" && e.id == format!("{id}:approval.revoked")),
+        "approval.revoked journalled"
+    );
+    common::cleanup(&dir);
+}
+
+#[test]
+fn revoke_approved_kills_the_execution_ticket() {
+    let (db, dir) = common::test_db();
+    let (run_id, generation, device_id) = setup_turn(&db);
+
+    let id = propose(&db, &run_id, generation, 60_000);
+    let decided = db
+        .decide_approval(&id, &device_id, DecideKind::Approve, lease_generation(&db))
+        .expect("decide");
+    let ticket = decided.ticket.expect("ticket");
+
+    let revoked = db.revoke_approval(&id, &device_id).expect("revoke");
+    assert_eq!(revoked.revoked_reason, "user_revoked");
+    assert!(!revoked.was_pending);
+    assert!(!revoked.already_dispatched);
+
+    // The ticket dies with the grant: claim_ticket requires state='approved'.
+    let err = match db.apply_worker_events(
+        &run_id,
+        generation,
+        &binding(),
+        &[dispatched(&id, &ticket)],
+        None,
+        false,
+    ) {
+        Ok(_) => panic!("dispatch after revoke must fail"),
+        Err(e) => e,
+    };
+    assert_eq!(err.message, "ticket_not_approved");
+    common::cleanup(&dir);
+}
+
+#[test]
+fn revoke_approved_after_dispatch_reports_honestly() {
+    let (db, dir) = common::test_db();
+    let (run_id, generation, device_id) = setup_turn(&db);
+
+    let id = propose(&db, &run_id, generation, 60_000);
+    let decided = db
+        .decide_approval(&id, &device_id, DecideKind::Approve, lease_generation(&db))
+        .expect("decide");
+    let ticket = decided.ticket.expect("ticket");
+    db.apply_worker_events(
+        &run_id,
+        generation,
+        &binding(),
+        &[dispatched(&id, &ticket)],
+        None,
+        false,
+    )
+    .expect("dispatch");
+
+    // The action already ran; revoking now is a recorded "I take it back".
+    let revoked = db.revoke_approval(&id, &device_id).expect("revoke");
+    assert!(revoked.already_dispatched);
+    let row = db.get_approval(&id).expect("read").expect("row");
+    assert_eq!(row.state, ApprovalState::Revoked);
+    common::cleanup(&dir);
+}
+
+#[test]
+fn revoke_terminal_and_unknown_fail_cleanly() {
+    let (db, dir) = common::test_db();
+    let (run_id, generation, device_id) = setup_turn(&db);
+
+    assert!(matches!(
+        db.revoke_approval("nope", &device_id),
+        Err(RevokeError::NotFound)
+    ));
+
+    let id = propose(&db, &run_id, generation, 60_000);
+    db.revoke_approval(&id, &device_id).expect("first revoke");
+    // Second revoke: the row is terminal.
+    assert!(matches!(
+        db.revoke_approval(&id, &device_id),
+        Err(RevokeError::AlreadySettled(ApprovalState::Revoked))
+    ));
     common::cleanup(&dir);
 }

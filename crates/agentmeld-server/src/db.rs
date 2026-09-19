@@ -8,7 +8,8 @@
 use crate::approvals::{
     action_digest, ApprovalOutcome, ApprovalRow, ApprovalState, DecideError, DecideKind,
     DecidedApproval, DeviceRevocation, LeaseError, LeaseOutcome, LeaseRow, LeaseState,
-    ProposeError, ProposedApproval, TicketError, LEASE_HEARTBEAT_TTL_MS,
+    ProposeError, ProposedApproval, RevokeError, RevokedApproval, TicketError,
+    LEASE_HEARTBEAT_TTL_MS,
 };
 use crate::domain::{
     ms_to_iso, new_token_b64url, new_uuid, now_ms, sha256_hex, RequestError, RunStatus,
@@ -28,6 +29,7 @@ const MIGRATIONS: &[(i64, &str)] = &[
     (3, include_str!("migrations/v3.sql")),
     (4, include_str!("migrations/v4.sql")),
     (5, include_str!("migrations/v5.sql")),
+    (6, include_str!("migrations/v6.sql")),
 ];
 
 pub struct Db {
@@ -5134,6 +5136,139 @@ impl Db {
             ticket,
             digest: row.action_digest.clone(),
             outcome,
+        })
+    }
+
+    /// User-initiated revocation of a granted (or still-pending) approval.
+    /// Single transaction, mirroring `decide_approval`'s atomicity:
+    ///
+    /// - `pending` -> `revoked`: the row settles through the same path as
+    ///   the automatic revocations, the `approval.revoked` event is
+    ///   journalled, and the caller must resolve the blocked worker's
+    ///   waiter with `ApprovalOutcome::Revoked` (see `was_pending`).
+    /// - `approved` -> `revoked`: the grant is pulled back. Enforcement is
+    ///   the ticket: `claim_ticket_locked` requires `state='approved'`, so
+    ///   a revoked row can never be dispatched. If the ticket was already
+    ///   consumed (`already_dispatched`) the action may have run — the
+    ///   revocation is then a recorded "I take it back", and the receipt
+    ///   says so honestly.
+    /// - Anything else -> `AlreadySettled`. An approval that passed its
+    ///   deadline is expired by lazy expiry first, like decisions.
+    ///
+    /// Deliberately not fenced on the lease generation: revocation is
+    /// retrospective, not turn-gated.
+    pub fn revoke_approval(
+        &self,
+        approval_id: &str,
+        device_id: &str,
+    ) -> Result<RevokedApproval, RevokeError> {
+        let mut conn = self
+            .conn
+            .lock()
+            .map_err(|e| RevokeError::Internal(format!("db lock: {e}")))?;
+        let tx = conn
+            .transaction()
+            .map_err(|e| RevokeError::Internal(format!("db: {e}")))?;
+        let now = self.clock_now();
+        // The revoked_reason column is a closed enum; a user-initiated
+        // revocation is always `user_revoked`. The actor is journalled in
+        // the event payload (`by`), not the reason column.
+        let reason = "user_revoked";
+
+        // Invariant: any read of an approval first applies server-time
+        // expiry, exactly like decisions.
+        let just_expired = self
+            .expire_approval_locked(&tx, approval_id, now)
+            .map_err(RevokeError::Internal)?;
+        let row: ApprovalRow = tx
+            .query_row(
+                &format!(
+                    "SELECT {APPROVAL_COLS} FROM approvals WHERE workspace_id='default' AND id=?1"
+                ),
+                params![approval_id],
+                map_approval_row,
+            )
+            .optional()
+            .map_err(|e| RevokeError::Internal(format!("read approval: {e}")))?
+            .ok_or(RevokeError::NotFound)?;
+
+        let (tool_name, title) = self
+            .approval_step_source_locked(&tx, approval_id)
+            .map_err(RevokeError::Internal)?;
+
+        match row.state {
+            ApprovalState::Pending => {
+                self.settle_approval_locked(
+                    &tx,
+                    approval_id,
+                    ApprovalState::Revoked,
+                    Some(reason),
+                    Some(device_id),
+                    now,
+                )
+                .map_err(RevokeError::Internal)?;
+            }
+            ApprovalState::Approved => {
+                // Pull the grant back. The state flip is the enforcement:
+                // claim_ticket_locked only honors `approved` rows, so the
+                // worker's ticket dies here whether or not it was read.
+                let n = tx
+                    .execute(
+                        "UPDATE approvals SET state='revoked', revoked_reason=?1,
+                                decided_by=?2, decided_at=?3
+                         WHERE workspace_id='default' AND id=?4 AND state='approved'",
+                        params![reason, device_id, now, approval_id],
+                    )
+                    .map_err(|e| RevokeError::Internal(format!("revoke approval: {e}")))?;
+                if n != 1 {
+                    return Err(RevokeError::Internal(format!(
+                        "revoke approval {approval_id}: expected 1 approved row, got {n}"
+                    )));
+                }
+            }
+            ApprovalState::Expired if just_expired => {
+                tx.commit()
+                    .map_err(|e| RevokeError::Internal(format!("commit lazy expiry: {e}")))?;
+                return Err(RevokeError::Expired);
+            }
+            s => return Err(RevokeError::AlreadySettled(s)),
+        }
+
+        self.record_approval_event_locked(
+            &tx,
+            &row.run_id,
+            approval_id,
+            "approval.revoked",
+            &serde_json::json!({"reason": reason, "by": device_id}),
+            "service",
+        )
+        .map_err(RevokeError::Internal)?;
+
+        let was_pending = row.state == ApprovalState::Pending;
+        let already_dispatched = row.consumed_at.is_some();
+        // The tool the approval described will never execute — unless the
+        // ticket was already consumed, in which case the action may have
+        // run and the step must not be rewritten as cancelled.
+        if !already_dispatched {
+            self.record_approval_step_locked(
+                &tx,
+                &row.run_id,
+                approval_id,
+                &tool_name,
+                &title,
+                "cancelled",
+                now,
+            )
+            .map_err(RevokeError::Internal)?;
+        }
+        tx.commit()
+            .map_err(|e| RevokeError::Internal(format!("commit revoke: {e}")))?;
+        Ok(RevokedApproval {
+            approval_id: approval_id.to_string(),
+            revoked_reason: reason.to_string(),
+            revoked_at_ms: now,
+            was_pending,
+            already_dispatched,
         })
     }
 
