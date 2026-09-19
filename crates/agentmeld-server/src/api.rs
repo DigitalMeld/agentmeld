@@ -981,6 +981,8 @@ const STATIC_ASSETS: &[(&str, &str)] = &[
     ("/app.js", "app.js"),
     ("/artifact-tools.js", "artifact-tools.js"),
     ("/brain.svg", "brain.svg"),
+    ("/client-track.js", "client-track.js"),
+    ("/sse-parse.js", "sse-parse.js"),
     ("/composer.js", "composer.js"),
     ("/conversation-tools.js", "conversation-tools.js"),
     ("/file-browser.js", "file-browser.js"),

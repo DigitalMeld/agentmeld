@@ -255,7 +255,11 @@ async fn run_producer(
     }
     let hello = named_frame(
         "stream.hello",
-        &serde_json::json!({ "current_seq": max_seq }).to_string(),
+        &serde_json::json!({
+            "current_seq": max_seq,
+            "server_time_ms": crate::domain::now_ms(),
+        })
+        .to_string(),
     );
     if !send_frame(&tx, hello, config.stall_timeout).await {
         return;

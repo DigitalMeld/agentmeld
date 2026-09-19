@@ -155,6 +155,17 @@ async fn stream_envelope_shape_order_and_hello() {
     assert!(hello.starts_with("event: stream.hello\n"));
     let hello_data = data_payload(&hello);
     assert_eq!(hello_data["current_seq"], db.max_event_sequence().unwrap());
+    // The hello also anchors client clocks: server_time_ms must be present
+    // and within a sane window of now (the client track uses it for the
+    // approval expiry countdown).
+    let server_time = hello_data["server_time_ms"]
+        .as_i64()
+        .expect("hello carries server_time_ms");
+    let now = agentmeld_server::domain::now_ms();
+    assert!(
+        (now - server_time).abs() < 60_000,
+        "server_time_ms {server_time} should be near now {now}"
+    );
 
     // Data frames: SSE id is the sequence, envelope carries the full shape,
     // strictly ascending.
