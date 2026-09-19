@@ -359,3 +359,33 @@ no split worker yet, so no message has ever been exchanged. The schemas have not
 validated with a real JSON Schema validator on this VM (no network install
 performed); structural check only. The approval flow (verb 2) is specified but, like
 the PoC, unexercised against real Codex callbacks — Phase 3 owns that proof.
+
+## 11. Phase 4 addendum: worker-seam/2 (2026-09-19)
+
+Phase 4 introduces `worker-seam/2`, negotiated exactly as §4 describes: the worker
+offers `worker-seam/2` in `worker.session.hello`, the service answers
+`negotiated_protocol: "worker-seam/2"` in `service.session.welcome`, and every
+subsequent frame of the session must carry `worker-seam/2` verbatim. A v1 worker
+keeps working unchanged (the service still speaks v1); a future `worker-seam/N`
+negotiates down to the service's max. The pinning is exact — a v2 session sending a
+v1 frame (or vice versa) is rejected, so a worker cannot smuggle v2 event types
+into a v1 session.
+
+The only wire change in v2 is additive: two new worker event types, journalled
+through `worker.events.append` like every other event:
+
+- `tool.call_started` — `{call_key, parent_call_key?, tool_name, title, approval_id?}`.
+  Projects a `running` row into `tool_steps`. Duplicate `call_key` returns the
+  existing row (idempotent, no ordinal gap). A gated start (`approval_id` present)
+  requires the approval to be `approved` **and** its execution ticket consumed
+  (`consumed_at` non-null); otherwise the whole batch fails closed.
+- `tool.call_finished` — `{call_key, state: completed|failed|cancelled,
+  result_json?, output_blob_id?}`. Unknown `call_key` fails the batch closed.
+  First terminal finish wins; later finishes are ignored. `result_json` is capped
+  at 64 KiB inline (larger results belong in a blob referenced by
+  `output_blob_id`, which must already exist).
+
+The normative shapes are the v1 schemas plus the Phase 4 event contracts
+(`docs/design/event-contracts.md` §4). The `tool_steps` projection, the SSE stream,
+and the approval-gated execution record are Phase 4's implementation; this spec's
+transport, framing, auth, and blast-radius sections are unchanged.

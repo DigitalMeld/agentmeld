@@ -9,6 +9,7 @@ pub mod approvals;
 pub mod auth;
 pub mod db;
 pub mod domain;
+pub mod events;
 pub mod import;
 pub mod seam;
 pub mod supervisor;

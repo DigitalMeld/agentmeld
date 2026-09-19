@@ -238,3 +238,13 @@ pub fn new_uuid() -> String {
 pub fn new_msg_id() -> String {
     new_uuid()
 }
+
+/// Truncate to at most `max` Unicode scalar values (never splits a
+/// character). Used for bounded text columns like `tool_steps.title`.
+pub fn truncate_chars(s: &str, max: usize) -> String {
+    if s.chars().count() <= max {
+        s.to_string()
+    } else {
+        s.chars().take(max).collect()
+    }
+}

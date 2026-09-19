@@ -343,13 +343,15 @@ fn stale_lease_generation_rejects_decision() {
     // A takeover cycle bumps the lease generation with no approvals in
     // flight: takeover (straight to human, no live turn) -> private ->
     // resume -> observed, back to agent.
-    db.lease_takeover(&phone, false).expect("takeover");
+    db.lease_takeover(&phone, false, None).expect("takeover");
     let g2 = lease_generation(&db);
-    let begun = db.lease_private_begin(&phone, g2).expect("private begin");
-    db.lease_private_end(&phone, begun.lease.generation)
+    let begun = db
+        .lease_private_begin(&phone, g2, None)
+        .expect("private begin");
+    db.lease_private_end(&phone, begun.lease.generation, None)
         .expect("private end");
     let g3 = lease_generation(&db);
-    db.lease_resume(&phone, g3).expect("resume");
+    db.lease_resume(&phone, g3, None).expect("resume");
     db.lease_note_observed("digest-1").expect("observed");
     assert_eq!(db.get_lease().expect("lease").state, LeaseState::Agent);
 
@@ -412,7 +414,7 @@ fn takeover_sequence_parks_and_releases_lease() {
     // The phone seizes the computer while a turn is live: pausing, and
     // the pending approval dies with lease_takeover.
     let id = propose(&db, &run_id, generation, 60_000);
-    let outcome = db.lease_takeover(&holder, true).expect("takeover");
+    let outcome = db.lease_takeover(&holder, true, None).expect("takeover");
     assert_eq!(outcome.lease.state, LeaseState::Pausing);
     assert_eq!(
         outcome.lease.holder_device_id.as_deref(),
@@ -424,31 +426,34 @@ fn takeover_sequence_parks_and_releases_lease() {
 
     // A device that wasn't there for the takeover can't ack it.
     assert!(matches!(
-        db.lease_takeover_ack(&device_id, g1),
+        db.lease_takeover_ack(&device_id, g1, None),
         Err(LeaseError::NotHolder)
     ));
     // ...nor ack a stale generation.
     assert!(matches!(
-        db.lease_takeover_ack(&holder, g1 - 1),
+        db.lease_takeover_ack(&holder, g1 - 1, None),
         Err(LeaseError::StaleLease)
     ));
     // The worker winds down; the phone takes the computer as a human.
-    let acked = db.lease_takeover_ack(&holder, g1).expect("ack");
+    let acked = db.lease_takeover_ack(&holder, g1, None).expect("ack");
     assert_eq!(acked.lease.state, LeaseState::Human);
     let g2 = acked.lease.generation;
     assert!(g2 > g1);
 
     // Private bracket: credentials go in, heartbeat keeps the hold alive,
     // and the bracket closes before resume.
-    let begun = db.lease_private_begin(&holder, g2).expect("private begin");
+    let begun = db
+        .lease_private_begin(&holder, g2, None)
+        .expect("private begin");
     assert!(begun.lease.private_bracket);
     let g3 = begun.lease.generation;
     assert!(matches!(
-        db.lease_resume(&holder, g3),
+        db.lease_resume(&holder, g3, None),
         Err(LeaseError::WrongState(_))
     ));
-    db.lease_private_end(&holder, g3).expect("private end");
-    let resumed = db.lease_resume(&holder, g3 + 1).expect("resume");
+    db.lease_private_end(&holder, g3, None)
+        .expect("private end");
+    let resumed = db.lease_resume(&holder, g3 + 1, None).expect("resume");
     assert_eq!(resumed.lease.state, LeaseState::Resuming);
 
     // The worker re-observes (run.resumed): resuming -> agent, holder
@@ -466,7 +471,7 @@ fn lease_heartbeat_fencing_and_auto_release() {
     let holder = db.create_device("phone").expect("phone").id;
 
     // Takeover with no live turn: straight to human.
-    let outcome = db.lease_takeover(&holder, false).expect("takeover");
+    let outcome = db.lease_takeover(&holder, false, None).expect("takeover");
     assert_eq!(outcome.lease.state, LeaseState::Human);
     let gen = outcome.lease.generation;
 
@@ -569,6 +574,7 @@ fn ticket_redemption_is_exactly_once() {
             &binding(),
             &[dispatched(&id, &ticket)],
             None,
+            false,
         )
         .expect("dispatch");
     assert_eq!(outcome.stored.len(), 1);
@@ -583,6 +589,7 @@ fn ticket_redemption_is_exactly_once() {
         &binding(),
         &[dispatched(&id, &ticket)],
         None,
+        false,
     ) {
         Ok(_) => panic!("double dispatch must fail"),
         Err(e) => e,
@@ -601,6 +608,7 @@ fn ticket_redemption_is_exactly_once() {
         &binding(),
         &[dispatched(&id2, "wrong-ticket")],
         None,
+        false,
     ) {
         Ok(_) => panic!("bad ticket must fail"),
         Err(e) => e,
@@ -615,6 +623,7 @@ fn ticket_redemption_is_exactly_once() {
         &binding(),
         &[dispatched(&id, &ticket)],
         None,
+        false,
     ) {
         Ok(_) => panic!("cross-run dispatch must fail"),
         Err(e) => e,

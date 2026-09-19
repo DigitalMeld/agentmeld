@@ -23,3 +23,7 @@ base64 = "0.22"
 hex = "0.4"
 libc = "0.2.189"
 http-body-util = "0.1"
+tokio-stream = "0.1"
+
+[dev-dependencies]
+tower = { version = "0.5", features = ["util"] }
