@@ -193,6 +193,7 @@ pub fn router(state: AppState) -> Router {
         .route("/approvals/{id}/decision", post(post_approval_decision))
         .route("/approvals/{id}", get(get_approval))
         .route("/approvals", get(get_approvals))
+        .route("/runs/{id}/tool_steps", get(get_run_tool_steps))
         .route("/session", get(get_session))
         .route("/lease", get(get_lease))
         .route("/lease/takeover", post(post_lease_takeover))
@@ -685,6 +686,45 @@ async fn get_approvals(
         }))
         .into_response(),
         Err(e) => err(500, &format!("list approvals: {e}")),
+    }
+}
+
+// ------------------------------------------------- Phase 4: tool-step hydration.
+//
+// GET /api/v1/runs/{id}/tool_steps: the persisted tool-step projection for
+// a run, in service-assigned ordinal order. Lets the browser backfill the
+// inline tool-step view after a reload, when the persisted SSE cursor has
+// already skipped the historical tool events. The projection is the same
+// one the stream emits live; the client merges on `call_key` and lets live
+// SSE state win for in-flight steps.
+
+async fn get_run_tool_steps(
+    Authed(_): Authed,
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+) -> Response {
+    let exists = match state.db.run_conversation(&id) {
+        Ok(opt) => opt.is_some(),
+        Err(e) => return err(500, &format!("read run: {e}")),
+    };
+    if !exists {
+        return err_code(404, "unknown_run", "No such run.");
+    }
+    match state.db.tool_steps_for_run(&id) {
+        Ok(rows) => Json(serde_json::json!({
+            "run_id": id,
+            "steps": rows
+                .iter()
+                .map(|r| serde_json::json!({
+                    "call_key": r.call_key,
+                    "tool": r.tool_name,
+                    "title": r.title,
+                    "state": r.state,
+                }))
+                .collect::<Vec<_>>(),
+        }))
+        .into_response(),
+        Err(e) => err(500, &format!("read tool steps: {e}")),
     }
 }
 
