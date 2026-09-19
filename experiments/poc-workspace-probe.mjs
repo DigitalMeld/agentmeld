@@ -1,6 +1,6 @@
 // Explicit disposable container probe; no subscription or credential mounts.
 import { execFileSync } from 'node:child_process';
-import { snapshotProgram, restoreProgram } from '../apps/poc/workspace.mjs';
+import { snapshotProgram, restoreProgram } from '../apps/worker/workspace.mjs';
 const program=`const fs=require('node:fs'),assert=require('node:assert/strict');
 fs.writeFileSync('/workspace/.notes','hidden fixture');fs.mkdirSync('/workspace/nested');fs.writeFileSync('/workspace/nested/input.txt','fixture');
 let captured='';const old=process.stdout.write;process.stdout.write=s=>{captured+=s;return true};

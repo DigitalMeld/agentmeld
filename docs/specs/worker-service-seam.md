@@ -30,6 +30,11 @@ No rewrite is planned.
 - Private Unix socket at a service-owned path (mode 700 directory). The socket is the
   only channel; there is no TCP listener for the worker API.
 - One JSON object per line (JSON-lines, matching the existing `LiveClient` convention).
+- Every frame carries `msg_type`, the wire discriminator naming the message
+  (e.g. `worker.events.append`, pinned as `const` in each schema). `service.error`
+  keeps its human-readable `message` field — `message` is never a discriminator.
+  (Phase 1 edit, 2026-09-18: the Phase 0 schemas pinned no discriminator, which
+  made routing impossible.)
 - Max 1 MiB per frame (`max_frame_bytes` in `service.session.welcome`). Larger frames
   are rejected with `service.error` / `payload_too_large` and the connection is closed.
 - Every worker→service message carries `run_id` and, after turn assignment, the turn

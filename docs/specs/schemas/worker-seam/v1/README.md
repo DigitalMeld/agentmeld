@@ -58,6 +58,8 @@ Service → worker:
 ## Conventions used in every schema
 
 - `$id` points at the raw GitHub URL of the file on `main`.
+- `msg_type`: the wire discriminator, `const`-pinned to the message name
+  (e.g. `worker.events.append`). Required on every frame.
 - `uuid`: RFC 4122 text form. `hex64`: lowercase sha256 hex.
 - Sizes are bounded everywhere: 1 MiB max frame, 256 KiB max fetch chunk, 8 MiB max
   artifact total (the PoC's output cap, now service-enforced), 4096 chars max per

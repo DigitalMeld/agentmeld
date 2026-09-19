@@ -5,20 +5,43 @@ import http from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { randomBytes, timingSafeEqual } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
-import { executeTask } from './runtime.mjs';
 import { openStore, admit, updateConversation, publicTask, publicConversation } from './conversations.mjs';
+import { Supervisor } from './supervisor.mjs';
 
-export async function createPocServer({directory=fileURLToPath(new URL('../../.local/poc/',import.meta.url)),port=Number(process.env.PORT||4317),execute=executeTask}={}) {
+export async function createPocServer({directory=fileURLToPath(new URL('../../.local/poc/',import.meta.url)),port=Number(process.env.PORT||4317),execute}={}) {
 let state,save,healthy;
 const token=randomBytes(32).toString('hex');
-let origin,active=null,closing=false,admissions=Promise.resolve();
+let origin,active=null,closing=false,admissions=Promise.resolve(),supervisor=null;
+const getSupervisor=()=>supervisor??=new Supervisor({directory});
 function pump(){
   if(active||closing||!healthy())return;
   const task=state.tasks.find(t=>t.status==='queued');if(!task)return;
   const conversation=state.conversations.find(c=>c.id===task.conversationId);
   const profile=agentProfile(state);
-  const control={id:task.id,stop:null,agentContext:profileContext(profile)};active=control;
-  control.done=(async()=>{
+  if(execute){
+    // Injected executor (tests): the legacy in-process path, unchanged.
+    const control={id:task.id,stop:null,agentContext:profileContext(profile)};active=control;
+    control.done=(async()=>{
+      if(conversation.continuation!=='ready'){
+        task.status='failed';task.activity='Continuation unavailable';task.error='Start a new chat; earlier work is preserved.';return;
+      }
+      // Changed or deleted preferences must not survive in a resumed provider context.
+      if((conversation.agentRevision??0)!==profile.revision){conversation.session=null;conversation.agentRevision=profile.revision;}
+      task.agentRevision=profile.revision;
+      recordEvent(task,'started');task.status='running';task.activity='Connecting';await save();
+      await execute(task,save,control,conversation);
+    })().catch(()=>{
+      task.status='failed';task.activity='Needs attention';task.error='The turn could not finish safely. Start a new chat.';conversation.continuation='unavailable';
+    }).finally(async()=>{try{if(['completed','failed','cancelled'].includes(task.status))recordEvent(task,task.status);await save();}finally{active=null;pump();}});
+    control.done.catch(()=>{});
+    return;
+  }
+  // Worker-supervisor path: one worker process per turn over worker-seam/1.
+  // `stop` is always set here (unlike the legacy path, where it appears once
+  // the executor starts): a stop that lands mid-spawn arms a pending cancel
+  // which the supervisor delivers back-to-back with turn.start.
+  const runner={id:task.id,stop:()=>getSupervisor().cancelActiveTurn('user_requested')};active=runner;
+  runner.done=(async()=>{
     if(conversation.continuation!=='ready'){
       task.status='failed';task.activity='Continuation unavailable';task.error='Start a new chat; earlier work is preserved.';return;
     }
@@ -26,11 +49,14 @@ function pump(){
     if((conversation.agentRevision??0)!==profile.revision){conversation.session=null;conversation.agentRevision=profile.revision;}
     task.agentRevision=profile.revision;
     recordEvent(task,'started');task.status='running';task.activity='Connecting';await save();
-    await execute(task,save,control,conversation);
+    await getSupervisor().runTurn({task,conversation,profile,save});
   })().catch(()=>{
+    // The supervisor terminalizes the task itself on worker failures; only
+    // fill in when the turn died before it could (setup/spawn/handshake).
+    if(!['running','cancelling'].includes(task.status))return;
     task.status='failed';task.activity='Needs attention';task.error='The turn could not finish safely. Start a new chat.';conversation.continuation='unavailable';
   }).finally(async()=>{try{if(['completed','failed','cancelled'].includes(task.status))recordEvent(task,task.status);await save();}finally{active=null;pump();}});
-  control.done.catch(()=>{});
+  runner.done.catch(()=>{});
 }
 function authorized(req) {const supplied=Buffer.from(req.headers.authorization||'');const expected=Buffer.from('Bearer '+token);return supplied.length===expected.length&&timingSafeEqual(supplied,expected);}
 function send(res,code,data){res.writeHead(code,{'Content-Type':'application/json','Cache-Control':'no-store'});res.end(JSON.stringify(data));}
@@ -76,9 +102,9 @@ const server=http.createServer(async(req,res)=>{
         if(!task)return send(res,404,{error:'Task not found.'});
         if(task.status==='queued'){recordEvent(task,'cancelled');task.status='cancelled';task.activity='Stopped before execution';await save();return send(res,200,{stopped:true});}
         if(active?.id!==task.id||!active.stop||!['running','cancelling'].includes(task.status))return send(res,409,{error:'This turn cannot be stopped yet. Try again in a moment.'});
-        const control=active;recordEvent(task,'cancelling');task.status='cancelling';task.activity='Stopping';await save();
-        if(active!==control||!control.stop)return send(res,200,{finished:true});
-        await control.stop();
+        const running=active;recordEvent(task,'cancelling');task.status='cancelling';task.activity='Stopping';await save();
+        if(active!==running||!running.stop)return send(res,200,{finished:true});
+        await running.stop();
         return send(res,202,{requested:true});
       }
       if(req.method==='GET'&&url.pathname==='/api/workspace'){
