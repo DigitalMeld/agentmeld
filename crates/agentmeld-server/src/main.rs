@@ -13,6 +13,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use agentmeld_server::api::{pump_loop, router, AppState};
+use agentmeld_server::approvals::{self, PendingApprovals};
 use agentmeld_server::auth::Auth;
 use agentmeld_server::db::Db;
 use agentmeld_server::supervisor::Supervisor;
@@ -236,11 +237,28 @@ fn cmd_serve(args: &[String]) -> Result<(), String> {
         println!("  http://{host}/api/v1/pair?token={token}");
     }
 
+    // Phase 3 approval path: startup recovery first — pending rows from a
+    // dead server are revoked (service_restart) or expired past their
+    // deadline, the lease generation is fenced — then the serve-mode
+    // sweep keeps expiry and lease auto-release alive.
+    match db.recover_approvals_on_startup() {
+        Ok((revoked, expired, lease_gen)) => {
+            if expired > 0 || revoked > 0 {
+                println!(
+                    "[approvals] startup recovery: revoked {revoked}, expired {expired}, lease generation {lease_gen}"
+                );
+            }
+        }
+        Err(e) => eprintln!("[approvals] startup recovery failed: {e}"),
+    }
+
+    let pending = Arc::new(PendingApprovals::new());
     let supervisor = Arc::new(Supervisor::new(
         db.clone(),
         dir.clone(),
         repo_root.clone(),
         node,
+        pending.clone(),
     ));
 
     let runtime = tokio::runtime::Builder::new_multi_thread()
@@ -254,6 +272,7 @@ fn cmd_serve(args: &[String]) -> Result<(), String> {
             db: db.clone(),
             auth,
             supervisor: supervisor.clone(),
+            pending: pending.clone(),
             public_dir: repo_root_public_dir(&repo_root),
             host: host.clone(),
             origin: format!("http://{host}"),
@@ -265,6 +284,9 @@ fn cmd_serve(args: &[String]) -> Result<(), String> {
             .map_err(|e| format!("bind 127.0.0.1:{port}: {e}"))?;
         println!("agentmeld-server listening on http://{host}");
         let pump = tokio::spawn(pump_loop(state, kick_rx));
+        // Phase 3: server-time approval expiry + controller-lease
+        // auto-release, roughly every second.
+        let sweeper = tokio::spawn(approvals::sweep_loop(db.clone(), pending.clone()));
         let server = axum::serve(listener, app);
         let shutdown = shutdown_signal();
         tokio::select! {
@@ -278,6 +300,7 @@ fn cmd_serve(args: &[String]) -> Result<(), String> {
             }
         }
         pump.abort();
+        sweeper.abort();
         Ok::<(), String>(())
     })
 }

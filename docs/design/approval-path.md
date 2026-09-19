@@ -1,6 +1,6 @@
 # Approval path (Phase 3 design)
 
-Date: 2026-09-19. Status: **design for issue #84 — planned, not implemented.**
+Date: 2026-09-19. Status: **implemented for issue #86 (PR pending review) — semantically complete, callback-unproven.** The design below was the mandate; the implementation refined it in the places §13 calls out. The real-Codex-callback proof (proof plan leg b) has not run: no Docker/Codex on this VM.
 
 Read with: the [worker↔service seam](../specs/worker-service-seam.md) (§2 verb 2, the blocking approval path), the [data model](../specs/data-model.md) (`approvals` table, transaction rule 4 — tool/approval — and rule 6 — cancellation/restart), the [Rust service front](rust-service-front.md) (Phase 2: the contracts Phase 3 hangs off, especially §§8, 11, and the 501 decision endpoint in §2), the [control-core unification design](../research/control-core-unification.md) (§4 contract-map rows on the approval state machine, immediate revocation, and controller lease), the [unification decision](../decisions/2026-09-18-control-core-unification.md), and the [UI/UX contract](ui-ux-contract.md) (the Approvals surface and approval decision semantics).
 
@@ -50,7 +50,7 @@ Terminal states (`approved`, `denied`, `expired`, `revoked`, and eventually `con
 
 **Auth.** Device-session Bearer <redacted>, same as every Phase 2 endpoint. The service derives the deciding actor from the session (the locked "no trusted-owner at the client boundary" decision) and records `decided_by` as the principal. Worker tokens are not accepted on this listener — the blast-radius wall is two auth realms.
 
-**Request.** `{"decision": "approve" | "deny"}`. Strict JSON rejection: unknown fields → 400 (`deny_unknown_fields` discipline). The client submits the approval ID and the decision; it never submits the action payload, the digest, or the expiry — the server resolves current authorization and payload from its own row, per the architecture contract.
+**Request.** `{"decision": "approve" | "deny", "lease_generation": <n>}`. The decider presents the lease generation their client saw; the transaction rejects a stale one with `409 stale_lease` (§5's rule that every approval decision carries the generation it was issued under). Strict JSON rejection: unknown fields → 400 (`deny_unknown_fields` discipline). The client submits the approval ID and the decision; it never submits the action payload, the digest, or the expiry — the server resolves current authorization and payload from its own row, per the architecture contract.
 
 **Response.** `200 {"approval_id": …, "state": "approved"|"denied", "ticket": "<opaque, single-use>"}` on approval with ticket issuance (deny carries no ticket). Errors use the existing envelope `{"error": "<user-safe string>"}` plus a machine-readable `code`:
 
@@ -130,7 +130,7 @@ Device revocation is the one revocation primitive Phase 3 installs (the M2 P8 de
 
 Every loss in the approval path fails closed — the PoC's never-approved-anything behavior becomes a designed property instead of an accident:
 
-- **Service restarts with a `pending` approval:** startup recovery applies the journal's open-time rule — the generation bumps, the in-flight run goes to `interrupted`/`reconciling`, and the pending approval is swept to `expired` (or `revoked` with reason `service_restart` if the device is gone). A restarted service never resumes a turn mid-approval as if nothing happened.
+- **Service restarts with a `pending` approval:** startup recovery applies the journal's open-time rule — the generation bumps, and every `pending` approval is terminally settled: past-deadline rows to `expired`, all others (including fresh ones on live runs) to `revoked` with reason `service_restart`, their runs to `interrupted`. The implementation deliberately revokes fresh survivors too: the lease-generation bump would leave them undecidable, and a pending-but-undecidable row is a wedge. A restarted service never resumes a turn mid-approval as if nothing happened.
 - **Worker dies while blocked on a decision:** the socket close is independently observed; the run goes to `interrupted`, the approval row stays `pending` until the human decides or expiry sweeps it — the decision is the human's, not the worker's, so worker death does not auto-deny. (This is deliberate: auto-deny on worker death would let a crashed worker silently kill a legitimate human decision in flight.)
 - **Human's device disconnects mid-decision:** the decision either committed (durable) or it didn't (row still `pending`). There is no half-decision; the retry rule in §3 covers the ambiguity.
 - **Unknown dispatch result:** the data-model's rule 4 holds — a failed connection cannot authorize retry of a completed action. Ticket redemption is exactly-once; if the worker cannot prove redemption, the turn reconciles, never blind-retries.
@@ -144,12 +144,12 @@ States, per the ui-ux-contract M1d row: **pending, submitting decision, denied, 
 
 Decision semantics, also from the UI contract: deny rejects the specific proposed action — it is not workflow cancellation. The run may finish with a limitation or continue along another permitted path. Approval completion never implies tool execution or external success. Disabled buttons during submission are UX feedback, not duplicate-action protection — the server's single-transaction consumption is the real guard. And the offline rule holds: never silently queue a consequential approval decision for later replay; Stop/approval cannot claim success without host readback.
 
-## 9. Migration SQL sketch
+## 9. Migration SQL
 
-Phase 3 installs `approvals` (adapted from the core-schema draft, not invented) and the lease table the contract map requires. This is a sketch for review, not final DDL:
+Phase 3 installs `approvals` (adapted from the core-schema draft, not invented) and the lease table the contract map requires, as `crates/agentmeld-server/src/migrations/v4.sql` (applied and exercised by the harness — this section describes the shipped DDL, not a sketch):
 
 ```sql
--- Migration: phase3-approvals
+-- Migration v4: phase3-approvals (shipped)
 CREATE TABLE approvals (
   workspace_id TEXT NOT NULL, run_id TEXT NOT NULL, id TEXT NOT NULL,
   action_digest TEXT NOT NULL CHECK(action_digest GLOB '[0-9a-f]*' AND length(action_digest) = 64),
@@ -157,35 +157,26 @@ CREATE TABLE approvals (
   target_json TEXT NOT NULL CHECK(json_valid(target_json)),
   description_user TEXT NOT NULL CHECK(length(description_user) <= 512),
   ticket_hash TEXT,  -- sha256 of the issued single-use ticket; NULL until approved
-  policy_revision INTEGER NOT NULL, grant_revision INTEGER NOT NULL,
-  lease_generation INTEGER NOT NULL,
+  grant_revision INTEGER NOT NULL, lease_generation INTEGER NOT NULL,
   state TEXT NOT NULL CHECK(state IN ('pending','approved','denied','expired','revoked')),
-  revoked_reason TEXT CHECK(revoked_reason IN ('device_revoked','lease_takeover','digest_mismatch','service_restart','superseded')),
-  expires_at INTEGER NOT NULL, decided_by TEXT REFERENCES principals(id), decided_at INTEGER,
-  created_at INTEGER NOT NULL,
+  revoked_reason TEXT CHECK(revoked_reason IN ('device_revoked','lease_takeover','lease_revoked','digest_mismatch','service_restart','superseded')),
+  expires_at INTEGER NOT NULL, decided_by TEXT REFERENCES devices(id),
+  decided_at INTEGER, consumed_at INTEGER, created_at INTEGER NOT NULL,
   PRIMARY KEY(workspace_id,id),
   FOREIGN KEY(workspace_id,run_id) REFERENCES runs(workspace_id,id)
 );
 CREATE INDEX approvals_pending ON approvals(workspace_id, run_id, state, expires_at)
   WHERE state = 'pending';
 
-CREATE TABLE computer_leases (
-  workspace_id TEXT NOT NULL, host_id TEXT NOT NULL,
-  holder_device_id TEXT REFERENCES devices(id),
-  generation INTEGER NOT NULL DEFAULT 0 CHECK(generation >= 0),
-  state TEXT NOT NULL CHECK(state IN ('agent','pausing','human','resuming','observed','paused')),
-  held_since INTEGER NOT NULL, updated_at INTEGER NOT NULL,
-  PRIMARY KEY(workspace_id, host_id)
-);
+CREATE TABLE computer_leases ( ... );  -- holder, generation, state, heartbeat (§5)
+CREATE TABLE lease_events ( ... );      -- append-only audit of lease transitions
 ```
-
-Notes on the sketch vs. the draft schema: the draft's `approvals` has no `action_json` (this design stores the canonical proposed action so `decide` can recompute the digest rather than trusting a second copy), no `ticket_hash` (the contract map's single-use ticket needs a stored verifier — **resolved: TARS judgment, keep `ticket_hash`**), and no `revoked_reason`. The invariants (§2–§3) are the mandate; the columns are the reviewed shape.
 
 ## 10. Proof plan
 
 Two legs. The first runs on this Linux VM with no Docker, no Codex, no paid models, and no real user data; the second is explicitly someone else's gate.
 
-**(a) Deterministic harness on this VM.** A fixture harness drives the *real* `agentmeld-server` binary (temp state dir, loopback) through the full approval path with a scripted fake worker that speaks `worker-seam/1` over the Unix socket — the same technique as Phase 2's live smoke test, extended to the approval verbs:
+**(a) Deterministic harness on this VM — done (2026-09-19).** The leg ran as Rust integration tests rather than a shell-driven binary harness: `crates/agentmeld-server/tests/approval_path.rs` drives the real `Db` (temp SQLite file, real v4 migration, injected server clock — no sleeps, no network) through proposal, decision, expiry, fencing, revocation, takeover, restart recovery, and exactly-once ticket redemption; `tests/supervisor_seam.rs` covers the supervisor's seam behavior against a fake `worker-seam/1` worker. The worker's `onRequest` callback still cannot be proven here (no Codex), which is leg (b).
 
 1. Fake worker proposes via `worker.approvals.request-decision`; assert the `approvals` row is `pending`, digest recomputed service-side, `expires_at` on the server clock, `run_events` carries `approval.requested`.
 2. Human decides `approve` via `POST /api/v1/approvals/{id}/decision`; assert the single transaction consumed exactly once, the ticket issued, `service.approval.decision` carries `approved` + ticket + digest echo, and the fake worker's echo verification passes.
@@ -220,4 +211,8 @@ All assertions run against the real binary and the real SQLite file; the fake wo
 
 **Verified by reading (2026-09-19):** the worker↔service seam spec in full (verb 2's blocking semantics, the digest-echo rule, propose-while-pending, the dead-man timer, the exact `service.error` code list), the data model's `approvals` row and transaction rules 4 and 6, the Phase 2 design's Phase 3 handoffs (the 501 decision endpoint, the schema slice boundary, the static-asset allowlist the UI work depends on, the §11 approval-shaped holes, the §8 durable.rs discipline list), the contract-map rows for approval/revocation/lease, the unification decision's locked list, the UI/UX contract's Approvals and Computer surface rows and decision semantics, and the frozen PoC UI (`index.html`'s Approvals tab copy, the supervisor's explicit approval-path rejection, the `onRequest`-less `LiveClient` construction).
 
-**Not verified:** nothing here is implemented — no `approvals` table exists, no decision endpoint answers, no fake-worker harness has run, and the real Codex callback proof is explicitly out of reach on this VM (no Docker, no Codex). The migration SQL is a sketch for review, not DDL that has been applied. The issue #84 scope ("approval semantics, controller lease, revocation") matches the issue as filed.
+**Verified by the deterministic harness (2026-09-19, issue #86):** `crates/agentmeld-server/tests/approval_path.rs` — 14 tests against a real migrated SQLite file with the injected server clock, no sleeps: propose/approve/deny/duplicate-decision, server-time expiry (sweeper + lazy expiry in the decision transaction), ChangedAction digest-mismatch → revoke, stale lease generation → reject, propose-while-pending → `propose_while_pending` (the run-state guard was reordered so the structural guard wins at the seam), device revocation settling, the full takeover → ack → private → resume → observed cycle, heartbeat fencing and stale-hold auto-release, startup recovery (orphans revoked, deadlines expired, fresh survivors revoked — no pending-but-undecidable rows), and exactly-once ticket redemption (double-present rejected, wrong ticket rejected, cross-run ticket rejected), and the register-before-propose waiter ordering (the supervisor mints the approval id and registers the waiter before the row is published, closing the decision-in-the-window race structurally). The full required suite passed: `cargo fmt --check`, `cargo clippy -D warnings`, `cargo test --locked --workspace` (47 tests), `cargo build --locked --workspace`, `scripts/check-docs.py`, `scripts/check-local.sh`.
+
+**Implementation refinements vs. this design:** (1) the decision request carries `lease_generation` (this doc's §5 already mandated it; §3's request shape was stale); (2) startup recovery revokes fresh pending survivors instead of leaving them pending (they'd be undecidable under the fenced lease generation); (3) the migration ships a `lease_events` audit table the sketch omitted; (4) `service.approval.decision` carries `revoked` as a terminal reply and the supervisor fails the turn closed on it.
+
+**Not verified:** the real Codex callback proof (proof plan leg b) is explicitly out of reach on this VM (no Docker, no Codex). Until it runs, Phase 3 is *semantically complete, callback-unproven* — and this document says so plainly. The issue #86 scope ("approval semantics, controller lease, revocation") matches the issue as filed.

@@ -25,6 +25,9 @@ use axum::{
 use http_body_util::Limited;
 use serde::Deserialize;
 
+use crate::approvals::{
+    ApprovalOutcome, ApprovalState, DecideKind, LeaseError, LeaseOutcome, PendingApprovals,
+};
 use crate::auth::{Auth, AuthError, SessionContext};
 use crate::db::{AdmitInput, Db, StopOutcome, UploadFile};
 use crate::domain::RequestError;
@@ -38,6 +41,9 @@ pub struct AppState {
     pub db: Arc<Db>,
     pub auth: Arc<Auth>,
     pub supervisor: Arc<Supervisor>,
+    /// Waiters blocked on human approval decisions, shared with the
+    /// supervisor and the expiry sweeper.
+    pub pending: Arc<PendingApprovals>,
     pub public_dir: PathBuf,
     /// Exact expected Host value, e.g. "127.0.0.1:4317".
     pub host: String,
@@ -184,7 +190,18 @@ pub fn router(state: AppState) -> Router {
         .route("/workspace/file", get(get_workspace_file))
         .route("/file", get(get_file))
         .route("/events", get(future_stub))
-        .route("/approvals/{id}/decision", post(future_stub));
+        .route("/approvals/{id}/decision", post(post_approval_decision))
+        .route("/approvals/{id}", get(get_approval))
+        .route("/approvals", get(get_approvals))
+        .route("/lease", get(get_lease))
+        .route("/lease/takeover", post(post_lease_takeover))
+        .route("/lease/takeover/ack", post(post_lease_takeover_ack))
+        .route("/lease/private/begin", post(post_lease_private_begin))
+        .route("/lease/private/end", post(post_lease_private_end))
+        .route("/lease/resume", post(post_lease_resume))
+        .route("/lease/heartbeat", post(post_lease_heartbeat))
+        .route("/lease/revoke", post(post_lease_revoke))
+        .route("/devices/{id}/revoke", post(post_device_revoke));
 
     // The frozen UI calls /api/* (no version); the versioned API lives at
     // /api/v1/*. Both serve the identical routes.
@@ -474,6 +491,351 @@ fn download(name: &str, bytes: Vec<u8>) -> Response {
 /// the delivery surface is built.
 async fn future_stub(Authed(_): Authed) -> Response {
     err(501, "This feature is not available in this build.")
+}
+
+// --------------------------------------------- Phase 3: approval decision.
+//
+// POST /api/v1/approvals/{id}/decision — the human decides. The execution
+// ticket travels service -> worker over the seam ONLY; this response
+// carries the state/receipt and never the ticket.
+
+/// Machine-readable error envelope for the Phase 3 surfaces:
+/// {"error": "<code>", "message": "<detail>"}.
+fn err_code(status: u16, code: &str, message: &str) -> Response {
+    let status = StatusCode::from_u16(status).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR);
+    (
+        status,
+        Json(serde_json::json!({ "error": code, "message": message })),
+    )
+        .into_response()
+}
+
+/// Strict decision body: unknown fields are rejected, never ignored. The
+/// caller presents the lease generation it observed; the decision
+/// transaction fences on it (stale -> 409 stale_lease).
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct DecisionRequest {
+    decision: String,
+    lease_generation: i64,
+}
+
+async fn post_approval_decision(
+    Authed(ctx): Authed,
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+    Json(body): Json<DecisionRequest>,
+) -> Response {
+    let kind = match body.decision.as_str() {
+        "approve" => DecideKind::Approve,
+        "deny" => DecideKind::Deny,
+        _ => {
+            return err_code(
+                400,
+                "invalid_decision",
+                "decision must be \"approve\" or \"deny\"",
+            )
+        }
+    };
+    // The deciding device is the authenticated session's device — never a
+    // client-supplied value. In this single-workspace alpha every paired
+    // device is authorized for the host; wrong_scope is reserved for a
+    // future multi-workspace model. The design's "never 404 to the wrong
+    // party" rule is honored structurally: authorization precedes lookup.
+    match state
+        .db
+        .decide_approval(&id, &ctx.device_id, kind, body.lease_generation)
+    {
+        Ok(decided) => {
+            // Wake the blocked worker, if any. The waiter carries the
+            // internal outcome — including the raw ticket — which is why
+            // the HTTP receipt below must never include it.
+            state.pending.resolve(&id, decided.outcome);
+            Json(serde_json::json!({
+                "approval_id": decided.approval_id,
+                "state": decided.state.as_str(),
+                "action_digest": decided.digest,
+                "decided_at_ms": decided.decided_at_ms,
+                "decided_by": ctx.device_id,
+            }))
+            .into_response()
+        }
+        Err(e) => {
+            // Lazy expiry and digest-mismatch revocation settle the row
+            // inside the failed decision: wake the blocked worker so it
+            // fails closed instead of hanging on a dead wait.
+            if matches!(
+                e,
+                crate::approvals::DecideError::Expired
+                    | crate::approvals::DecideError::DigestMismatch
+            ) {
+                let outcome = match e {
+                    crate::approvals::DecideError::Expired => ApprovalOutcome::Expired,
+                    _ => ApprovalOutcome::Revoked,
+                };
+                state.pending.resolve(&id, outcome);
+            }
+            err_code(e.status(), e.code(), &e.message())
+        }
+    }
+}
+
+// ------------------------------------------------- Phase 3: harness reads.
+//
+// GET /api/v1/approvals/{id} and GET /api/v1/approvals: operator surfaces
+// for the deterministic harness (and the future client UI). The receipt
+// never includes the ticket hash.
+
+async fn get_approval(
+    Authed(_): Authed,
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+) -> Response {
+    match state.db.get_approval(&id) {
+        Ok(Some(row)) => Json(row.public_json()).into_response(),
+        Ok(None) => err_code(404, "unknown_approval", "No such approval."),
+        Err(e) => err(500, &format!("read approval: {e}")),
+    }
+}
+
+#[derive(Deserialize)]
+struct ApprovalListQuery {
+    state: Option<String>,
+}
+
+async fn get_approvals(
+    Authed(_): Authed,
+    State(state): State<AppState>,
+    Query(q): Query<ApprovalListQuery>,
+) -> Response {
+    let filter = match q.state.as_deref() {
+        None => None,
+        Some(s) => match ApprovalState::parse(s) {
+            Some(st) => Some(st),
+            None => {
+                return err_code(
+                    400,
+                    "invalid_state",
+                    "state must be pending, approved, denied, expired, or revoked",
+                )
+            }
+        },
+    };
+    match state.db.list_approvals(filter) {
+        Ok(rows) => Json(serde_json::json!({
+            "approvals": rows.iter().map(|r| r.public_json()).collect::<Vec<_>>(),
+        }))
+        .into_response(),
+        Err(e) => err(500, &format!("list approvals: {e}")),
+    }
+}
+
+// ------------------------------------------------- Phase 3: controller lease.
+//
+// Harness/operator surfaces. Every mutation is fenced on the
+// caller-supplied expected_generation: a device acting on a stale view of
+// the lease gets 409 stale_lease and must re-read.
+
+async fn get_lease(Authed(_): Authed, State(state): State<AppState>) -> Response {
+    match state.db.get_lease() {
+        Ok(row) => Json(row.public_json()).into_response(),
+        Err(e) => err_code(e.status(), e.code(), &e.message()),
+    }
+}
+
+/// Strict body for the fenced lease mutations.
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct LeaseMutationRequest {
+    expected_generation: i64,
+}
+
+async fn post_lease_takeover(Authed(ctx): Authed, State(state): State<AppState>) -> Response {
+    // Anyone may take over — seizing control from a stuck holder is the
+    // point. Pending approvals die with lease_takeover; a live worker is
+    // cancelled with service.turn.cancel reason lease_takeover.
+    let active = state.supervisor.active_run_id().await;
+    match state.db.lease_takeover(&ctx.device_id, active.is_some()) {
+        Ok(outcome) => {
+            if outcome.killed_active_turn {
+                if let Some(run_id) = &active {
+                    let _ = state
+                        .supervisor
+                        .cancel_active_turn(run_id, "lease_takeover")
+                        .await;
+                }
+            }
+            for id in &outcome.revoked_approval_ids {
+                state.pending.resolve(id, ApprovalOutcome::Revoked);
+            }
+            Json(serde_json::json!({
+                "lease": outcome.lease.public_json(),
+                "revoked_approval_ids": outcome.revoked_approval_ids,
+                "cancelled_run_id": if outcome.killed_active_turn { active } else { None::<String> },
+            }))
+            .into_response()
+        }
+        Err(e) => err_code(e.status(), e.code(), &e.message()),
+    }
+}
+
+/// The seizing device confirms the worker has wound down after a
+/// takeover and takes the computer as a human: pausing -> human.
+async fn post_lease_takeover_ack(
+    Authed(ctx): Authed,
+    State(state): State<AppState>,
+    Json(body): Json<LeaseMutationRequest>,
+) -> Response {
+    let result = state
+        .db
+        .lease_takeover_ack(&ctx.device_id, body.expected_generation);
+    lease_mutation_response(&state, result)
+}
+
+/// Render a lease mutation receipt. Revoked approvals wake their waiters
+/// as Revoked so no worker hangs on a dead wait.
+fn lease_mutation_response(state: &AppState, result: Result<LeaseOutcome, LeaseError>) -> Response {
+    match result {
+        Ok(outcome) => {
+            for id in &outcome.revoked_approval_ids {
+                state.pending.resolve(id, ApprovalOutcome::Revoked);
+            }
+            Json(serde_json::json!({ "lease": outcome.lease.public_json() })).into_response()
+        }
+        Err(e) => err_code(e.status(), e.code(), &e.message()),
+    }
+}
+
+async fn post_lease_private_begin(
+    Authed(ctx): Authed,
+    State(state): State<AppState>,
+    Json(body): Json<LeaseMutationRequest>,
+) -> Response {
+    let result = state
+        .db
+        .lease_private_begin(&ctx.device_id, body.expected_generation);
+    lease_mutation_response(&state, result)
+}
+
+async fn post_lease_private_end(
+    Authed(ctx): Authed,
+    State(state): State<AppState>,
+    Json(body): Json<LeaseMutationRequest>,
+) -> Response {
+    let result = state
+        .db
+        .lease_private_end(&ctx.device_id, body.expected_generation);
+    lease_mutation_response(&state, result)
+}
+
+async fn post_lease_resume(
+    Authed(ctx): Authed,
+    State(state): State<AppState>,
+    Json(body): Json<LeaseMutationRequest>,
+) -> Response {
+    let result = state
+        .db
+        .lease_resume(&ctx.device_id, body.expected_generation);
+    lease_mutation_response(&state, result)
+}
+
+async fn post_lease_heartbeat(
+    Authed(ctx): Authed,
+    State(state): State<AppState>,
+    Json(body): Json<LeaseMutationRequest>,
+) -> Response {
+    let result = state
+        .db
+        .lease_heartbeat(&ctx.device_id, body.expected_generation);
+    lease_mutation_response(&state, result)
+}
+
+/// Strict body for the lease kill switch: the generation fence plus a
+/// free-form reason recorded in the journal.
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct LeaseRevokeRequest {
+    expected_generation: i64,
+    reason: Option<String>,
+}
+
+async fn post_lease_revoke(
+    Authed(ctx): Authed,
+    State(state): State<AppState>,
+    Json(body): Json<LeaseRevokeRequest>,
+) -> Response {
+    let reason = body.reason.as_deref().unwrap_or("operator").trim();
+    let reason = if reason.is_empty() {
+        "operator"
+    } else {
+        reason
+    };
+    // A revoke that lands mid-pause still has a worker to kill.
+    let active = state.supervisor.active_run_id().await;
+    match state
+        .db
+        .lease_revoke(&ctx.device_id, reason, body.expected_generation)
+    {
+        Ok(outcome) => {
+            if outcome.killed_active_turn {
+                if let Some(run_id) = &active {
+                    let _ = state
+                        .supervisor
+                        .cancel_active_turn(run_id, "lease_takeover")
+                        .await;
+                }
+            }
+            lease_mutation_response(&state, Ok(outcome))
+        }
+        Err(e) => err_code(e.status(), e.code(), &e.message()),
+    }
+}
+
+// -------------------------------------------- Phase 3: device revocation.
+//
+// POST /api/v1/devices/{id}/revoke — the operator kill switch for a
+// device: its sessions die, pending approvals are revoked
+// (device_revoked), and the lease is released if the device held it.
+// Revoking the final device is recoverable only through explicit on-host
+// CLI re-pairing.
+
+async fn post_device_revoke(
+    Authed(_): Authed,
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+) -> Response {
+    let active = state.supervisor.active_run_id().await;
+    match state.db.revoke_device_and_settle(&id) {
+        Ok(rev) => {
+            for aid in &rev.settled_approval_ids {
+                state.pending.resolve(aid, ApprovalOutcome::Revoked);
+            }
+            if rev.lease_killed {
+                if let Some(run_id) = &active {
+                    let _ = state
+                        .supervisor
+                        .cancel_active_turn(run_id, "lease_takeover")
+                        .await;
+                }
+            }
+            Json(serde_json::json!({
+                "device_id": id,
+                "sessions_revoked": rev.sessions_revoked,
+                "approvals_settled": rev.approvals_settled,
+                "settled_approval_ids": rev.settled_approval_ids,
+                "lease_killed": rev.lease_killed,
+                "new_lease_generation": rev.new_lease_generation,
+            }))
+            .into_response()
+        }
+        Err(e) => {
+            if e == "unknown device" {
+                err_code(404, "unknown_device", "No such device.")
+            } else {
+                err(500, &format!("revoke device: {e}"))
+            }
+        }
+    }
 }
 
 // --------------------------------------------------------------- pairing.

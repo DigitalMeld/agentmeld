@@ -5,6 +5,7 @@
 // Design: docs/design/rust-service-front.md (issue #80).
 
 pub mod api;
+pub mod approvals;
 pub mod auth;
 pub mod db;
 pub mod domain;

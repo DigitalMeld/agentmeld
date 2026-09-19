@@ -13,14 +13,15 @@ use tokio::process::{Child, Command};
 use tokio::sync::Mutex;
 use tokio::time::timeout;
 
+use crate::approvals::{ApprovalOutcome, PendingApprovals};
 use crate::db::Db;
 use crate::domain::{
     constant_time_eq, new_msg_id, new_token_b64url, new_uuid, now_ms, sha256_hex, RunStatus,
 };
 use crate::seam::{
-    self, ArtifactFile, Binding, FrameReader, ServiceArtifactsStored, ServiceError,
-    ServiceEventsStored, ServiceInputsData, ServiceTurnCancel, ServiceTurnStart, ServiceWelcome,
-    StoredEvent, StoredFile, TurnStart, WorkerMessage, ARTIFACT_MAX_FILES,
+    self, ArtifactFile, Binding, FrameReader, ServiceApprovalDecision, ServiceArtifactsStored,
+    ServiceError, ServiceEventsStored, ServiceInputsData, ServiceTurnCancel, ServiceTurnStart,
+    ServiceWelcome, StoredEvent, StoredFile, TurnStart, WorkerMessage, ARTIFACT_MAX_FILES,
     ARTIFACT_TOTAL_CAP_BYTES, INPUT_CHUNK_BYTES, MAX_FRAME_BYTES, PROTOCOL,
 };
 
@@ -73,10 +74,19 @@ pub struct Supervisor {
     node: PathBuf,
     worker_entry: PathBuf,
     active: Mutex<Option<ActiveTurn>>,
+    /// Waiters blocked on human approval decisions, shared with the HTTP
+    /// decision handler and the expiry sweeper.
+    pending: Arc<PendingApprovals>,
 }
 
 impl Supervisor {
-    pub fn new(db: Arc<Db>, state_dir: PathBuf, repo_root: PathBuf, node: PathBuf) -> Self {
+    pub fn new(
+        db: Arc<Db>,
+        state_dir: PathBuf,
+        repo_root: PathBuf,
+        node: PathBuf,
+        pending: Arc<PendingApprovals>,
+    ) -> Self {
         let worker_entry = repo_root.join("apps/worker/worker.mjs");
         Supervisor {
             db,
@@ -85,6 +95,7 @@ impl Supervisor {
             node,
             worker_entry,
             active: Mutex::new(None),
+            pending,
         }
     }
 
@@ -225,9 +236,20 @@ impl Supervisor {
                 .entry(entry.digest.clone())
                 .or_insert_with(|| entry.bytes.clone());
         }
-        self.db
+        let begin = self
+            .db
             .begin_turn(&run_id)
             .map_err(|e| self.fail_begin(&run_id, &e.to_string()))?;
+        // Publish the minted generation to the active turn: frame checks
+        // and turn.start bind to it, never to a hardcoded 1.
+        {
+            let mut guard = self.active.lock().await;
+            if let Some(active) = guard.as_mut() {
+                if active.run_id == run_id {
+                    active.generation = begin.generation;
+                }
+            }
+        }
 
         let socket_dir = self.state_dir.join("worker-sockets");
         let staging_dir = self.state_dir.join("staging").join(&run_id);
@@ -243,6 +265,9 @@ impl Supervisor {
                 &staging_dir,
                 &socket_path,
                 &token,
+                begin.generation,
+                begin.lease_generation,
+                begin.observation_required,
             )
             .await
         {
@@ -290,9 +315,11 @@ impl Supervisor {
         staging_dir: &Path,
         socket_path: &Path,
         token: &str,
+        generation: i64,
+        lease_generation: i64,
+        observation_required: bool,
     ) -> Result<(), SupervisorError> {
         let run_id = ctx.run_id.clone();
-        let generation: i64 = 1;
         let fail = |msg: String| SupervisorError::TurnFailed(msg);
         std::fs::create_dir_all(socket_dir).map_err(|e| fail(format!("socket dir: {e}")))?;
         set_mode_700(socket_dir).ok();
@@ -333,6 +360,8 @@ impl Supervisor {
             .handshake_and_run(
                 &run_id,
                 generation,
+                lease_generation,
+                observation_required,
                 binding,
                 ctx,
                 &manifest,
@@ -361,6 +390,8 @@ impl Supervisor {
         &self,
         run_id: &str,
         generation: i64,
+        lease_generation: i64,
+        observation_required: bool,
         binding: &Binding,
         ctx: &TurnContext,
         manifest: &[seam::InputManifestEntry],
@@ -451,7 +482,8 @@ impl Supervisor {
             turn: TurnStart {
                 agent_context: ctx.agent_context.clone(),
                 expected_binding: binding.clone(),
-                lease_generation: 1,
+                lease_generation,
+                observation_required,
                 inputs_manifest: manifest.to_vec(),
                 staging_dir: staging_dir.to_string_lossy().to_string(),
                 turn_timeout_ms: TURN_TIMEOUT_MS,
@@ -482,6 +514,13 @@ impl Supervisor {
         }
 
         // Turn loop.
+        //
+        // When the lease was mid-handoff at turn start (observation
+        // required), the worker's FIRST events batch must contain
+        // run.resumed with a fresh observation digest: the service does not
+        // treat the turn as live until the worker has re-observed the
+        // computer the human just drove.
+        let mut observation_pending = observation_required;
         loop {
             let value = frames
                 .next_frame()
@@ -537,6 +576,16 @@ impl Supervisor {
             }
             match msg {
                 WorkerMessage::EventsAppend(m) => {
+                    if observation_pending {
+                        let has_resumed = m.events.iter().any(|e| e.event_type == "run.resumed");
+                        if !has_resumed {
+                            return Err(fail(
+                                "observation required: the first events batch must contain run.resumed"
+                                    .to_string(),
+                            ));
+                        }
+                        observation_pending = false;
+                    }
                     // Pre-read the workspace snapshot when the batch
                     // completes the run: promotion must land in the same
                     // transaction as the completed event, and a missing
@@ -636,18 +685,109 @@ impl Supervisor {
                     }
                 }
                 WorkerMessage::ApprovalRequest(m) => {
-                    // No approval path in Phase 2. Reject, do not hang.
-                    self.send(&ServiceError {
-                        protocol: PROTOCOL,
-                        in_reply_to: Some(m.msg_id),
-                        msg_type: "service.error",
-                        code: "internal".to_string(),
-                        message: "approval path not implemented in Phase 2".to_string(),
-                    })
-                    .await?;
+                    // Phase 3: register the proposal and block on the human
+                    // decision. The reply carries the single-use ticket on
+                    // approval — over this seam message ONLY, never over
+                    // HTTP. Expiry/revocation fail the turn closed.
+                    self.on_approval_request(run_id, generation, &m).await?;
                 }
                 WorkerMessage::Hello(_) | WorkerMessage::Unknown { .. } => unreachable!(),
             }
+        }
+    }
+
+    /// Handle worker.approvals.request-decision: register the proposal,
+    /// block on the human decision, and deliver exactly one
+    /// service.approval.decision in reply.
+    ///
+    /// The single-use execution ticket travels in the approved reply ONLY
+    /// — never over HTTP, never in the journal, never in logs. Denial lets
+    /// the turn continue (the worker winds down on its own); expiry and
+    /// revocation fail the turn closed (the run is already terminal).
+    async fn on_approval_request(
+        &self,
+        run_id: &str,
+        generation: i64,
+        m: &seam::WorkerApprovalRequest,
+    ) -> Result<(), SupervisorError> {
+        let fail = |msg: String| SupervisorError::TurnFailed(msg);
+        // The approval id is minted here and the waiter registered BEFORE
+        // the row is published: an HTTP decision can only resolve a
+        // registered waiter, so publication and waiter readiness are atomic
+        // by construction. A decision that lands before the insert commits
+        // 404s (unknown id); one that lands after finds the waiter. The raw
+        // ticket in the outcome can never be lost to the race.
+        let approval_id = new_uuid();
+        let (wait_tx, wait_rx) = tokio::sync::oneshot::channel();
+        self.pending.register(&approval_id, wait_tx);
+        let proposed = match self.db.propose_approval(
+            &approval_id,
+            run_id,
+            generation,
+            &m.approval.action,
+            &m.approval.description_user,
+            m.approval.ttl_ms,
+        ) {
+            Ok(p) => p,
+            Err(e) => {
+                self.pending.unregister(&approval_id);
+                // Reject explicitly, never silently. A malformed or
+                // out-of-turn proposal fails the turn closed: the worker
+                // asked for permission it cannot be granted.
+                self.send(&ServiceError {
+                    protocol: PROTOCOL,
+                    in_reply_to: Some(m.msg_id.clone()),
+                    msg_type: "service.error",
+                    code: e.seam_code().to_string(),
+                    message: e.message(),
+                })
+                .await?;
+                return Err(fail(format!(
+                    "approval proposal rejected: {}",
+                    e.seam_code()
+                )));
+            }
+        };
+        // Block until the human decides, the deadline passes, or the row is
+        // revoked. The waiter unregisters itself if this future is dropped
+        // (turn teardown), so nothing leaks.
+        let outcome = self.pending.wait_registered(&proposed.id, wait_rx).await;
+        let (decision, digest, decided_at_ms, ticket) = match outcome {
+            ApprovalOutcome::Approved {
+                ticket,
+                digest,
+                decided_at_ms,
+            } => ("approved", digest, decided_at_ms, Some(ticket)),
+            ApprovalOutcome::Denied {
+                digest,
+                decided_at_ms,
+            } => ("denied", digest, decided_at_ms, None),
+            // Expired/revoked carry no fresh digest; echo the proposal's so
+            // the worker can match the decision to its request.
+            ApprovalOutcome::Expired => ("expired", proposed.digest.clone(), now_ms(), None),
+            ApprovalOutcome::Revoked => ("revoked", proposed.digest.clone(), now_ms(), None),
+        };
+        self.send(&ServiceApprovalDecision {
+            protocol: PROTOCOL,
+            in_reply_to: m.msg_id.clone(),
+            msg_type: "service.approval.decision",
+            approval_id: proposed.id.clone(),
+            run_id: run_id.to_string(),
+            generation,
+            decision: decision.to_string(),
+            action_digest: digest,
+            decided_at_ms,
+            ticket,
+        })
+        .await?;
+        match decision {
+            // The run is already terminal (interrupted): fail the turn
+            // closed so the worker is reaped.
+            "expired" => Err(fail("approval expired".to_string())),
+            "revoked" => Err(fail("approval revoked".to_string())),
+            // Denied: the action doesn't run, but the turn continues — the
+            // worker winds down (or asks about something else) on its own.
+            _ => Ok(()),
         }
     }
 
