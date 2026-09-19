@@ -618,6 +618,17 @@ export function initClientTrack(ctx) {
   function handleEvent(env) {
     const t = env.type || '', p = env.payload || {};
     lastEventAt = Date.now();
+    if (t === 'run.answer_delta') {
+      // Incremental streaming: paint the delta into the reply bubble
+      // without a full refresh. Terminal run events below still take the
+      // authoritative refresh path.
+      if (ctx.onDelta && typeof env.run_id === 'string' && p && typeof p.text === 'string' && p.text) {
+        ctx.onDelta(env.run_id, p.text);
+      } else {
+        queueRefresh();
+      }
+      return;
+    }
     if (t === 'tool.call_started') stepStarted(env.run_id, p);
     else if (t === 'tool.call_finished') stepFinished(env.run_id, p);
     else if (t.indexOf('approval.') === 0) void pollApprovals();

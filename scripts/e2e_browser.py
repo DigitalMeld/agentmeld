@@ -22,6 +22,7 @@ import shutil
 import socket
 import subprocess
 import sys
+import time
 import tempfile
 import time
 import urllib.request
@@ -31,6 +32,7 @@ REPO = Path(__file__).resolve().parents[1]
 TARGET = REPO / "target" / "debug"
 SERVER = TARGET / "agentmeld-server"
 SEEDER = TARGET / "seed_client_track"
+EMIT = TARGET / "emit_delta"
 PWVENV = Path(os.environ.get("PWVENV", "/tmp/pwvenv"))
 
 # Playwright lives in the pinned venv; re-exec under it when needed so
@@ -141,11 +143,11 @@ def main():
     log("building server + seeder")
     subprocess.run(
         ["cargo", "build", "--locked", "-p", "agentmeld-server",
-         "--bin", "agentmeld-server", "--bin", "seed_client_track"],
+         "--bin", "agentmeld-server", "--bin", "seed_client_track", "--bin", "emit_delta"],
         cwd=REPO, env=env, check=True,
         stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT,
     )
-    for name, path in (("agentmeld-server", SERVER), ("seed_client_track", SEEDER)):
+    for name, path in (("agentmeld-server", SERVER), ("seed_client_track", SEEDER), ("emit_delta", EMIT)):
         if not path.exists():
             raise Fail(f"{name} not built at {path} after cargo build; build failed silently?")
 
@@ -191,7 +193,7 @@ def main():
 
         # sync_playwright is guaranteed importable here (re-exec guard above).
 
-        console_errors, page_errors, external_reqs, tool_step_reqs = [], [], [], []
+        console_errors, page_errors, external_reqs, tool_step_reqs, state_reqs = [], [], [], [], []
         try:
             with sync_playwright() as p:
                 try:
@@ -209,6 +211,8 @@ def main():
                         external_reqs.append(url)
                     if re.search(r"/api/v1/runs/[^/]+/tool_steps", url):
                         tool_step_reqs.append(url)
+                    if re.search(r"/api/state(\?|$)", url):
+                        state_reqs.append((time.monotonic(), url))
 
                 page.on("request", on_request)
 
@@ -224,7 +228,7 @@ def main():
                                 return True
                         except Exception:
                             pass
-                        time.sleep(0.3)
+                        page.wait_for_timeout(300)
                     log(f"timeout waiting for: {desc}")
                     return False
 
@@ -331,6 +335,53 @@ def main():
                                        10, "revoked badge"))
                     page.keyboard.press("Escape")
 
+                # --- reply streaming over SSE ---
+                # Emit synthetic answer deltas at the live seeded run. The
+                # client must paint the growing reply incrementally: the
+                # first delta materializes the bubble via one refresh, later
+                # deltas must not trigger /api/state at all.
+                # Attribution: the client also runs a 1Hz baseline /api/state
+                # poll, so fetches are analyzed by grid — a delta-triggered
+                # refresh would land off-grid, splitting a ~1000ms interval
+                # into short gaps. One off-grid refresh (the expected
+                # materialization) makes at most 2 gaps < 800ms.
+                # The Q3 run is paused at waiting_approval (its pending
+                # approval); stream at the "Clean up old exports" run, which
+                # is live.
+                page.locator("button.historyItem", has_text="Clean up old exports").click()
+                q3 = page.locator("article.activityEntry", has_text="Clean up old exports")
+                run_id = q3.locator("button.detailLink").first.get_attribute("data-detail")
+                check("streaming turn is on screen",
+                      wait_for(lambda: page.locator(f"#turn-{run_id}").count() > 0,
+                               10, "turn visible"))
+                def emit(text):
+                    r = subprocess.run([str(EMIT), "--state-dir", str(state_dir),
+                                        "--run-id", run_id, "--text", text],
+                                       capture_output=True, text=True, env=env)
+                    errlines = [l for l in (r.stderr or "").strip().splitlines() if l.strip()]
+                    panic = next((l for l in errlines if "panicked" in l), errlines[-1] if errlines else "")
+                    check(f"emit delta {text!r}", r.returncode == 0, panic.strip()[:160])
+                def reply_text():
+                    try:
+                        return page.text_content(f"#turn-{run_id} .message.assistant") or ""
+                    except Exception:
+                        return ""
+                t_start = time.monotonic()
+                emit("Revenue grew ")
+                check("first delta materializes the reply",
+                      wait_for(lambda: "Revenue grew" in reply_text(), 15, "reply bubble"))
+                page.wait_for_timeout(1200)
+                emit("12% QoQ. ")
+                page.wait_for_timeout(1200)
+                emit("EMEA led the quarter.")
+                check("later deltas stream into the reply",
+                      wait_for(lambda: "EMEA led the quarter." in reply_text(), 15, "streamed text"))
+                page.wait_for_timeout(1200)
+                times = [t for t, _ in state_reqs if t >= t_start]
+                gaps = [b - a for a, b in zip(times, times[1:])]
+                offgrid = [g for g in gaps if g < 0.8]
+                check("no /api/state fetch per delta", len(offgrid) <= 2,
+                      f"gaps={[f'{g:.2f}' for g in gaps]}")
                 # --- stream outage UX ---
                 # Kill the server mid-stream: the SSE read fails, the loop
                 # reconnects against a dead port, and the client must drop
