@@ -99,23 +99,6 @@ def mint_pairing_token(state_dir, port):
     return m.group(1)
 
 
-def redeem_pairing_token(port, token):
-    body = json.dumps({"token": token, "device_name": "e2e-browser"}).encode()
-    req = urllib.request.Request(
-        f"http://127.0.0.1:{port}/api/v1/pair", data=body,
-        headers={"Content-Type": "application/json"}, method="POST",
-    )
-    try:
-        with urllib.request.urlopen(req, timeout=10) as r:
-            data = json.load(r)
-    except Exception as e:
-        raise Fail(f"pair redeem failed: {e}")
-    session = data.get("token")
-    if not session:
-        raise Fail(f"pair redeem returned no session token: {data!r}")
-    return session
-
-
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--port", type=int, default=0)
@@ -170,9 +153,10 @@ def main():
                        check=True, capture_output=True, env=env)
 
         token = mint_pairing_token(state_dir, port)
-        session = redeem_pairing_token(port, token)
-        base = f"http://127.0.0.1:{port}/#{session}"
-        log("paired; driving browser")
+        # Pair through the first-run UI, not the API: this is the real
+        # first-run path (bare URL -> pairing screen -> token POST -> app).
+        base = f"http://127.0.0.1:{port}/"
+        log("pairing via the first-run UI; driving browser")
 
         # sync_playwright is guaranteed importable here (re-exec guard above).
 
@@ -214,10 +198,20 @@ def main():
                     return False
 
                 page.goto(base, wait_until="domcontentloaded", timeout=30000)
-                page.wait_for_selector("#streamStatus", timeout=20000)
-                check("stream reaches Live",
+
+                # --- first-run pairing UI ---
+                # The bare URL (no token anywhere) must show the pairing
+                # screen, not an "expired session" dead end.
+                check("pairing screen shown on bare URL",
+                      wait_for(lambda: page.locator("#pairingView").is_visible(),
+                               10, "pairing visible"))
+                page.fill("#pairingToken", token)
+                page.click("#pairButton")
+                check("pairing via the UI reaches Live",
                       wait_for(lambda: "Live" in (page.text_content("#streamStatus") or ""),
-                               20, "stream Live"))
+                               20, "stream Live after pairing"))
+                check("pairing screen hidden after pairing",
+                      not page.locator("#pairingView").is_visible())
 
                 # --- branding ---
                 ff = page.evaluate("getComputedStyle(document.body).fontFamily")
@@ -232,13 +226,15 @@ def main():
                 # The prompt bar shows the most urgent pending approval; history
                 # cards render without decide buttons, so "dismissed" means no
                 # Approve button remains and the confirmation notice appears.
-                approve_btns = page.locator(".approvalBtn--approve")
+                # Scoped to #approvalBar: the pairing form reuses the approve
+                # button style (hidden after pairing) and must not be counted.
+                approve_btns = page.locator("#approvalBar .approvalBtn--approve")
                 n_before = approve_btns.count()
                 check("a pending approval prompt is shown", n_before > 0, f"{n_before} approve buttons")
                 if n_before:
                     approve_btns.first.click()
                     check("Approve dismisses the prompt",
-                          wait_for(lambda: page.locator(".approvalBtn--approve").count() == 0,
+                          wait_for(lambda: page.locator("#approvalBar .approvalBtn--approve").count() == 0,
                                    10, "approve buttons gone"))
                     notice = (page.text_content("#notice") or "")
                     check("approval confirmation notice", "Approved" in notice, notice.strip()[:80])

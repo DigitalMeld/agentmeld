@@ -10,7 +10,7 @@ import './tooltips.js';
 const $=id=>document.getElementById(id);
 let token=location.hash.slice(1)||sessionStorage.getItem('agentmeld-token')||'';
 if(token){sessionStorage.setItem('agentmeld-token',token);history.replaceState(null,'',location.pathname);}
-window.addEventListener('hashchange',()=>{if(location.hash.length>1){token=location.hash.slice(1);sessionStorage.setItem('agentmeld-token',token);history.replaceState(null,'',location.pathname);error();ensureTrack();refresh();}});
+window.addEventListener('hashchange',()=>{if(location.hash.length>1){token=location.hash.slice(1);sessionStorage.setItem('agentmeld-token',token);history.replaceState(null,'',location.pathname);error();bootApp();}});
 let state={tasks:[],conversations:[],active:null},selected=null,files=[],view='chat',lastRender='';
 let track=null; // client-track module: approvals, event stream, lease, tool steps
 let preferences;try{preferences=readPreferences(localStorage);}catch{preferences=readPreferences({getItem:()=>null});}
@@ -32,6 +32,7 @@ const markdown=renderMarkdown;
 let previewFocus=null,previewOriginFocus=null,previewController=null,previewTarget=null;
 let previewFile=null,previewRequest=0,connected=false,refreshing=false,uploading=false,composing=false;
 let noticeTimer;
+let refreshTimer = 0; // 1s state poll; only runs while a session token exists
 function notice(text){(document.querySelector('dialog[open]')||document.body).append($('notice'));$('notice').textContent=text;$('notice').classList.remove('sr');clearTimeout(noticeTimer);noticeTimer=setTimeout(()=>{$('notice').classList.add('sr');},3500);}
 const copyTimers=new WeakMap();
 async function copyText(text,button){try{
@@ -401,7 +402,7 @@ async function refresh(){
     if(restoreSelection){restoreSelection=false;let saved;try{saved=sessionStorage.getItem('agentmeld-selection');}catch{}if(state.conversations.some(c=>c.id===saved)){selected=saved;showArchived=!!selectedChat()?.archived;}else saveSelection();}
   }catch(e){connected=false;sessionExpired=e.status===401;}finally{
     refreshing=false;$('connectionMessage').textContent=sessionExpired?'Local session expired. Reopen the current app link from the server to reconnect. Your saved work is preserved.':'Connection interrupted. Your saved work is preserved.';
-    $('connectionStatus').textContent=connected?'Connected':sessionExpired?'Session expired':'Disconnected';$('connectionDot').classList.toggle('offline',!connected);$('retryConnection').hidden=connected;$('connectionBanner').hidden=connected;
+    $('connectionStatus').textContent=connected?'Connected':sessionExpired?'Session expired':'Disconnected';$('connectionDot').classList.toggle('offline',!connected);$('retryConnection').hidden=connected;$('connectionBanner').hidden=connected;$('pairAgain').hidden=!sessionExpired;
     if(sessionExpired&&track){track.stop();track=null;}
     if(track)void track.poll();
     render();
@@ -466,9 +467,55 @@ $('copyRunReply').onclick=()=>{const t=selectedRun();if(t?.answer)copyText(t.ans
 $('copyMilestones').onclick=()=>{const t=selectedRun();if(t)copyText((t.events||[]).map(e=>e.at+' · '+e.label).join('\n'));};
 $('runDetails').addEventListener('keydown',e=>{if(e.target.matches('input,textarea,select')||e.ctrlKey||e.metaKey||e.altKey||e.shiftKey)return;if(['ArrowLeft','ArrowRight'].includes(e.key)){e.preventDefault();moveRun(e.key==='ArrowLeft'?-1:1);}});
 $('previousRun').onclick=()=>moveRun(-1);$('nextRun').onclick=()=>moveRun(1);
+// ---- pairing / first-run onboarding -------------------------------------
+// A bare URL with no token used to 401 and claim the session "expired".
+// Now it shows the pairing screen instead; an actually-expired session
+// gets a "Pair a new device" button on the connection banner.
+function showPairing(mode){
+  if(track){track.stop();track=null;}
+  if(refreshTimer){clearInterval(refreshTimer);refreshTimer=0;}
+  token='';
+  $('pairingTitle').textContent=mode==='expired'?'Session expired':'Pair this browser';
+  $('pairingBlurb').textContent=mode==='expired'
+    ?'This browser\u2019s session is no longer valid. Pair it again to reconnect \u2014 your saved work is preserved on the server.'
+    :'This browser isn\u2019t paired with your AgentMeld server yet.';
+  $('pairingError').textContent='';
+  $('pairingView').hidden=false;
+  $('pairingToken').focus();
+}
+function bootApp(){
+  error();
+  $('pairingView').hidden=true;
+  render();
+  void refresh().then(()=>ensureTrack()).catch(()=>{});
+  if(!refreshTimer)refreshTimer=setInterval(refresh,1000);
+}
+$('pairAgain').onclick=()=>{try{sessionStorage.removeItem('agentmeld-token');}catch{}showPairing('expired');};
+$('pairingForm').addEventListener('submit',async e=>{
+  e.preventDefault();
+  const raw=$('pairingToken').value.trim();
+  const name=$('pairingName').value.trim()||'Browser';
+  $('pairingError').textContent='';
+  if(!raw){$('pairingError').textContent='Paste the pairing token from `agentmeld-server pair`.';return;}
+  // A full pairing link: let the server bounce us back with a session token
+  // in the hash, which the hashchange handler picks up.
+  try{const u=new URL(raw);if(u.searchParams.get('token')){location.href=raw;return;}}catch{}
+  $('pairButton').disabled=true;
+  try{
+    const res=await fetch('/api/v1/pair',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:raw,device_name:name})});
+    if(!res.ok)throw new Error((await res.json().catch(()=>({}))).error||'pair_failed');
+    token=(await res.json()).token;
+    if(!token)throw new Error('no_token');
+    try{sessionStorage.setItem('agentmeld-token',token);}catch{}
+    $('pairingToken').value='';
+    bootApp();
+  }catch(err){
+    $('pairingError').textContent='That pairing token didn\u2019t work. Tokens are single-use and expire after 10 minutes \u2014 generate a fresh one on the server with `agentmeld-server pair`.';
+  }finally{$('pairButton').disabled=false;}
+});
 function ensureTrack(){
   if(track||!token)return;
   track=initClientTrack({api:async(path,opts)=>(await api(path,opts)).json(),esc,$,notice,icon,token:()=>token,getState:()=>state,requestRefresh:()=>{refresh().catch(()=>{});},selectConversation});
   track.start();
 }
-render();await refresh();ensureTrack();setInterval(refresh,1000);
+if(token)bootApp();else showPairing('first-run');
