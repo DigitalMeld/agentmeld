@@ -21,12 +21,11 @@ things the PoC never had:
    reconnect, a 45s liveness watchdog, `410 cursor_too_old` resync via
    REST refresh, and visible connecting/live/reconnecting status.
 3. **Controller-lease visibility** — polls `GET /api/v1/lease`, renders a
-   pill (Agent control / Human control / Observing) with the holder in
-   the tooltip. **Known gap:** the browser has no trustworthy
-   authenticated-device identity to compare `holder_device_id` against
-   (`GET /state` doesn't expose it), so "controlling on this device" vs
-   "controlled by another device" cannot be honestly distinguished yet.
-   Needs a minimal authenticated self/device-id read endpoint.
+   pill with honest ownership: "Controlling on this device" /
+   "Controlled by another device" / "Human control" / "Observing", with
+   the holder in the tooltip. Device identity comes from the new
+   `GET /api/v1/session` endpoint (returns the authenticated session's
+   non-secret `device_id`; no credentials).
 4. **Inline tool steps** — projects `tool.call_started` /
    `tool.call_finished` into per-run step lists in conversation turns and
    in the run-details dialog, including client-side denied/cancelled
@@ -41,6 +40,13 @@ CRLF, and multi-line data.
 (`crates/agentmeld-server/src/events.rs`) so the approval countdown is
 anchored to server time. Additive; existing tests only assert
 `current_seq`.
+
+**New:** `GET /api/v1/session` — returns the authenticated device's own
+non-secret identity (`device_id`, `device_name`), no credentials. The
+browser uses it to honestly render lease ownership: "Controlling on this
+device" vs "Controlled by another device" vs "Human control"/"Observing".
+Covered by `crates/agentmeld-server/tests/session.rs` (2 tests: identity
+match + 401 without auth + no credential leakage).
 
 **Bug fixed during verification:** `dispatchFrame` looked for
 `stream.hello` inside `event: control` frames, but the server sends it as
@@ -89,12 +95,13 @@ anchored to server time. Additive; existing tests only assert
 
 ## Files
 
-- `apps/poc/public/client-track.js` (new, ~520 lines)
+- `apps/poc/public/client-track.js` (new, ~540 lines)
 - `apps/poc/public/sse-parse.js` (new, pure parser)
 - `apps/poc/public/sse-parse.test.mjs` (new, 14 tests)
 - `apps/poc/public/index.html`, `app.js`, `style.css` (wired in)
 - `apps/poc/server.mjs`, `crates/agentmeld-server/src/api.rs`
-  (static allowlists)
+  (static allowlists + `GET /api/v1/session`)
 - `crates/agentmeld-server/src/events.rs` (`server_time_ms` in hello)
 - `crates/agentmeld-server/src/bin/seed_client_track.rs` (demo seeder)
 - `crates/agentmeld-server/tests/event_stream.rs` (hello time assertion)
+- `crates/agentmeld-server/tests/session.rs` (new, 2 tests)

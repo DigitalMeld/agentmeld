@@ -193,6 +193,7 @@ pub fn router(state: AppState) -> Router {
         .route("/approvals/{id}/decision", post(post_approval_decision))
         .route("/approvals/{id}", get(get_approval))
         .route("/approvals", get(get_approvals))
+        .route("/session", get(get_session))
         .route("/lease", get(get_lease))
         .route("/lease/takeover", post(post_lease_takeover))
         .route("/lease/takeover/ack", post(post_lease_takeover_ack))
@@ -693,8 +694,19 @@ async fn get_approvals(
 // caller-supplied expected_generation: a device acting on a stale view of
 // the lease gets 409 stale_lease and must re-read.
 
-async fn get_lease(Authed(_): Authed, State(state): State<AppState>) -> Response {
-    match state.db.get_lease() {
+/// The authenticated device's own non-secret identity: lets the browser
+/// honestly distinguish "controlling on this device" from "controlled by
+/// another device" when rendering the controller lease. Returns no
+/// credentials — just the device id and name the session was issued to.
+async fn get_session(Authed(ctx): Authed) -> Response {
+    Json(serde_json::json!({
+        "device_id": ctx.device_id,
+        "device_name": ctx.device_name,
+    }))
+    .into_response()
+}
+
+async fn get_lease(Authed(_): Authed, State(state): State<AppState>) -> Response {    match state.db.get_lease() {
         Ok(row) => Json(row.public_json()).into_response(),
         Err(e) => err_code(e.status(), e.code(), &e.message()),
     }

@@ -42,6 +42,7 @@ export function initClientTrack(ctx) {
   let pending = [];        // pending approval public-JSON rows, oldest-expiry first
   let history = [];        // recent terminal approvals
   let lease = null;        // lease public-JSON receipt
+  let sessionDeviceId = null; // this browser's device id, from /api/v1/session
   let clockOffsetMs = 0;   // server_time_ms - Date.now(), from stream.hello
   let serverRetryMs = null; // last clamped retry: hint from the server
   let streamOn = false;
@@ -314,6 +315,14 @@ export function initClientTrack(ctx) {
     paintLease();
   }
 
+  async function pollSession() {
+    try {
+      const s = await api('/api/v1/session');
+      sessionDeviceId = s && s.device_id ? String(s.device_id) : null;
+    } catch (e) { /* keep null: pill falls back to the neutral label */ }
+    paintLease();
+  }
+
   const LEASE_LABEL = {
     agent: 'Observing',
     observed: 'Observing',
@@ -326,14 +335,20 @@ export function initClientTrack(ctx) {
     const pill = $('#leasePill');
     if (!pill) return;
     if (!lease) { pill.hidden = true; return; }
-    const label = LEASE_LABEL[lease.state] || lease.state;
     const human = lease.state === 'human';
+    // Honest ownership: only claim "this device" when the session's device
+    // id matches the holder. Otherwise the holder is another device (or
+    // unknown when the session hasn't loaded yet).
+    const holder = lease.holder_device_id ? String(lease.holder_device_id) : null;
+    const mine = holder && sessionDeviceId && holder === sessionDeviceId;
+    const label = human
+      ? (mine ? 'Controlling on this device' : holder ? 'Controlled by another device' : 'Human control')
+      : (LEASE_LABEL[lease.state] || lease.state);
     pill.hidden = false;
     pill.className = 'leasePill' + (human ? ' leasePill--human' : '');
-    const holder = lease.holder_device_id ? String(lease.holder_device_id) : 'unknown device';
     const held = lease.held_since_ms ? new Date(lease.held_since_ms).toLocaleString() : 'unknown time';
     pill.title = `Controller lease: ${lease.state} · generation ${lease.generation}\n` +
-      `Holder: ${holder}${lease.private_bracket ? ' (private session)' : ''}\nHeld since ${held}`;
+      `Holder: ${holder || 'unknown device'}${mine ? ' (this device)' : ''}${lease.private_bracket ? ' (private session)' : ''}\nHeld since ${held}`;
     const html = `<span class="leaseDot" aria-hidden="true"></span>${esc(label)}`;
     if (pill.innerHTML !== html) pill.innerHTML = html;
   }
@@ -487,6 +502,7 @@ export function initClientTrack(ctx) {
       streamOn = true;
       void streamLoop();
     }
+    void pollSession(); // this device's identity, once per session
     void poll(true); // populate approvals + lease immediately
   }
   function stop() {
