@@ -54,6 +54,8 @@ export function initClientTrack(ctx) {
   let lastFrameAt = 0;
   let lastPollAt = 0;
   let deciding = null;     // approval id with a decision in flight
+  let leaseBusy = null;    // lease action in flight
+  let armedTakeover = 0;   // timestamp: takeover two-step confirm arming
   const seenSeq = new Set();
   const steps = new Map(); // runId -> Map(callKey -> step)
   const hydratedRuns = new Set(); // runIds whose persisted steps were fetched
@@ -374,6 +376,56 @@ export function initClientTrack(ctx) {
     paintLease();
   }
 
+  // ---- lease mutations --------------------------------------------------
+  // Fenced by expected_generation: the server rejects a stale generation
+  // with 409 stale_lease, and the client re-reads instead of retrying.
+  // Takeover is destructive (cancels the live turn, revokes pending
+  // approvals), so it arms in two steps — a confirm without a modal.
+  async function leaseMutate(action) {
+    if (leaseBusy || !lease) return;
+    if (action === 'takeover' && Date.now() - armedTakeover > 6000) {
+      armedTakeover = Date.now();
+      paintLease();
+      return;
+    }
+    armedTakeover = 0;
+    leaseBusy = action;
+    paintLease();
+    try {
+      const body = action === 'takeover' ? {} : { expected_generation: lease.generation };
+      const res = await api('/api/v1/lease/' + action, { method: 'POST', body: JSON.stringify(body) });
+      await res.json().catch(() => ({}));
+    } catch (e) {
+      if (e && e.message === 'stale_lease') {
+        notice('Control changed since you acted — the lease moved. Review it and try again.');
+      } else if (e && e.message === 'not_holder') {
+        notice('Another device holds the lease now.');
+      } else {
+        notice('The lease action could not be completed. Check the connection and try again.');
+      }
+    }
+    leaseBusy = null;
+    await pollLease();
+    requestRefresh();
+  }
+
+  // While this device holds the lease as a human, heartbeat often enough
+  // that a closed tab can't squat the computer (server TTL is 5 minutes).
+  async function maybeHeartbeat() {
+    if (!lease || lease.state !== 'human') return;
+    const holder = lease.holder_device_id ? String(lease.holder_device_id) : null;
+    if (!holder || !sessionDeviceId || holder !== sessionDeviceId) return;
+    if (serverNow() - (lease.heartbeat_at_ms || 0) < 60000) return;
+    try {
+      const res = await api('/api/v1/lease/heartbeat', {
+        method: 'POST',
+        body: JSON.stringify({ expected_generation: lease.generation }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (body && body.lease) { lease = body.lease; paintLease(); }
+    } catch (e) { /* the next poll cycle retries; a dead hold auto-releases */ }
+  }
+
   const LEASE_LABEL = {
     agent: 'Observing',
     observed: 'Observing',
@@ -384,8 +436,9 @@ export function initClientTrack(ctx) {
   };
   function paintLease() {
     const pill = $('leasePill');
+    const controls = $('leaseControls');
     if (!pill) return;
-    if (!lease) { pill.hidden = true; return; }
+    if (!lease) { pill.hidden = true; if (controls) controls.innerHTML = ''; return; }
     const human = lease.state === 'human';
     // Honest ownership: only claim "this device" when the session's device
     // id matches the holder. Otherwise the holder is another device (or
@@ -402,6 +455,35 @@ export function initClientTrack(ctx) {
       `Holder: ${holder || 'unknown device'}${mine ? ' (this device)' : ''}${lease.private_bracket ? ' (private session)' : ''}\nHeld since ${held}`;
     const html = `<span class="leaseDot" aria-hidden="true"></span>${esc(label)}`;
     if (pill.innerHTML !== html) pill.innerHTML = html;
+    paintLeaseControls(controls, { human, mine });
+  }
+
+  // Contextual lease actions. Only the states this device can legally drive
+  // get buttons; everything else stays a readout. The server fences every
+  // mutation on expected_generation, so a stale UI re-reads instead of
+  // acting on old state.
+  function paintLeaseControls(controls, { human, mine }) {
+    if (!controls) return;
+    const busy = leaseBusy;
+    const btn = (action, text, cls) =>
+      `<button class="leaseBtn${cls ? ' ' + cls : ''}" data-lease="${action}"${busy ? ' disabled' : ''}>${busy === action ? 'Working…' : esc(text)}</button>`;
+    let html = '';
+    if (busy) {
+      html = btn(leaseBusy, 'Working…');
+    } else if (lease.state === 'agent' || lease.state === 'observed') {
+      const armed = Date.now() - armedTakeover < 6000;
+      html = armed
+        ? btn('takeover', 'Confirm take control', 'leaseBtn--primary')
+        : btn('takeover', 'Take control');
+    } else if (lease.state === 'pausing' && mine) {
+      html = btn('takeover/ack', 'Confirm handover', 'leaseBtn--primary');
+    } else if (human && mine) {
+      html = btn('resume', 'Release control') +
+        (lease.private_bracket
+          ? btn('private/end', 'End private session', 'leaseBtn--active')
+          : btn('private/begin', 'Private session'));
+    }
+    if (controls.innerHTML !== html) controls.innerHTML = html;
   }
 
   // ---- event stream -----------------------------------------------------
@@ -545,6 +627,7 @@ export function initClientTrack(ctx) {
     if (!force && now - lastPollAt < POLL_INTERVAL_MS) return;
     lastPollAt = now;
     await Promise.all([pollApprovals(), pollLease()]);
+    void maybeHeartbeat();
   }
 
   function start() {
@@ -571,12 +654,19 @@ export function initClientTrack(ctx) {
     paintSteps();
   }
 
-  // Delegated clicks: approve/deny/view-run buttons rendered by this module.
+  // Delegated clicks: approve/deny/view-run buttons and lease controls
+  // rendered by this module.
   document.addEventListener('click', e => {
     const decideBtn = e.target.closest('[data-decide]');
     if (decideBtn) {
       e.preventDefault();
       void decide(decideBtn.getAttribute('data-id'), decideBtn.getAttribute('data-decide'));
+      return;
+    }
+    const leaseBtn = e.target.closest('[data-lease]');
+    if (leaseBtn) {
+      e.preventDefault();
+      void leaseMutate(leaseBtn.getAttribute('data-lease'));
       return;
     }
     const viewBtn = e.target.closest('[data-view-run]');
