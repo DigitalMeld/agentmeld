@@ -539,14 +539,25 @@ async fn post_pair(
 
 // ---------------------------------------------------------- static assets.
 
-// The static allowlist is unchanged from the PoC: frozen assets served
-// verbatim under the same paths.
+// The static allowlist mirrors the PoC server (apps/poc/server.mjs): frozen
+// assets served verbatim under the same paths. app.js statically imports the
+// sibling modules, so every entry must be present or the whole UI fails to
+// boot (missing entries 404, the module graph fails, and the page sits at
+// "Connecting…" with no icons and no navigation).
 const STATIC_ASSETS: &[(&str, &str)] = &[
     ("/", "index.html"),
+    ("/agent-settings.js", "agent-settings.js"),
     ("/app.js", "app.js"),
+    ("/artifact-tools.js", "artifact-tools.js"),
+    ("/brain.svg", "brain.svg"),
+    ("/composer.js", "composer.js"),
+    ("/conversation-tools.js", "conversation-tools.js"),
+    ("/file-browser.js", "file-browser.js"),
+    ("/icons.js", "icons.js"),
+    ("/organization.js", "organization.js"),
+    ("/preview-reader.js", "preview-reader.js"),
     ("/style.css", "style.css"),
-    ("/icon.svg", "icon.svg"),
-    ("/manifest.webmanifest", "manifest.webmanifest"),
+    ("/tooltips.js", "tooltips.js"),
 ];
 
 async fn static_root(State(state): State<AppState>) -> Response {

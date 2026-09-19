@@ -30,6 +30,7 @@ Alpha is **Codex-only using ChatGPT subscription authentication**, with macOS, l
 
 ## Evidence and history
 
+- [Phase 2 UI progress check 2026-09-19](progress/2026-09-19-phase2-ui-check.md): screenshots of the frozen PoC UI served by the Rust service (chat, files, agent settings), plus the static-asset allowlist bug this check caught and fixed.
 - [M0 evidence](m0/results.md) and [reproduction instructions](m0/README.md): completed checks and remaining limits.
 - [Muse public design sources](research/muse-design-sources.md): first-party designer rationale and evidence limits.
 - [Product references](research/product-reference.md): Muse/Grok Bot observations, not parity claims.
