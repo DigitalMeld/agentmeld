@@ -626,6 +626,68 @@ impl DecideError {
     }
 }
 
+/// Machine-readable revocation failures, mapped to HTTP status + code by
+/// the API layer. Revocation is retrospective (it pulls back a grant),
+/// so unlike decisions it is not fenced on the lease generation.
+#[derive(Debug)]
+pub enum RevokeError {
+    NotFound,
+    AlreadySettled(ApprovalState),
+    /// Lazy expiry fired inside the revoke transaction: the row was moved
+    /// to `expired` as part of returning this.
+    Expired,
+    Internal(String),
+}
+
+impl RevokeError {
+    /// The HTTP status for the failure.
+    pub fn status(&self) -> u16 {
+        match self {
+            RevokeError::NotFound => 404,
+            RevokeError::Internal(_) => 500,
+            _ => 409,
+        }
+    }
+
+    /// The machine-readable error code for the `{"error": code}` envelope.
+    pub fn code(&self) -> &'static str {
+        match self {
+            RevokeError::NotFound => "unknown_approval",
+            RevokeError::AlreadySettled(_) => "already_settled",
+            RevokeError::Expired => "expired",
+            RevokeError::Internal(_) => "internal",
+        }
+    }
+
+    /// User-safe message for the error envelope. Never includes digests,
+    /// tickets, or row internals.
+    pub fn message(&self) -> String {
+        match self {
+            RevokeError::NotFound => "No such approval.".to_string(),
+            RevokeError::AlreadySettled(state) => {
+                format!("This approval was already settled ({}).", state.as_str())
+            }
+            RevokeError::Expired => "This approval expired before it was revoked.".to_string(),
+            RevokeError::Internal(_) => "The request could not be completed.".to_string(),
+        }
+    }
+}
+
+/// The revocation receipt.
+#[derive(Debug)]
+pub struct RevokedApproval {
+    pub approval_id: String,
+    pub revoked_reason: String,
+    pub revoked_at_ms: i64,
+    /// The approval was pending: the API layer must resolve the blocked
+    /// worker's waiter with `ApprovalOutcome::Revoked` so the turn winds
+    /// down instead of hanging.
+    pub was_pending: bool,
+    /// The execution ticket was already consumed before revocation: the
+    /// action may have run. The UI says so plainly.
+    pub already_dispatched: bool,
+}
+
 /// The decision receipt. `outcome` wakes the supervisor's blocked waiter;
 /// `ticket` is `Some` only on approval and travels to the worker in the
 /// seam reply — never in the HTTP response.

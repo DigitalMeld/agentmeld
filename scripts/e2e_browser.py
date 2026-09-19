@@ -239,6 +239,30 @@ def main():
                     notice = (page.text_content("#notice") or "")
                     check("approval confirmation notice", "Approved" in notice, notice.strip()[:80])
 
+                # --- approval revocation ---
+                # The granted approval lands in history with a Revoke button:
+                # first click arms, second click confirms.
+                page.click("#approvalsTab")
+                revoke_btn = page.locator("#approvalsBody [data-revoke]")
+                check("revoke offered on the granted approval",
+                      wait_for(lambda: revoke_btn.count() > 0, 10, "revoke button"))
+                if revoke_btn.count():
+                    revoke_btn.first.click()
+                    check("revoke arms for confirmation",
+                          wait_for(lambda: "Confirm revoke" in (page.text_content("#approvalsBody") or ""),
+                                   5, "revoke armed"))
+                    page.locator("#approvalsBody [data-revoke]").first.click()
+                    check("revoke confirms with a notice",
+                          wait_for(lambda: "Approval revoked." in (page.text_content("#notice") or ""),
+                                   10, "revoke notice"))
+                    check("history shows the approval revoked",
+                          wait_for(lambda: page.locator(
+                              "#approvalsBody .approvalHistoryItem--revoked").count() > 0,
+                                   10, "history revoked"))
+                    # Back to the activity tab: the run-details checks below
+                    # need the activity panel visible.
+                    page.click("#activityTab")
+
                 # --- lease + stream ---
                 lease = page.text_content("#leasePill") or ""
                 check("lease pill reads Observing", "Observing" in lease, lease.strip())

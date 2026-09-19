@@ -170,3 +170,7 @@ dialog{color:var(--text);background:#1c1c1f;border:1px solid #3b3b42;border-radi
 .approvalHistoryItem--denied .approvalHistoryState{color:#e5a3a8}
 .approvalHistoryDesc{color:var(--text);overflow-wrap:anywhere}
 .approvalHistoryMeta{color:var(--muted);font-size:11px}
+.approvalHistoryRevoke{margin-left:auto;font-size:11px;padding:3px 10px;border-radius:999px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer}
+.approvalHistoryRevoke:hover{color:var(--text);border-color:var(--muted)}
+.approvalHistoryRevoke.armed{background:#7c2d2d;border-color:#a33;color:#ffd9d9}
+.approvalHistoryRevoke:disabled{opacity:.6;cursor:default}
