@@ -153,3 +153,14 @@ panel all silently no-op'd. Fixed in commit `9f2b85d` (five call sites plus
 a contract note at `initClientTrack`); the screenshots above were captured
 after the fix and show the prompt rendering, the decision POST succeeding,
 and the lease pill reading "Observing".
+
+## Post-fix re-verification (2026-09-19 UTC, same harness)
+
+A second full pass re-ran the whole flow against a fresh disposable state
+dir after the fix (seed → serve → live re-seed → pair → headless Firefox
+1440×900), with assertions instead of eyeballing: approval bar visible, the
+open `#runDetails` dialog contains "Tool steps" with `read_file` DONE and
+`run_query` RUNNING, the Approve click dismisses the bar, the lease pill
+reads "Observing", and zero page/console errors. The tool-steps screenshot
+above is from this pass — the earlier asset was captured before the fix
+(identical content, but the provenance is now clean).

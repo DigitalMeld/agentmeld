@@ -52,7 +52,9 @@ async fn session_returns_authenticated_device_identity() {
         .unwrap();
     let res = app.oneshot(req).await.expect("oneshot");
     assert_eq!(res.status(), 200);
-    let body = axum::body::to_bytes(res.into_body(), 1024).await.expect("body");
+    let body = axum::body::to_bytes(res.into_body(), 1024)
+        .await
+        .expect("body");
     let json: serde_json::Value = serde_json::from_slice(&body).expect("json");
     assert_eq!(json["device_id"], device_id);
     assert_eq!(json["device_name"], "Test browser");

@@ -706,7 +706,8 @@ async fn get_session(Authed(ctx): Authed) -> Response {
     .into_response()
 }
 
-async fn get_lease(Authed(_): Authed, State(state): State<AppState>) -> Response {    match state.db.get_lease() {
+async fn get_lease(Authed(_): Authed, State(state): State<AppState>) -> Response {
+    match state.db.get_lease() {
         Ok(row) => Json(row.public_json()).into_response(),
         Err(e) => err_code(e.status(), e.code(), &e.message()),
     }
