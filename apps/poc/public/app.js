@@ -55,6 +55,48 @@ $('prompt').addEventListener('compositionstart',()=>{composing=true;});
 $('prompt').addEventListener('compositionend',()=>{composing=false;updateComposer();});
 $('retryConnection').onclick=()=>refresh();$('retryBanner').onclick=()=>refresh();
 
+/* Devices dialog: the paired-device list lives behind the "This Mac" host block. */
+$('hostBlock').addEventListener('click',e=>{if(e.target.closest('#retryConnection'))return;openDevices();});
+$('hostBlock').addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();openDevices();}});
+$('closeDevices').onclick=()=>$('deviceDialog').close();
+async function openDevices(){$('deviceDialog').showModal();await loadDevices();}
+function deviceRow(d){
+  const enrolled=new Date(d.enrolled_at_ms).toLocaleDateString();
+  const badges=[];
+  if(d.is_current_device)badges.push('<span class="deviceBadge">This device</span>');
+  if(d.revoked)badges.push('<span class="deviceBadge deviceBadge--revoked">Revoked</span>');
+  const sessions=d.active_sessions===1?'1 active session':d.active_sessions+' active sessions';
+  const action=(!d.is_current_device&&!d.revoked&&d.active_sessions>0)
+    ?'<button class="deviceRevoke" data-revoke-device="'+esc(d.id)+'">Revoke</button>':'';
+  return '<div class="deviceRow"><div><div class="deviceName">'+esc(d.name)+' '+badges.join(' ')+'</div>'
+    +'<div class="muted deviceMeta">Paired '+esc(enrolled)+' · '+esc(sessions)+'</div></div>'+action+'</div>';
+}
+async function loadDevices(){
+  const list=$('deviceList'),err=$('deviceError');err.textContent='';
+  list.innerHTML='<p class="muted">Loading…</p>';
+  try{
+    const res=await api('/api/v1/devices');const {devices}=await res.json();
+    list.innerHTML=devices.length?devices.map(deviceRow).join(''):'<p class="muted">No devices paired.</p>';
+  }catch(e){list.innerHTML='';err.textContent='Could not load devices. Check the connection and try again.';}
+}
+$('deviceList').addEventListener('click',async e=>{
+  const btn=e.target.closest('[data-revoke-device]');if(!btn)return;
+  const id=btn.dataset.revokeDevice;
+  if(!btn.dataset.armed){
+    btn.dataset.armed='1';btn.textContent='Confirm revoke';btn.classList.add('armed');
+    setTimeout(()=>{if(btn.isConnected){delete btn.dataset.armed;btn.textContent='Revoke';btn.classList.remove('armed');}},6000);
+    return;
+  }
+  btn.disabled=true;btn.textContent='Working…';
+  try{
+    await api('/api/v1/devices/'+encodeURIComponent(id)+'/revoke',{method:'POST',body:'{}'});
+    notice('Device revoked.');await loadDevices();
+  }catch(err2){
+    btn.disabled=false;delete btn.dataset.armed;btn.textContent='Revoke';btn.classList.remove('armed');
+    $('deviceError').textContent=err2.status===404?'That device is already gone.':'Could not revoke the device.';
+  }
+});
+
 $('closePreview').onclick=()=>$('preview').close();
 function downloadBlob(blob,name){const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),5000);}
 $('downloadFile').onclick=()=>{if(previewFile)downloadBlob(previewFile.blob,previewFile.name);};

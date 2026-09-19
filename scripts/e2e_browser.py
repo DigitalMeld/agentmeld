@@ -99,6 +99,15 @@ def mint_pairing_token(state_dir, port):
     return m.group(1)
 
 
+def redeem_pairing_token(port, pairing_token, device_name):
+    """Redeem a pairing token via the API (no browser) to enroll a device."""
+    import json as _json
+    body = _json.dumps({"token": pairing_token, "device_name": device_name}).encode()
+    req = urllib.request.Request(f"http://127.0.0.1:{port}/api/v1/pair", data=body,
+                                 headers={"Content-Type": "application/json"}, method="POST")
+    return _json.load(urllib.request.urlopen(req, timeout=10))
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--port", type=int, default=0)
@@ -262,6 +271,43 @@ def main():
                     # Back to the activity tab: the run-details checks below
                     # need the activity panel visible.
                     page.click("#activityTab")
+
+                # --- device management ---
+                # Enroll a second device via the API, then manage both from
+                # the Devices dialog behind the host block.
+                try:
+                    tok2 = mint_pairing_token(state_dir, port)
+                    redeem_pairing_token(port, tok2, "Test Phone")
+                    paired2 = True
+                except Exception as e:
+                    paired2 = False
+                    check("second device pairs via API", False, str(e)[:80])
+                if paired2:
+                    check("second device pairs via API", True)
+                    page.click("#hostBlock")
+                    dev_rows = page.locator("#deviceList .deviceRow")
+                    check("devices dialog lists both devices",
+                          wait_for(lambda: dev_rows.count() >= 2, 10, "two device rows"),
+                          f"{dev_rows.count()} rows")
+                    check("current device is badged",
+                          "This device" in (page.text_content("#deviceList") or ""),
+                          (page.text_content("#deviceList") or "")[:120])
+                    other = page.locator("#deviceList [data-revoke-device]")
+                    check("revoke offered on the other device", other.count() == 1,
+                          f"{other.count()} revoke buttons")
+                    if other.count():
+                        other.first.click()
+                        check("device revoke arms for confirmation",
+                              wait_for(lambda: "Confirm revoke" in (page.text_content("#deviceList") or ""),
+                                       5, "device revoke armed"))
+                        page.locator("#deviceList [data-revoke-device]").first.click()
+                        check("device revoke confirms with a notice",
+                              wait_for(lambda: "Device revoked." in (page.text_content("#notice") or ""),
+                                       10, "device revoke notice"))
+                        check("revoked device is badged Revoked",
+                              wait_for(lambda: "Revoked" in (page.text_content("#deviceList") or ""),
+                                       10, "revoked badge"))
+                    page.keyboard.press("Escape")
 
                 # --- lease + stream ---
                 lease = page.text_content("#leasePill") or ""
