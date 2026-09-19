@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/agentmeld-m0"]
+members = ["crates/agentmeld-m0", "crates/agentmeld-server"]
 resolver = "3"
 
 [workspace.package]

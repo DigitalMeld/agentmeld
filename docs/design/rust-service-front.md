@@ -152,3 +152,23 @@ Three legs, each independently runnable on the VM. None sends messages, invokes 
 **Verified by reading (2026-09-18):** `apps/poc/supervisor.mjs` in full (handshake, event application, input serving, artifact delivery, cancel arming, fail-closed teardown, the three gap-fills), `apps/poc/server.mjs` in full (routes, idempotent admission, single-flight pump, asset allowlist, security headers), the worker↔service seam spec and its v1 README (message inventory, auth model, blast radius, versioning policy), the data model's core schema SQL (all 19 tables, transaction rules), the migration plan (legacy mapping, backup/rollback, rollout increments), and the `durable.rs` header and core types (semantic base only).
 
 **Not verified:** the Rust service does not exist — nothing here has been implemented, compiled, or run (the VM has no Rust toolchain, and this design makes no claim about what compiles). No import has been executed; the fixture plan in §10 is a plan, not evidence. Claims about the PoC's behavior (e.g. admission semantics, pump behavior, `-32601` approval refusal) come from code reading, not execution.
+
+## 15. Implementation log (Phase 2 build, 2026-09-19)
+
+The Rust service now exists (`crates/agentmeld-server`, axum + rusqlite). This log records behavior changes and discoveries made during implementation; the crate's tests are the executable form of the same claims.
+
+**Frozen-UI compatibility.** The frozen client calls `/api/*`, not `/api/v1/*`. The router mounts the identical route set at both prefixes (the pairing link stays `/api/v1/pair` since the server prints it). Profile writes use the PoC's action names `edit`/`remember`/`forget` (the PoC's `profile.mjs` contract, including the 100-memory cap, 24 KB total cap, and revision-guard 409); a `get` read action is a non-PoC convenience. Static assets remain byte-for-byte unchanged.
+
+**Schema v3.** The pump's profile-revision sync selected `conversations.agent_revision` and `runs.agent_revision`, which did not exist (live smoke test caught this: the pump claimed runs and died before `run_turn`). Migration v3 adds both columns, matching the PoC's `conversation.agentRevision`/`task.agentRevision` semantics.
+
+**Stop during setup.** The active turn is registered before environment/setup work; a stop that lands while the run is `starting` (supervisor-registered, no worker yet) returns 202-equivalent `RequestedRunning` and moves the run to `cancelling`; the supervisor's pre-spawn check resolves it as `cancelled` without spawning. A stop with no registered active turn is a 409 retry, not a phantom cancel.
+
+**Worker seam strictness.** All wire message structs carry `deny_unknown_fields` (the seam spec's `additionalProperties: false` throughout). `FrameReader` enforces the 1 MiB cap on the drained line, not just the pre-read buffer. `run.terminated` is accepted after terminal states (`completed`/`failed`/`cancelled`) — the real worker always sends teardown evidence after the terminal event, exactly like the PoC's `applyEvent` which checked `sawTerminal` rather than status.
+
+**Handshake crash detection.** The hello wait races `child.wait()` against both the socket accept and the frame read: a worker that exits before its hello fails the turn immediately with "worker exited during handshake (exit code N)" instead of waiting out the 15 s timeout.
+
+**Startup lock.** Creation is atomic (`create_new`); a stale lock is removed and re-created atomically so two racing startups cannot double-claim. `kill(pid, 0)` returning EPERM now counts as alive. `pair` accepts `--port` and prints it in the link.
+
+**API hardening.** Oversized bodies return the JSON error envelope (`413 {"error":"The request body is too large."}`) instead of axum's default rejection. `Cache-Control: no-store` covers every response including the pairing redirect (its Location fragment carries a device-session token).
+
+**Live smoke evidence (2026-09-19, temp state dir, loopback :4317):** pairing token → 303 redirect → single-use enforced (second use 401); admission 202 with PoC-shaped receipt; request-key dedupe returns the original run; pump claimed → revision sync → `run_turn` → environment check failed closed (no Docker on the VM) → run `interrupted`; restart recovery marked the in-flight run `interrupted`; duplicate server refused by lock; SIGKILL'd server left a stale lock that the next startup reclaimed with a logged warning. Full turn execution is unverified here — no Docker/Codex on the VM — and remains the Phase 3 gate.
