@@ -113,6 +113,7 @@ async fn stub_worker_completes_turn_over_unix_socket() {
         state_dir,
         repo_root,
         std::path::PathBuf::from("node"),
+        std::sync::Arc::new(agentmeld_server::approvals::PendingApprovals::new()),
     );
     supervisor
         .run_turn(TurnContext {
@@ -163,6 +164,7 @@ async fn wrong_handshake_token_rejects_worker() {
         state_dir,
         repo_root,
         std::path::PathBuf::from("node"),
+        std::sync::Arc::new(agentmeld_server::approvals::PendingApprovals::new()),
     );
     let err = supervisor
         .run_turn(TurnContext {
@@ -217,6 +219,7 @@ async fn worker_crash_during_handshake_fails_fast() {
         state_dir,
         repo_root,
         std::path::PathBuf::from("node"),
+        std::sync::Arc::new(agentmeld_server::approvals::PendingApprovals::new()),
     );
     let start = std::time::Instant::now();
     let err = supervisor

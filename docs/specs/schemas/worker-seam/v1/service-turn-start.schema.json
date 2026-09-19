@@ -1,5 +1,5 @@
 {
-  "$comment": "Traceability: runs and provider_sessions table contracts, the provider start/resume transaction rule, and the contract-map row 'controller lease, generation fencing' (data-model.md; control-core-unification.md §4). Assigns one turn to the worker. Replaces the PoC executeTask(task, changed, control, conversation) arguments: everything the worker needs arrives here, because over IPC it can no longer read the service's in-memory objects. The worker asserts expected_binding against its environment before driving the turn (fail-closed; the PoC's assert block, moved across the seam). Binding verification against the recorded provider_sessions row happens service-side before this message is sent. One turn at a time per worker; turn.start while a turn is active is rejected with turn_in_progress.",
+  "$comment": "Traceability: runs and provider_sessions table contracts, the provider start/resume transaction rule, and the contract-map row 'controller lease, generation fencing' (data-model.md; control-core-unification.md \u00a74). Assigns one turn to the worker. Replaces the PoC executeTask(task, changed, control, conversation) arguments: everything the worker needs arrives here, because over IPC it can no longer read the service's in-memory objects. The worker asserts expected_binding against its environment before driving the turn (fail-closed; the PoC's assert block, moved across the seam). Binding verification against the recorded provider_sessions row happens service-side before this message is sent. One turn at a time per worker; turn.start while a turn is active is rejected with turn_in_progress.",
   "$defs": {
     "uuid": {
       "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
@@ -110,6 +110,10 @@
           "minimum": 0,
           "type": "integer"
         },
+        "observation_required": {
+          "description": "True when the controller lease is mid-handoff (resuming): the worker's first events batch must contain run.resumed with a fresh observation digest before the service treats the turn as live.",
+          "type": "boolean"
+        },
         "staging_dir": {
           "description": "Service-created, run-scoped staging directory for artifact output bytes. Worker-writable, service-readable.",
           "maxLength": 512,
@@ -128,7 +132,8 @@
         "lease_generation",
         "inputs_manifest",
         "staging_dir",
-        "turn_timeout_ms"
+        "turn_timeout_ms",
+        "observation_required"
       ],
       "type": "object"
     }

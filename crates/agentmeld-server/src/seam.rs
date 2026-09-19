@@ -264,14 +264,45 @@ pub struct Rejection {
 
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
+pub struct ApprovalProposal {
+    pub action: serde_json::Value,
+    pub description_user: String,
+    pub ttl_ms: i64,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct WorkerApprovalRequest {
     pub protocol: String,
     pub msg_id: String,
     pub msg_type: String,
     pub run_id: String,
     pub generation: i64,
-    // approval.* details are not interpreted in Phase 2: the request is
-    // rejected explicitly, never silently.
+    pub approval: ApprovalProposal,
+}
+
+/// The single reply to `worker.approvals.request-decision`. Exactly one per
+/// request. On `approved`, `ticket` carries the single-use execution ticket
+/// the worker must present in `approval.dispatched`; it travels over this
+/// seam message ONLY — never in the HTTP decision response, never in the
+/// journal. On `revoked` the row was terminally settled by
+/// revocation/takeover while the worker was blocked: the action will not
+/// run and the worker must wind down.
+#[derive(Debug, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct ServiceApprovalDecision {
+    pub protocol: &'static str,
+    pub in_reply_to: String,
+    pub msg_type: &'static str,
+    pub approval_id: String,
+    pub run_id: String,
+    pub generation: i64,
+    /// "approved" | "denied" | "expired" | "revoked".
+    pub decision: String,
+    pub action_digest: String,
+    pub decided_at_ms: i64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ticket: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -306,6 +337,10 @@ pub struct TurnStart {
     pub agent_context: String,
     pub expected_binding: Binding,
     pub lease_generation: i64,
+    /// True when the lease is mid-handoff: the worker's first events batch
+    /// must contain `run.resumed` with a fresh observation digest before the
+    /// service treats the turn as live.
+    pub observation_required: bool,
     pub inputs_manifest: Vec<InputManifestEntry>,
     pub staging_dir: String,
     pub turn_timeout_ms: i64,

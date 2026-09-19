@@ -5,7 +5,14 @@
 // WAL mode, foreign keys on, ordered checksummed migrations, startup
 // recovery that marks in-flight runs interrupted.
 
-use crate::domain::{ms_to_iso, new_uuid, now_ms, sha256_hex, RequestError, RunStatus};
+use crate::approvals::{
+    action_digest, ApprovalOutcome, ApprovalRow, ApprovalState, DecideError, DecideKind,
+    DecidedApproval, DeviceRevocation, LeaseError, LeaseOutcome, LeaseRow, LeaseState,
+    ProposeError, ProposedApproval, TicketError, LEASE_HEARTBEAT_TTL_MS,
+};
+use crate::domain::{
+    ms_to_iso, new_token_b64url, new_uuid, now_ms, sha256_hex, RequestError, RunStatus,
+};
 use rusqlite::{params, Connection, OptionalExtension};
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
@@ -19,11 +26,17 @@ const MIGRATIONS: &[(i64, &str)] = &[
     (1, include_str!("migrations/v1.sql")),
     (2, include_str!("migrations/v2.sql")),
     (3, include_str!("migrations/v3.sql")),
+    (4, include_str!("migrations/v4.sql")),
 ];
 
 pub struct Db {
     conn: Mutex<Connection>,
     pub blob_root: PathBuf,
+    /// Test-only server-clock override (milliseconds since epoch). When set,
+    /// `clock_now` returns the override instead of the wall clock, so the
+    /// deterministic harness can drive approval/lease expiry without
+    /// sleeping. Production never sets this.
+    clock_override: Mutex<Option<i64>>,
 }
 
 /// One row of the session recheck: (token_hash, device_id, device_name,
@@ -43,7 +56,39 @@ impl Db {
         Ok(Db {
             conn: Mutex::new(conn),
             blob_root: blob_root.to_path_buf(),
+            clock_override: Mutex::new(None),
         })
+    }
+
+    /// The service clock. All approval/lease expiry is evaluated against
+    /// this — never against a client-supplied time.
+    pub fn clock_now(&self) -> i64 {
+        match self.clock_override.lock() {
+            Ok(guard) => guard.unwrap_or_else(now_ms),
+            Err(_) => now_ms(),
+        }
+    }
+
+    /// Pin the service clock (test harness only).
+    pub fn set_clock_override(&self, now_ms: i64) {
+        if let Ok(mut guard) = self.clock_override.lock() {
+            *guard = Some(now_ms);
+        }
+    }
+
+    /// Advance the pinned service clock (test harness only).
+    pub fn advance_clock(&self, delta_ms: i64) {
+        if let Ok(mut guard) = self.clock_override.lock() {
+            let base = guard.unwrap_or_else(now_ms);
+            *guard = Some(base + delta_ms);
+        }
+    }
+
+    /// Release the pinned service clock (test harness only).
+    pub fn clear_clock_override(&self) {
+        if let Ok(mut guard) = self.clock_override.lock() {
+            *guard = None;
+        }
     }
 
     /// Apply ordered migrations; a changed checksum for an applied migration
@@ -1473,7 +1518,9 @@ impl Db {
         status: RunStatus,
         terminal_reason: Option<&str>,
     ) -> Result<(), RequestError> {
-        let now = now_ms();
+        // Clock-aware: under a test clock override, status timestamps follow
+        // the injected clock so expiry sweeps stay deterministic.
+        let now = self.clock_now();
         let finished: Option<i64> = if status.is_terminal() {
             Some(now)
         } else {
@@ -2039,7 +2086,7 @@ pub struct EventsOutcome {
 impl crate::db::Db {
     /// Begin the turn: status -> running, create the streaming response
     /// message, record the turn.started milestone. All-or-nothing.
-    pub fn begin_turn(&self, run_id: &str) -> Result<(), RequestError> {
+    pub fn begin_turn(&self, run_id: &str) -> Result<BeginTurn, RequestError> {
         let mut conn = self
             .conn
             .lock()
@@ -2051,6 +2098,37 @@ impl crate::db::Db {
         if run.status != RunStatus::Starting {
             return Err(RequestError::new("run is not starting", 409));
         }
+        let now = self.clock_now();
+        // The pump raced a human: no worker may spawn while the computer is
+        // held. Fail the turn rather than start work nobody owns.
+        self.lease_auto_release_locked(&tx, now)
+            .map_err(|e| RequestError::new(format!("lease: {e:?}"), 500))?;
+        let lease = self
+            .lease_row_locked(&tx)
+            .map_err(|e| RequestError::new(format!("lease: {e:?}"), 500))?;
+        if !matches!(lease.state, LeaseState::Agent | LeaseState::Resuming) {
+            return Err(RequestError::new(
+                format!(
+                    "controller lease is {}: the human has the computer",
+                    lease.state.as_str()
+                ),
+                409,
+            ));
+        }
+        // Monotonic action generation: every turn gets a fresh one, so a
+        // frame from a previous turn can never be mistaken for this turn's.
+        tx.execute(
+            "UPDATE runs SET generation = generation + 1 WHERE workspace_id = 'default' AND id = ?1",
+            rusqlite::params![run_id],
+        )
+        .map_err(|e| RequestError::new(format!("bump generation: {e}"), 500))?;
+        let generation: i64 = tx
+            .query_row(
+                "SELECT generation FROM runs WHERE workspace_id = 'default' AND id = ?1",
+                rusqlite::params![run_id],
+                |r| r.get(0),
+            )
+            .map_err(|e| RequestError::new(format!("read generation: {e}"), 500))?;
         self.set_run_status_locked(&tx, run_id, RunStatus::Running, None)?;
         self.record_milestone_locked(&tx, run_id, "run.started")?;
         let message_id = {
@@ -2079,7 +2157,11 @@ impl crate::db::Db {
         .map_err(|e| RequestError::new(format!("link response message: {e}"), 500))?;
         tx.commit()
             .map_err(|e| RequestError::new(format!("commit begin_turn: {e}"), 500))?;
-        Ok(())
+        Ok(BeginTurn {
+            generation,
+            lease_generation: lease.generation,
+            observation_required: lease.state == LeaseState::Resuming,
+        })
     }
 
     /// Transactionally append a worker events batch. Idempotent per
@@ -2384,8 +2466,44 @@ impl crate::db::Db {
                 }
             }
             other => {
-                // No approval path in Phase 2; approval.* events are ignored.
-                if !other.starts_with("approval.") {
+                // Service-owned approval lifecycle events (requested /
+                // settled / timed_out / revoked) are journalled by the
+                // service itself, never by the worker; a worker sending one
+                // is ignored. The one worker-sourced approval event is
+                // `approval.dispatched`, which carries the single-use
+                // execution ticket and is claimed below.
+                if other == "approval.dispatched" {
+                    let approval_id = payload
+                        .get("approval_id")
+                        .and_then(|v| v.as_str())
+                        .ok_or_else(|| {
+                            RequestError::new("approval.dispatched requires approval_id", 400)
+                        })?;
+                    let ticket =
+                        payload
+                            .get("ticket")
+                            .and_then(|v| v.as_str())
+                            .ok_or_else(|| {
+                                RequestError::new("approval.dispatched requires ticket", 400)
+                            })?;
+                    // Atomic exactly-once claim. A bad ticket fails the
+                    // turn closed (the supervisor maps the seam code);
+                    // the transaction rolls back, so the event is never
+                    // journalled on a failed claim.
+                    self.claim_ticket_locked(tx, run_id, approval_id, ticket, now)
+                        .map_err(|e| RequestError::new(e.seam_code().to_string(), e.status()))?;
+                } else if other == "run.resumed" {
+                    // The worker's re-observation after a human resume:
+                    // completes the controller-lease handoff (resuming ->
+                    // agent). Required before the service treats the turn
+                    // as live again.
+                    let digest = payload.get("digest").and_then(|v| v.as_str()).unwrap_or("");
+                    if digest.is_empty() || digest.len() > 128 {
+                        return Err(RequestError::new("run.resumed requires a digest", 400));
+                    }
+                    self.lease_note_observed_locked(tx, digest, now)
+                        .map_err(|e| RequestError::new(format!("{e:?}"), e.status()))?;
+                } else if !other.starts_with("approval.") {
                     return Err(RequestError::new(
                         format!("unknown event type: {other}"),
                         500,
@@ -3283,5 +3401,1519 @@ impl crate::db::Db {
         conn.execute_batch("PRAGMA wal_checkpoint(TRUNCATE); PRAGMA journal_mode=DELETE;")
             .map_err(|e| format!("checkpoint: {e}"))?;
         Ok(())
+    }
+}
+
+/// The data the supervisor needs to open a turn.
+pub struct BeginTurn {
+    /// The run's new monotonic action generation. Never reused: the worker
+    /// binds every mutating frame to it, and the supervisor rejects frames
+    /// from any other generation.
+    pub generation: i64,
+    /// The controller-lease generation the turn opens under. Approval
+    /// proposals capture it; decisions re-fence it.
+    pub lease_generation: i64,
+    /// True when the lease is mid-handoff (`resuming`): the first frame the
+    /// worker may send is `run.resumed` with a fresh observation.
+    pub observation_required: bool,
+}
+
+// ============================================================================
+// Phase 3: approval semantics, controller lease, revocation.
+//
+// Every method below runs on the service clock (`clock_now`, overridable in
+// tests), never the wall clock directly. Transactions are the unit of
+// atomicity: an approval is proposed, decided, expired, or revoked in one
+// SQLite transaction together with its journal events and the run's status
+// move, so a crash can never leave the journal and the state disagreeing.
+//
+// Security notes:
+// - The execution ticket is generated server-side, SHA-256 hashed at rest
+//   (`ticket_hash`), and claimed exactly once. The raw value leaves the
+//   database layer ONLY in `DecidedApproval.ticket`, which the supervisor
+//   forwards to the worker over the seam. It is never written to the
+//   journal, never rendered into an HTTP response, and never logged.
+// - Digests are recomputed from the STORED action at decide time
+//   (ChangedAction guard); the service never trusts a worker-sent digest.
+// - Decision reads apply lazy expiry first: a decision can never race an
+//   expired deadline.
+// ============================================================================
+
+/// Explicit column order for approval reads. Every SELECT of an approval
+/// row must use this list so `map_approval_row` stays aligned.
+const APPROVAL_COLS: &str = "id, run_id, action_digest, action_json, target_json, \
+    description_user, ticket_hash, consumed_at, grant_revision, lease_generation, \
+    state, expires_at, created_at, decided_by, decided_at, revoked_reason";
+
+fn map_approval_row(row: &rusqlite::Row) -> rusqlite::Result<ApprovalRow> {
+    let state_s: String = row.get(10)?;
+    // Unknown stored states fail closed to Expired (terminal, never
+    // decidable, never dispatchable). Unreachable in practice: the schema
+    // pins the state column to a CHECK list.
+    let state = ApprovalState::parse(&state_s).unwrap_or(ApprovalState::Expired);
+    Ok(ApprovalRow {
+        id: row.get(0)?,
+        run_id: row.get(1)?,
+        action_digest: row.get(2)?,
+        action_json: row.get(3)?,
+        target_json: row.get(4)?,
+        description_user: row.get(5)?,
+        ticket_hash: row.get(6)?,
+        consumed_at: row.get(7)?,
+        grant_revision: row.get(8)?,
+        lease_generation: row.get(9)?,
+        state,
+        revoked_reason: row.get(15)?,
+        expires_at_ms: row.get(11)?,
+        decided_by: row.get(13)?,
+        decided_at_ms: row.get(14)?,
+        created_at_ms: row.get(12)?,
+    })
+}
+
+fn map_lease_row(row: &rusqlite::Row) -> rusqlite::Result<LeaseRow> {
+    let state_s: String = row.get(1)?;
+    let state = LeaseState::parse(&state_s).unwrap_or(LeaseState::Agent);
+    Ok(LeaseRow {
+        generation: row.get(0)?,
+        state,
+        holder_device_id: row.get(2)?,
+        private_bracket: row.get::<_, i64>(3)? != 0,
+        held_since_ms: row.get(4)?,
+        heartbeat_at_ms: row.get(5)?,
+        updated_at_ms: row.get(6)?,
+    })
+}
+
+impl Db {
+    fn lock_conn(&self) -> Result<std::sync::MutexGuard<'_, rusqlite::Connection>, LeaseError> {
+        self.conn
+            .lock()
+            .map_err(|e| LeaseError::Internal(format!("db lock: {e}")))
+    }
+
+    // ---- controller lease internals ----
+
+    fn lease_ensure_locked(&self, tx: &rusqlite::Transaction) -> Result<(), LeaseError> {
+        tx.execute(
+            "INSERT OR IGNORE INTO computer_leases
+             (workspace_id, host_id, generation, state, private_bracket, updated_at)
+             VALUES ('default', 'local', 0, 'agent', 0, ?1)",
+            params![self.clock_now()],
+        )
+        .map_err(|e| LeaseError::Internal(format!("ensure lease: {e}")))?;
+        Ok(())
+    }
+
+    fn lease_row_locked(&self, tx: &rusqlite::Transaction) -> Result<LeaseRow, LeaseError> {
+        self.lease_ensure_locked(tx)?;
+        tx.query_row(
+            "SELECT generation, state, holder_device_id, private_bracket,
+                    held_since, heartbeat_at, updated_at
+             FROM computer_leases WHERE workspace_id='default' AND host_id='local'",
+            [],
+            map_lease_row,
+        )
+        .map_err(|e| LeaseError::Internal(format!("read lease: {e}")))
+    }
+
+    fn record_lease_event_locked(
+        &self,
+        tx: &rusqlite::Transaction,
+        kind: &str,
+        generation: i64,
+        device_id: Option<&str>,
+        payload: &serde_json::Value,
+    ) -> Result<(), LeaseError> {
+        tx.execute(
+            "INSERT INTO lease_events
+             (id, workspace_id, host_id, kind, generation, device_id, payload_json, created_at)
+             VALUES (?1, 'default', 'local', ?2, ?3, ?4, ?5, ?6)",
+            params![
+                new_uuid(),
+                kind,
+                generation,
+                device_id,
+                payload.to_string(),
+                self.clock_now()
+            ],
+        )
+        .map_err(|e| LeaseError::Internal(format!("lease event: {e}")))?;
+        Ok(())
+    }
+
+    /// Locked: release a stale hold (heartbeat older than the TTL). Returns
+    /// true when it released one. The generation bumps so a zombie holder's
+    /// next heartbeat is rejected as stale, not silently re-accepted.
+    fn lease_auto_release_locked(
+        &self,
+        tx: &rusqlite::Transaction,
+        now: i64,
+    ) -> Result<bool, LeaseError> {
+        let lease = self.lease_row_locked(tx)?;
+        let stale = match (lease.holder_device_id.as_deref(), lease.heartbeat_at_ms) {
+            (Some(_), Some(hb)) => now - hb > LEASE_HEARTBEAT_TTL_MS,
+            _ => false,
+        };
+        if !stale {
+            return Ok(false);
+        }
+        let generation = lease.generation + 1;
+        tx.execute(
+            "UPDATE computer_leases SET generation=?1, holder_device_id=NULL, state='agent',
+                    private_bracket=0, held_since=NULL, heartbeat_at=NULL, updated_at=?2
+             WHERE workspace_id='default' AND host_id='local'",
+            params![generation, now],
+        )
+        .map_err(|e| LeaseError::Internal(format!("auto-release lease: {e}")))?;
+        self.record_lease_event_locked(
+            tx,
+            "lease.auto_released",
+            generation,
+            lease.holder_device_id.as_deref(),
+            &serde_json::json!({"stale_heartbeat_at_ms": lease.heartbeat_at_ms}),
+        )?;
+        Ok(true)
+    }
+
+    /// Lease + generation maintenance for the 1s serve-mode sweeper and the
+    /// deterministic harness. Settles journal state only; the supervisor
+    /// consumes approval outcomes through its waiters.
+    pub fn lease_maintenance(&self) -> Result<bool, String> {
+        let mut conn = self.conn.lock().map_err(|e| format!("db lock: {e}"))?;
+        let tx = conn.transaction().map_err(|e| format!("db: {e}"))?;
+        let now = self.clock_now();
+        let released = self
+            .lease_auto_release_locked(&tx, now)
+            .map_err(|e| format!("lease maintenance: {e:?}"))?;
+        tx.commit()
+            .map_err(|e| format!("commit lease maintenance: {e}"))?;
+        Ok(released)
+    }
+
+    /// Read the lease, applying stale-hold auto-release first.
+    pub fn get_lease(&self) -> Result<LeaseRow, LeaseError> {
+        let mut conn = self.lock_conn()?;
+        let tx = conn
+            .transaction()
+            .map_err(|e| LeaseError::Internal(format!("db: {e}")))?;
+        let now = self.clock_now();
+        self.lease_auto_release_locked(&tx, now)?;
+        let row = self.lease_row_locked(&tx)?;
+        tx.commit()
+            .map_err(|e| LeaseError::Internal(format!("commit get lease: {e}")))?;
+        Ok(row)
+    }
+
+    /// Takeover: the seizing device takes the computer. Pending approvals
+    /// die with reason `lease_takeover` (the world they were proposed
+    /// against is gone), and when the lease was `pausing` the caller must
+    /// cancel the live turn. Anyone may take over — seizing control from a
+    /// stuck holder is the point.
+    pub fn lease_takeover(
+        &self,
+        device_id: &str,
+        has_active_turn: bool,
+    ) -> Result<LeaseOutcome, LeaseError> {
+        let mut conn = self.lock_conn()?;
+        let tx = conn
+            .transaction()
+            .map_err(|e| LeaseError::Internal(format!("db: {e}")))?;
+        let now = self.clock_now();
+        let lease = self.lease_row_locked(&tx)?;
+        let generation = lease.generation + 1;
+        let state = if has_active_turn {
+            LeaseState::Pausing
+        } else {
+            LeaseState::Human
+        };
+        tx.execute(
+            "UPDATE computer_leases SET generation=?1, holder_device_id=?2, state=?3,
+                    private_bracket=0, held_since=?4, heartbeat_at=?4, updated_at=?4
+             WHERE workspace_id='default' AND host_id='local'",
+            params![generation, device_id, state.as_str(), now],
+        )
+        .map_err(|e| LeaseError::Internal(format!("takeover: {e}")))?;
+        let pending = self.pending_approval_runs_locked(&tx)?;
+        for (id, run_id) in &pending {
+            self.settle_approval_locked(
+                &tx,
+                id,
+                ApprovalState::Revoked,
+                Some("lease_takeover"),
+                None,
+                now,
+            )
+            .map_err(LeaseError::Internal)?;
+            self.record_approval_event_locked(
+                &tx,
+                run_id,
+                id,
+                "approval.revoked",
+                &serde_json::json!({"reason": "lease_takeover", "by": device_id}),
+            )
+            .map_err(LeaseError::Internal)?;
+        }
+        self.record_lease_event_locked(
+            &tx,
+            "lease.takeover",
+            generation,
+            Some(device_id),
+            &serde_json::json!({
+                "from_state": lease.state.as_str(),
+                "to_state": state.as_str(),
+                "had_active_turn": has_active_turn,
+            }),
+        )?;
+        tx.commit()
+            .map_err(|e| LeaseError::Internal(format!("commit takeover: {e}")))?;
+        Ok(LeaseOutcome {
+            lease: LeaseRow {
+                generation,
+                state,
+                holder_device_id: Some(device_id.to_string()),
+                private_bracket: false,
+                held_since_ms: Some(now),
+                heartbeat_at_ms: Some(now),
+                updated_at_ms: now,
+            },
+            revoked_approval_ids: pending.into_iter().map(|(id, _)| id).collect(),
+            killed_active_turn: has_active_turn,
+        })
+    }
+
+    /// TakeoverAck: the seizing device confirms the worker has wound down
+    /// (the service.turn.cancel was delivered) and takes the computer as a
+    /// human. Pausing -> Human. Only the device that took over can ack, and
+    /// only on the generation it saw: the ack is fenced like every other
+    /// holder mutation.
+    pub fn lease_takeover_ack(
+        &self,
+        device_id: &str,
+        expected_generation: i64,
+    ) -> Result<LeaseOutcome, LeaseError> {
+        let mut conn = self.lock_conn()?;
+        let tx = conn
+            .transaction()
+            .map_err(|e| LeaseError::Internal(format!("db: {e}")))?;
+        let now = self.clock_now();
+        self.lease_auto_release_locked(&tx, now)?;
+        let lease = self.lease_row_locked(&tx)?;
+        if expected_generation != lease.generation {
+            return Err(LeaseError::StaleLease);
+        }
+        if lease.holder_device_id.as_deref() != Some(device_id) {
+            return Err(LeaseError::NotHolder);
+        }
+        if lease.state != LeaseState::Pausing {
+            return Err(LeaseError::WrongState(format!(
+                "takeover_ack requires state=pausing (state={})",
+                lease.state.as_str()
+            )));
+        }
+        let generation = lease.generation + 1;
+        tx.execute(
+            "UPDATE computer_leases SET generation=?1, state='human',
+                    heartbeat_at=?2, updated_at=?2
+             WHERE workspace_id='default' AND host_id='local'",
+            params![generation, now],
+        )
+        .map_err(|e| LeaseError::Internal(format!("takeover ack: {e}")))?;
+        self.record_lease_event_locked(
+            &tx,
+            "lease.takeover_ack",
+            generation,
+            Some(device_id),
+            &serde_json::json!({}),
+        )?;
+        tx.commit()
+            .map_err(|e| LeaseError::Internal(format!("commit takeover ack: {e}")))?;
+        Ok(LeaseOutcome::plain(LeaseRow {
+            generation,
+            state: LeaseState::Human,
+            heartbeat_at_ms: Some(now),
+            updated_at_ms: now,
+            ..lease
+        }))
+    }
+
+    /// Locked helper: all pending approvals as (id, run_id) pairs.
+    fn pending_approval_runs_locked(
+        &self,
+        tx: &rusqlite::Transaction,
+    ) -> Result<Vec<(String, String)>, LeaseError> {
+        let mut stmt = tx
+            .prepare(
+                "SELECT id, run_id FROM approvals WHERE workspace_id='default' AND state='pending'",
+            )
+            .map_err(|e| LeaseError::Internal(format!("pending query: {e}")))?;
+        let rows: Vec<(String, String)> = stmt
+            .query_map([], |r| Ok((r.get(0)?, r.get(1)?)))
+            .map_err(|e| LeaseError::Internal(format!("pending rows: {e}")))?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|e| LeaseError::Internal(format!("pending collect: {e}")))?;
+        Ok(rows)
+    }
+
+    /// PrivateBegin: the holder opens a credential bracket. Heartbeat
+    /// resumes so a long credential entry cannot be mistaken for a lost
+    /// device; the bracket flag makes the window explicit in the journal.
+    pub fn lease_private_begin(
+        &self,
+        device_id: &str,
+        expected_generation: i64,
+    ) -> Result<LeaseOutcome, LeaseError> {
+        let mut conn = self.lock_conn()?;
+        let tx = conn
+            .transaction()
+            .map_err(|e| LeaseError::Internal(format!("db: {e}")))?;
+        let now = self.clock_now();
+        self.lease_auto_release_locked(&tx, now)?;
+        let lease = self.lease_row_locked(&tx)?;
+        if expected_generation != lease.generation {
+            return Err(LeaseError::StaleLease);
+        }
+        if lease.holder_device_id.as_deref() != Some(device_id) {
+            return Err(LeaseError::NotHolder);
+        }
+        if lease.state != LeaseState::Human || lease.private_bracket {
+            return Err(LeaseError::WrongState(format!(
+                "private_begin requires a human-held lease outside a private bracket (state={})",
+                lease.state.as_str()
+            )));
+        }
+        let generation = lease.generation + 1;
+        tx.execute(
+            "UPDATE computer_leases SET generation=?1, private_bracket=1,
+                    heartbeat_at=?2, updated_at=?2
+             WHERE workspace_id='default' AND host_id='local'",
+            params![generation, now],
+        )
+        .map_err(|e| LeaseError::Internal(format!("private begin: {e}")))?;
+        self.record_lease_event_locked(
+            &tx,
+            "lease.private_begin",
+            generation,
+            Some(device_id),
+            &serde_json::json!({}),
+        )?;
+        tx.commit()
+            .map_err(|e| LeaseError::Internal(format!("commit private begin: {e}")))?;
+        Ok(LeaseOutcome::plain(LeaseRow {
+            generation,
+            private_bracket: true,
+            heartbeat_at_ms: Some(now),
+            updated_at_ms: now,
+            ..lease
+        }))
+    }
+
+    /// PrivateEnd: close the credential bracket. Must pair with a begin.
+    pub fn lease_private_end(
+        &self,
+        device_id: &str,
+        expected_generation: i64,
+    ) -> Result<LeaseOutcome, LeaseError> {
+        let mut conn = self.lock_conn()?;
+        let tx = conn
+            .transaction()
+            .map_err(|e| LeaseError::Internal(format!("db: {e}")))?;
+        let now = self.clock_now();
+        self.lease_auto_release_locked(&tx, now)?;
+        let lease = self.lease_row_locked(&tx)?;
+        if expected_generation != lease.generation {
+            return Err(LeaseError::StaleLease);
+        }
+        if lease.holder_device_id.as_deref() != Some(device_id) {
+            return Err(LeaseError::NotHolder);
+        }
+        if lease.state != LeaseState::Human || !lease.private_bracket {
+            return Err(LeaseError::WrongState(format!(
+                "private_end requires a human-held lease inside a private bracket (state={})",
+                lease.state.as_str()
+            )));
+        }
+        let generation = lease.generation + 1;
+        tx.execute(
+            "UPDATE computer_leases SET generation=?1, private_bracket=0,
+                    heartbeat_at=?2, updated_at=?2
+             WHERE workspace_id='default' AND host_id='local'",
+            params![generation, now],
+        )
+        .map_err(|e| LeaseError::Internal(format!("private end: {e}")))?;
+        self.record_lease_event_locked(
+            &tx,
+            "lease.private_end",
+            generation,
+            Some(device_id),
+            &serde_json::json!({}),
+        )?;
+        tx.commit()
+            .map_err(|e| LeaseError::Internal(format!("commit private end: {e}")))?;
+        Ok(LeaseOutcome::plain(LeaseRow {
+            generation,
+            private_bracket: false,
+            heartbeat_at_ms: Some(now),
+            updated_at_ms: now,
+            ..lease
+        }))
+    }
+
+    /// Resume: the human hands the computer back. The worker must
+    /// re-observe (run.resumed) before the lease returns to `agent`.
+    pub fn lease_resume(
+        &self,
+        device_id: &str,
+        expected_generation: i64,
+    ) -> Result<LeaseOutcome, LeaseError> {
+        let mut conn = self.lock_conn()?;
+        let tx = conn
+            .transaction()
+            .map_err(|e| LeaseError::Internal(format!("db: {e}")))?;
+        let now = self.clock_now();
+        self.lease_auto_release_locked(&tx, now)?;
+        let lease = self.lease_row_locked(&tx)?;
+        if expected_generation != lease.generation {
+            return Err(LeaseError::StaleLease);
+        }
+        if lease.holder_device_id.as_deref() != Some(device_id) {
+            return Err(LeaseError::NotHolder);
+        }
+        if lease.state != LeaseState::Human {
+            return Err(LeaseError::WrongState(format!(
+                "resume requires state=human (state={})",
+                lease.state.as_str()
+            )));
+        }
+        if lease.private_bracket {
+            return Err(LeaseError::WrongState(
+                "end the private bracket before resuming".to_string(),
+            ));
+        }
+        let generation = lease.generation + 1;
+        tx.execute(
+            "UPDATE computer_leases SET generation=?1, state='resuming',
+                    heartbeat_at=?2, updated_at=?2
+             WHERE workspace_id='default' AND host_id='local'",
+            params![generation, now],
+        )
+        .map_err(|e| LeaseError::Internal(format!("resume: {e}")))?;
+        self.record_lease_event_locked(
+            &tx,
+            "lease.resume",
+            generation,
+            Some(device_id),
+            &serde_json::json!({}),
+        )?;
+        tx.commit()
+            .map_err(|e| LeaseError::Internal(format!("commit resume: {e}")))?;
+        Ok(LeaseOutcome::plain(LeaseRow {
+            generation,
+            state: LeaseState::Resuming,
+            heartbeat_at_ms: Some(now),
+            updated_at_ms: now,
+            ..lease
+        }))
+    }
+
+    /// Heartbeat: the holder is still alive. Refreshes the hold without
+    /// bumping the generation (no state changed, nothing to fence). No
+    /// journal event: heartbeats are noise; the auto-release event marks
+    /// the boundary when one is missed.
+    pub fn lease_heartbeat(
+        &self,
+        device_id: &str,
+        expected_generation: i64,
+    ) -> Result<LeaseOutcome, LeaseError> {
+        let mut conn = self.lock_conn()?;
+        let tx = conn
+            .transaction()
+            .map_err(|e| LeaseError::Internal(format!("db: {e}")))?;
+        let now = self.clock_now();
+        // A stale hold is released BEFORE the holder check, so a zombie
+        // device's late heartbeat is rejected as NotHolder rather than
+        // silently re-accepted.
+        self.lease_auto_release_locked(&tx, now)?;
+        let lease = self.lease_row_locked(&tx)?;
+        if expected_generation != lease.generation {
+            return Err(LeaseError::StaleLease);
+        }
+        if lease.holder_device_id.as_deref() != Some(device_id) {
+            return Err(LeaseError::NotHolder);
+        }
+        if !matches!(
+            lease.state,
+            LeaseState::Human | LeaseState::Resuming | LeaseState::Paused
+        ) {
+            return Err(LeaseError::WrongState(format!(
+                "heartbeat requires a held lease (state={})",
+                lease.state.as_str()
+            )));
+        }
+        tx.execute(
+            "UPDATE computer_leases SET heartbeat_at=?1, updated_at=?1
+             WHERE workspace_id='default' AND host_id='local'",
+            params![now],
+        )
+        .map_err(|e| LeaseError::Internal(format!("heartbeat: {e}")))?;
+        tx.commit()
+            .map_err(|e| LeaseError::Internal(format!("commit heartbeat: {e}")))?;
+        Ok(LeaseOutcome::plain(LeaseRow {
+            heartbeat_at_ms: Some(now),
+            updated_at_ms: now,
+            ..lease
+        }))
+    }
+
+    /// The worker's re-observation after a resume (driven by `run.resumed`):
+    /// resuming -> agent in one transaction. The `lease.observed` event
+    /// carries the observation digest and `lease.resumed` closes the loop.
+    /// There is no resting `observed` state: a half-applied resume must not
+    /// be able to wedge the pump gate.
+    pub fn lease_note_observed(
+        &self,
+        observation_digest: &str,
+    ) -> Result<LeaseOutcome, LeaseError> {
+        let mut conn = self.lock_conn()?;
+        let tx = conn
+            .transaction()
+            .map_err(|e| LeaseError::Internal(format!("db: {e}")))?;
+        let now = self.clock_now();
+        let generation = self.lease_note_observed_locked(&tx, observation_digest, now)?;
+        tx.commit()
+            .map_err(|e| LeaseError::Internal(format!("commit observed: {e}")))?;
+        Ok(LeaseOutcome::plain(LeaseRow {
+            generation,
+            state: LeaseState::Agent,
+            holder_device_id: None,
+            private_bracket: false,
+            held_since_ms: None,
+            heartbeat_at_ms: None,
+            updated_at_ms: now,
+        }))
+    }
+
+    fn lease_note_observed_locked(
+        &self,
+        tx: &rusqlite::Transaction,
+        observation_digest: &str,
+        now: i64,
+    ) -> Result<i64, LeaseError> {
+        self.lease_auto_release_locked(tx, now)?;
+        let lease = self.lease_row_locked(tx)?;
+        if lease.state != LeaseState::Resuming {
+            return Err(LeaseError::WrongState(format!(
+                "run.resumed requires state=resuming (state={})",
+                lease.state.as_str()
+            )));
+        }
+        let generation = lease.generation + 1;
+        tx.execute(
+            "UPDATE computer_leases SET generation=?1, holder_device_id=NULL, state='agent',
+                    private_bracket=0, held_since=NULL, heartbeat_at=NULL, updated_at=?2
+             WHERE workspace_id='default' AND host_id='local'",
+            params![generation, now],
+        )
+        .map_err(|e| LeaseError::Internal(format!("observed: {e}")))?;
+        self.record_lease_event_locked(
+            tx,
+            "lease.observed",
+            generation,
+            lease.holder_device_id.as_deref(),
+            &serde_json::json!({"observation_digest": observation_digest}),
+        )?;
+        self.record_lease_event_locked(
+            tx,
+            "lease.resumed",
+            generation,
+            None,
+            &serde_json::json!({}),
+        )?;
+        Ok(generation)
+    }
+
+    /// The kill switch: revoke the lease no matter who holds it, and settle
+    /// the undecided approval surface (reason `lease_revoked`). The
+    /// generation still bumps — fencing is monotonic, never reused. This
+    /// never deletes a device; re-pairing stays the explicit on-host CLI
+    /// path.
+    pub fn lease_revoke(
+        &self,
+        device_id: &str,
+        reason: &str,
+        expected_generation: i64,
+    ) -> Result<LeaseOutcome, LeaseError> {
+        let mut conn = self.lock_conn()?;
+        let tx = conn
+            .transaction()
+            .map_err(|e| LeaseError::Internal(format!("db: {e}")))?;
+        let now = self.clock_now();
+        self.lease_auto_release_locked(&tx, now)?;
+        let lease = self.lease_row_locked(&tx)?;
+        if expected_generation != lease.generation {
+            return Err(LeaseError::StaleLease);
+        }
+        let generation = lease.generation + 1;
+        let pending = self.pending_approval_runs_locked(&tx)?;
+        for (id, run_id) in &pending {
+            self.settle_approval_locked(
+                &tx,
+                id,
+                ApprovalState::Revoked,
+                Some("lease_revoked"),
+                None,
+                now,
+            )
+            .map_err(LeaseError::Internal)?;
+            self.record_approval_event_locked(
+                &tx,
+                run_id,
+                id,
+                "approval.revoked",
+                &serde_json::json!({"reason": "lease_revoked", "by": device_id}),
+            )
+            .map_err(LeaseError::Internal)?;
+        }
+        tx.execute(
+            "UPDATE computer_leases SET generation=?1, holder_device_id=NULL, state='agent',
+                    private_bracket=0, held_since=NULL, heartbeat_at=NULL, updated_at=?2
+             WHERE workspace_id='default' AND host_id='local'",
+            params![generation, now],
+        )
+        .map_err(|e| LeaseError::Internal(format!("revoke lease: {e}")))?;
+        self.record_lease_event_locked(
+            &tx,
+            "lease.released",
+            generation,
+            Some(device_id),
+            &serde_json::json!({
+                "reason": reason,
+                "previous_state": lease.state.as_str(),
+                "previous_holder": lease.holder_device_id,
+            }),
+        )?;
+        tx.commit()
+            .map_err(|e| LeaseError::Internal(format!("commit lease revoke: {e}")))?;
+        Ok(LeaseOutcome {
+            lease: LeaseRow {
+                generation,
+                state: LeaseState::Agent,
+                holder_device_id: None,
+                private_bracket: false,
+                held_since_ms: None,
+                heartbeat_at_ms: None,
+                updated_at_ms: now,
+            },
+            revoked_approval_ids: pending.into_iter().map(|(id, _)| id).collect(),
+            // A revoke that lands mid-pause still has a worker to kill.
+            killed_active_turn: lease.state == LeaseState::Pausing,
+        })
+    }
+
+    // ---- approval internals ----
+
+    /// Move a pending row to a terminal state. The `AND state='pending'`
+    /// guard makes every settle idempotent-by-construction: only one
+    /// transition out of pending can ever win.
+    fn settle_approval_locked(
+        &self,
+        tx: &rusqlite::Transaction,
+        approval_id: &str,
+        state: ApprovalState,
+        revoked_reason: Option<&str>,
+        decided_by: Option<&str>,
+        now: i64,
+    ) -> Result<(), String> {
+        let n = tx
+            .execute(
+                "UPDATE approvals SET state=?1, revoked_reason=?2, decided_by=?3, decided_at=?4
+                 WHERE workspace_id='default' AND id=?5 AND state='pending'",
+                params![state.as_str(), revoked_reason, decided_by, now, approval_id],
+            )
+            .map_err(|e| format!("settle approval: {e}"))?;
+        if n != 1 {
+            return Err(format!(
+                "settle approval {approval_id}: expected 1 pending row, got {n}"
+            ));
+        }
+        Ok(())
+    }
+
+    /// Journal an approval lifecycle event. The id and source_key are both
+    /// `{approval_id}:{kind}`, so replays are idempotent.
+    fn record_approval_event_locked(
+        &self,
+        tx: &rusqlite::Transaction,
+        run_id: &str,
+        approval_id: &str,
+        kind: &str,
+        payload: &serde_json::Value,
+    ) -> Result<(), String> {
+        let conversation_id: String = tx
+            .query_row(
+                "SELECT conversation_id FROM runs WHERE workspace_id='default' AND id=?1",
+                params![run_id],
+                |r| r.get(0),
+            )
+            .map_err(|e| format!("approval event run lookup: {e}"))?;
+        let id = format!("{approval_id}:{kind}");
+        tx.execute(
+            "INSERT OR IGNORE INTO run_events
+             (id, workspace_id, conversation_id, run_id, version, kind, source_key,
+              visibility, payload_json, created_at)
+             VALUES (?1, 'default', ?2, ?3, 1, ?4, ?1, 'user', ?5, ?6)",
+            params![
+                id,
+                conversation_id,
+                run_id,
+                kind,
+                payload.to_string(),
+                self.clock_now()
+            ],
+        )
+        .map_err(|e| format!("approval event: {e}"))?;
+        Ok(())
+    }
+
+    // ---- approval lifecycle ----
+
+    /// Register a worker's approval proposal. One transaction: validate,
+    /// fence the generation, enforce one-pending-per-run, capture the
+    /// current grant and lease generations, insert the row, journal
+    /// `approval.requested`, and move the run to `waiting_approval`.
+    ///
+    /// The digest is recomputed here from the canonical action (never
+    /// trusted from the wire) and recomputed AGAIN at decide and dispatch.
+    pub fn propose_approval(
+        &self,
+        approval_id: &str,
+        run_id: &str,
+        generation: i64,
+        action: &serde_json::Value,
+        description_user: &str,
+        ttl_ms: i64,
+    ) -> Result<ProposedApproval, ProposeError> {
+        let proposal = crate::approvals::validate_proposal(action, description_user, ttl_ms)
+            .map_err(ProposeError::Malformed)?;
+        let mut conn = self
+            .conn
+            .lock()
+            .map_err(|e| ProposeError::Internal(format!("db lock: {e}")))?;
+        let tx = conn
+            .transaction()
+            .map_err(|e| ProposeError::Internal(format!("db: {e}")))?;
+        let run = self
+            .run_row_locked(&tx, run_id)
+            .map_err(|e| ProposeError::Internal(format!("run lookup: {}", e.message)))?;
+        if run.generation != generation {
+            return Err(ProposeError::StaleGeneration);
+        }
+        // The pending guard precedes the run-state guard: a second
+        // proposal while one is still pending is the journal's structural
+        // violation, and the seam must report propose_while_pending — not
+        // the run_not_active the parked run would otherwise produce.
+        let pending: i64 = tx
+            .query_row(
+                "SELECT COUNT(*) FROM approvals WHERE workspace_id='default' AND run_id=?1 AND state='pending'",
+                params![run_id],
+                |r| r.get(0),
+            )
+            .map_err(|e| ProposeError::Internal(format!("pending check: {e}")))?;
+        if pending > 0 {
+            return Err(ProposeError::PendingExists);
+        }
+        if run.status != RunStatus::Running {
+            return Err(ProposeError::RunNotActive);
+        }
+        let lease = self
+            .lease_row_locked(&tx)
+            .map_err(|e| ProposeError::Internal(format!("lease read: {e:?}")))?;
+        let grant_revision: i64 = tx
+            .query_row(
+                "SELECT grant_revision FROM workspaces WHERE id='default'",
+                [],
+                |r| r.get(0),
+            )
+            .map_err(|e| ProposeError::Internal(format!("grant read: {e}")))?;
+        let now = self.clock_now();
+        // The id is caller-supplied: the supervisor generates it and
+        // registers the approval waiter BEFORE this insert commits, so no
+        // HTTP decision can slip between publication and waiter readiness.
+        let id = approval_id.to_string();
+        let expires_at = now + proposal.ttl_ms;
+        tx.execute(
+            "INSERT INTO approvals
+             (workspace_id, run_id, id, action_digest, action_json, target_json,
+              description_user, grant_revision, lease_generation, state, expires_at, created_at)
+             VALUES ('default', ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, 'pending', ?9, ?10)",
+            params![
+                run_id,
+                id,
+                proposal.digest,
+                proposal.action_json,
+                proposal.target_json,
+                proposal.description_user,
+                grant_revision,
+                lease.generation,
+                expires_at,
+                now
+            ],
+        )
+        .map_err(|e| ProposeError::Internal(format!("insert approval: {e}")))?;
+        self.set_run_status_locked(&tx, run_id, RunStatus::WaitingApproval, None)
+            .map_err(|e| {
+                ProposeError::Internal(format!("run -> waiting_approval: {}", e.message))
+            })?;
+        self.record_approval_event_locked(
+            &tx,
+            run_id,
+            &id,
+            "approval.requested",
+            &serde_json::json!({
+                "action_digest": proposal.digest,
+                "expires_at_ms": expires_at,
+                "ttl_ms": proposal.ttl_ms,
+            }),
+        )
+        .map_err(ProposeError::Internal)?;
+        tx.commit()
+            .map_err(|e| ProposeError::Internal(format!("commit propose: {e}")))?;
+        Ok(ProposedApproval {
+            id,
+            digest: proposal.digest,
+            expires_at_ms: expires_at,
+            lease_generation: lease.generation,
+        })
+    }
+
+    /// Decide a pending approval in ONE transaction: lazy expiry, terminal
+    /// check, ChangedAction digest re-verification, lease + grant fencing,
+    /// run-state check, terminal transition, single-use ticket minting
+    /// (approve only), and the `approval.settled` journal event.
+    ///
+    /// The raw ticket is returned ONLY in `DecidedApproval.ticket`. The
+    /// caller (API layer) must forward it to the supervisor's waiter — the
+    /// HTTP response carries state and receipt only, never the ticket.
+    pub fn decide_approval(
+        &self,
+        approval_id: &str,
+        device_id: &str,
+        kind: DecideKind,
+        lease_generation: i64,
+    ) -> Result<DecidedApproval, DecideError> {
+        let mut conn = self
+            .conn
+            .lock()
+            .map_err(|e| DecideError::Internal(format!("db lock: {e}")))?;
+        let tx = conn
+            .transaction()
+            .map_err(|e| DecideError::Internal(format!("db: {e}")))?;
+        let now = self.clock_now();
+
+        // Invariant: any read of an approval first applies server-time
+        // expiry. A decision can never race a passed deadline.
+        let just_expired = self
+            .expire_approval_locked(&tx, approval_id, now)
+            .map_err(DecideError::Internal)?;
+        let row: ApprovalRow = tx
+            .query_row(
+                &format!(
+                    "SELECT {APPROVAL_COLS} FROM approvals WHERE workspace_id='default' AND id=?1"
+                ),
+                params![approval_id],
+                map_approval_row,
+            )
+            .optional()
+            .map_err(|e| DecideError::Internal(format!("read approval: {e}")))?
+            .ok_or(DecideError::NotFound)?;
+
+        match row.state {
+            ApprovalState::Pending => {}
+            ApprovalState::Expired => {
+                // The lazy expiry above wrote the row; commit it so the
+                // sweep below (or the waiter resolution) observes it.
+                tx.commit()
+                    .map_err(|e| DecideError::Internal(format!("commit lazy expiry: {e}")))?;
+                return Err(if just_expired {
+                    DecideError::Expired
+                } else {
+                    DecideError::AlreadySettled(ApprovalState::Expired)
+                });
+            }
+            s => return Err(DecideError::AlreadySettled(s)),
+        }
+
+        // ChangedAction guard: recompute the digest from the STORED action.
+        // On mismatch the proposal cannot be verified — revoke it (never
+        // approve, never leave decidable) and fail the decision.
+        let stored_action: serde_json::Value = serde_json::from_str(&row.action_json)
+            .map_err(|e| DecideError::Internal(format!("stored action unparseable: {e}")))?;
+        if action_digest(&stored_action) != row.action_digest {
+            self.settle_approval_locked(
+                &tx,
+                approval_id,
+                ApprovalState::Revoked,
+                Some("digest_mismatch"),
+                Some(device_id),
+                now,
+            )
+            .map_err(DecideError::Internal)?;
+            self.record_approval_event_locked(
+                &tx,
+                &row.run_id,
+                approval_id,
+                "approval.revoked",
+                &serde_json::json!({"reason": "digest_mismatch", "by": device_id}),
+            )
+            .map_err(DecideError::Internal)?;
+            tx.commit().map_err(|e| {
+                DecideError::Internal(format!("commit digest-mismatch revoke: {e}"))
+            })?;
+            return Err(DecideError::DigestMismatch);
+        }
+
+        // Fencing: the decider must have seen the current lease generation,
+        // and the approval must have been proposed under it. Either side
+        // moving means the world changed; the worker must ask again.
+        let lease = self
+            .lease_row_locked(&tx)
+            .map_err(|e| DecideError::Internal(format!("lease read: {e:?}")))?;
+        if lease_generation != lease.generation || row.lease_generation != lease.generation {
+            return Err(DecideError::StaleLease);
+        }
+        let grant_revision: i64 = tx
+            .query_row(
+                "SELECT grant_revision FROM workspaces WHERE id='default'",
+                [],
+                |r| r.get(0),
+            )
+            .map_err(|e| DecideError::Internal(format!("grant read: {e}")))?;
+        if row.grant_revision != grant_revision {
+            return Err(DecideError::StaleGrant);
+        }
+
+        // The run must be waiting on this approval, or interrupted after a
+        // worker death (the decision still closes the loop for the journal,
+        // though nothing will dispatch).
+        let run = self
+            .run_row_locked(&tx, &row.run_id)
+            .map_err(|e| DecideError::Internal(format!("run lookup: {}", e.message)))?;
+        let resume_run = match run.status {
+            RunStatus::WaitingApproval => true,
+            RunStatus::Interrupted => false,
+            _ => return Err(DecideError::RunNotWaiting),
+        };
+
+        let (state, ticket, outcome) = match kind {
+            DecideKind::Approve => {
+                // 256 bits of entropy, hashed at rest. The raw value exists
+                // only in memory from here to the seam reply.
+                let raw = new_token_b64url();
+                let hash = sha256_hex(raw.as_bytes());
+                tx.execute(
+                    "UPDATE approvals SET state='approved', ticket_hash=?1, decided_by=?2, decided_at=?3
+                     WHERE workspace_id='default' AND id=?4 AND state='pending'",
+                    params![hash, device_id, now, approval_id],
+                )
+                .map_err(|e| DecideError::Internal(format!("settle approved: {e}")))?;
+                let outcome = ApprovalOutcome::Approved {
+                    ticket: raw.clone(),
+                    digest: row.action_digest.clone(),
+                    decided_at_ms: now,
+                };
+                (ApprovalState::Approved, Some(raw), outcome)
+            }
+            DecideKind::Deny => {
+                tx.execute(
+                    "UPDATE approvals SET state='denied', decided_by=?1, decided_at=?2
+                     WHERE workspace_id='default' AND id=?3 AND state='pending'",
+                    params![device_id, now, approval_id],
+                )
+                .map_err(|e| DecideError::Internal(format!("settle denied: {e}")))?;
+                let outcome = ApprovalOutcome::Denied {
+                    digest: row.action_digest.clone(),
+                    decided_at_ms: now,
+                };
+                (ApprovalState::Denied, None, outcome)
+            }
+        };
+
+        if resume_run {
+            self.set_run_status_locked(&tx, &row.run_id, RunStatus::Running, None)
+                .map_err(|e| DecideError::Internal(format!("run -> running: {}", e.message)))?;
+        }
+        self.record_approval_event_locked(
+            &tx,
+            &row.run_id,
+            approval_id,
+            "approval.settled",
+            &serde_json::json!({
+                "decision": state.as_str(),
+                "decided_by": device_id,
+                "action_digest": row.action_digest,
+                "lease_generation": lease.generation,
+            }),
+        )
+        .map_err(DecideError::Internal)?;
+        tx.commit()
+            .map_err(|e| DecideError::Internal(format!("commit decide: {e}")))?;
+        Ok(DecidedApproval {
+            approval_id: approval_id.to_string(),
+            state,
+            decided_at_ms: now,
+            ticket,
+            digest: row.action_digest.clone(),
+            outcome,
+        })
+    }
+
+    /// Locked: move one pending approval to expired when its deadline has
+    /// passed. Fails the waiting run closed. Idempotent; returns true when
+    /// it expired the row.
+    fn expire_approval_locked(
+        &self,
+        tx: &rusqlite::Transaction,
+        approval_id: &str,
+        now: i64,
+    ) -> Result<bool, String> {
+        let n = tx
+            .execute(
+                "UPDATE approvals SET state='expired'
+                 WHERE workspace_id='default' AND id=?1 AND state='pending' AND expires_at <= ?2",
+                params![approval_id, now],
+            )
+            .map_err(|e| format!("expire approval: {e}"))?;
+        if n == 0 {
+            return Ok(false);
+        }
+        let run_id: String = tx
+            .query_row(
+                "SELECT run_id FROM approvals WHERE workspace_id='default' AND id=?1",
+                params![approval_id],
+                |r| r.get(0),
+            )
+            .map_err(|e| format!("expired approval run: {e}"))?;
+        self.record_approval_event_locked(
+            tx,
+            &run_id,
+            approval_id,
+            "approval.request_timed_out",
+            &serde_json::json!({"expired_at_ms": now}),
+        )?;
+        // The run dies closed: a turn that waited on an expired approval is
+        // abandoned, not resumed. The supervisor's waiter resolution is the
+        // live path; this covers supervisor-less and crashed-supervisor
+        // cases so a run can never wedge in waiting_approval.
+        self.set_run_status_locked(
+            tx,
+            &run_id,
+            RunStatus::Interrupted,
+            Some("approval expired"),
+        )
+        .map_err(|e| e.message)?;
+        Ok(true)
+    }
+
+    /// Server-time expiry sweep: settle every due pending approval, fail
+    /// their runs closed, return the settled ids so the caller can resolve
+    /// waiters. Idempotent.
+    pub fn sweep_expired_approvals(&self) -> Result<Vec<String>, String> {
+        let mut conn = self.conn.lock().map_err(|e| format!("db lock: {e}"))?;
+        let tx = conn.transaction().map_err(|e| format!("db: {e}"))?;
+        let now = self.clock_now();
+        let due: Vec<String> = {
+            let mut due_stmt = tx
+                .prepare(
+                    "SELECT id FROM approvals WHERE workspace_id='default'
+                     AND state='pending' AND expires_at <= ?1",
+                )
+                .map_err(|e| format!("sweep prepare: {e}"))?;
+            let rows: Vec<String> = due_stmt
+                .query_map(params![now], |r| r.get(0))
+                .map_err(|e| format!("sweep query: {e}"))?
+                .collect::<Result<Vec<String>, _>>()
+                .map_err(|e| format!("sweep rows: {e}"))?;
+            rows
+        };
+        for id in &due {
+            // Single-row path, so the sweep and the decide-path lazy expiry
+            // can never diverge.
+            let expired = self.expire_approval_locked(&tx, id, now)?;
+            debug_assert!(expired);
+        }
+        tx.commit().map_err(|e| format!("commit sweep: {e}"))?;
+        Ok(due)
+    }
+
+    /// Read one approval, applying lazy expiry first.
+    pub fn get_approval(&self, approval_id: &str) -> Result<Option<ApprovalRow>, String> {
+        let mut conn = self.conn.lock().map_err(|e| format!("db lock: {e}"))?;
+        let tx = conn.transaction().map_err(|e| format!("db: {e}"))?;
+        let now = self.clock_now();
+        self.expire_approval_locked(&tx, approval_id, now)?;
+        let row = tx
+            .query_row(
+                &format!(
+                    "SELECT {APPROVAL_COLS} FROM approvals WHERE workspace_id='default' AND id=?1"
+                ),
+                params![approval_id],
+                map_approval_row,
+            )
+            .optional()
+            .map_err(|e| format!("get approval: {e}"))?;
+        tx.commit()
+            .map_err(|e| format!("commit get approval: {e}"))?;
+        Ok(row)
+    }
+
+    /// Test hook for the deterministic harness ONLY: overwrite the stored
+    /// action JSON of an approval, proving the decision path's ChangedAction
+    /// (digest-mismatch) guard revokes instead of deciding. Never exposed
+    /// over HTTP; never used in production code.
+    #[doc(hidden)]
+    pub fn test_corrupt_approval_action(
+        &self,
+        approval_id: &str,
+        action_json: &str,
+    ) -> Result<(), String> {
+        let conn = self.conn.lock().map_err(|e| format!("db lock: {e}"))?;
+        conn.execute(
+            "UPDATE approvals SET action_json=?1 WHERE workspace_id='default' AND id=?2",
+            params![action_json, approval_id],
+        )
+        .map_err(|e| format!("corrupt action: {e}"))?;
+        Ok(())
+    }
+
+    /// List approvals, newest first. Runs the expiry sweep first so a
+    /// listing never shows a pending row past its deadline.
+    pub fn list_approvals(&self, state: Option<ApprovalState>) -> Result<Vec<ApprovalRow>, String> {
+        self.sweep_expired_approvals()?;
+        let conn = self.conn.lock().map_err(|e| format!("db lock: {e}"))?;
+        let sql = match state {
+            Some(s) => format!(
+                "SELECT {APPROVAL_COLS} FROM approvals WHERE workspace_id='default' \
+                 AND state='{}' ORDER BY created_at DESC",
+                s.as_str()
+            ),
+            None => format!(
+                "SELECT {APPROVAL_COLS} FROM approvals WHERE workspace_id='default' \
+                 ORDER BY created_at DESC"
+            ),
+        };
+        let mut stmt = conn
+            .prepare(&sql)
+            .map_err(|e| format!("list approvals: {e}"))?;
+        let rows: Vec<ApprovalRow> = stmt
+            .query_map([], map_approval_row)
+            .map_err(|e| format!("list approvals: {e}"))?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|e| format!("list approvals: {e}"))?;
+        Ok(rows)
+    }
+
+    /// Locked: claim a single-use execution ticket. The ticket must match
+    /// the hash stored at decision time, the row must be approved, and the
+    /// claim is an atomic `consumed_at IS NULL` update — exactly one
+    /// presentation can ever win, even across racing dispatches.
+    fn claim_ticket_locked(
+        &self,
+        tx: &rusqlite::Transaction,
+        run_id: &str,
+        approval_id: &str,
+        ticket: &str,
+        now: i64,
+    ) -> Result<(), TicketError> {
+        let row: Option<(String, String, Option<String>, Option<i64>)> = tx
+            .query_row(
+                "SELECT state, run_id, ticket_hash, consumed_at FROM approvals
+                 WHERE workspace_id='default' AND id=?1",
+                params![approval_id],
+                |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)),
+            )
+            .optional()
+            .map_err(|_| TicketError::UnknownApproval)?;
+        let (state, row_run_id, ticket_hash, consumed_at) =
+            row.ok_or(TicketError::UnknownApproval)?;
+        // The ticket is bound to the run whose worker was blocked on the
+        // approval: a dispatch from any other run presents a credential in
+        // the wrong context and fails closed.
+        if row_run_id != run_id {
+            return Err(TicketError::Mismatch);
+        }
+        if state != "approved" || ticket_hash.is_none() {
+            return Err(TicketError::NotApproved);
+        }
+        if consumed_at.is_some() {
+            return Err(TicketError::AlreadyConsumed);
+        }
+        if sha256_hex(ticket.as_bytes()) != ticket_hash.unwrap_or_default() {
+            return Err(TicketError::Mismatch);
+        }
+        let n = tx
+            .execute(
+                "UPDATE approvals SET consumed_at=?1
+                 WHERE workspace_id='default' AND id=?2 AND consumed_at IS NULL",
+                params![now, approval_id],
+            )
+            .map_err(|_| TicketError::UnknownApproval)?;
+        if n != 1 {
+            // Lost the race: another dispatch claimed it first.
+            return Err(TicketError::AlreadyConsumed);
+        }
+        Ok(())
+    }
+
+    /// Startup recovery for the approval surface. Runs AFTER
+    /// `mark_interrupted_on_startup` and BEFORE the sweeper task starts:
+    /// - bump the lease generation and release any hold (a restarted
+    ///   service never resumes a turn mid-approval);
+    /// - revoke pending approvals on runs that are now interrupted
+    ///   (reason `service_restart` — the turn they belonged to is gone,
+    ///   regardless of the deadline);
+    /// - sweep whatever pending remains past its deadline;
+    /// - revoke whatever fresh pending remains (the lease fence above
+    ///   would leave it undecidable — a restarted service never resumes
+    ///   a turn mid-approval) and fail those runs closed.
+    ///
+    /// Returns `(revoked, expired, new_lease_generation)`.
+    pub fn recover_approvals_on_startup(&self) -> Result<(usize, usize, i64), String> {
+        let mut conn = self.conn.lock().map_err(|e| format!("db lock: {e}"))?;
+        let tx = conn.transaction().map_err(|e| format!("db: {e}"))?;
+        let now = self.clock_now();
+        // Fence off any pre-restart holder: after a restart the computer
+        // belongs to the agent until a human explicitly takes over again.
+        let lease = self
+            .lease_row_locked(&tx)
+            .map_err(|e| format!("lease read: {e:?}"))?;
+        let new_generation = lease.generation + 1;
+        tx.execute(
+            "UPDATE computer_leases SET generation=?1, holder_device_id=NULL, state='agent',
+                    private_bracket=0, held_since=NULL, heartbeat_at=NULL, updated_at=?2
+             WHERE workspace_id='default' AND host_id='local'",
+            params![new_generation, now],
+        )
+        .map_err(|e| format!("reset lease: {e}"))?;
+        self.record_lease_event_locked(
+            &tx,
+            "lease.released",
+            new_generation,
+            None,
+            &serde_json::json!({
+                "reason": "service_restart",
+                "previous_state": lease.state.as_str(),
+                "previous_holder": lease.holder_device_id,
+            }),
+        )
+        .map_err(|e| format!("lease event: {e:?}"))?;
+        // Pending approvals on interrupted runs: the worker is gone and the
+        // turn will never dispatch. Revoked, not expired — the deadline is
+        // irrelevant once the world the approval belonged to is gone.
+        let orphaned: Vec<(String, String)> = {
+            let mut orphaned_stmt = tx
+                .prepare(
+                    "SELECT a.id, a.run_id FROM approvals a
+                     JOIN runs r ON r.workspace_id='default' AND r.id=a.run_id
+                     WHERE a.workspace_id='default' AND a.state='pending'
+                       AND r.status='interrupted'",
+                )
+                .map_err(|e| format!("recovery query: {e}"))?;
+            let rows: Vec<(String, String)> = orphaned_stmt
+                .query_map([], |r| Ok((r.get(0)?, r.get(1)?)))
+                .map_err(|e| format!("recovery rows: {e}"))?
+                .collect::<Result<Vec<_>, _>>()
+                .map_err(|e| format!("recovery collect: {e}"))?;
+            rows
+        };
+        for (id, run_id) in &orphaned {
+            self.settle_approval_locked(
+                &tx,
+                id,
+                ApprovalState::Revoked,
+                Some("service_restart"),
+                None,
+                now,
+            )?;
+            self.record_approval_event_locked(
+                &tx,
+                run_id,
+                id,
+                "approval.revoked",
+                &serde_json::json!({"reason": "service_restart"}),
+            )?;
+        }
+        // Whatever pending remains gets the normal deadline treatment.
+        let due: Vec<String> = {
+            let mut redue_stmt = tx
+                .prepare(
+                    "SELECT id FROM approvals WHERE workspace_id='default'
+                     AND state='pending' AND expires_at <= ?1",
+                )
+                .map_err(|e| format!("recovery sweep prepare: {e}"))?;
+            let rows: Vec<String> = redue_stmt
+                .query_map(params![now], |r| r.get(0))
+                .map_err(|e| format!("recovery sweep query: {e}"))?
+                .collect::<Result<Vec<_>, _>>()
+                .map_err(|e| format!("recovery sweep rows: {e}"))?;
+            rows
+        };
+        for id in &due {
+            self.expire_approval_locked(&tx, id, now)?;
+        }
+        // Survivors: fresh pending approvals on live runs. The lease
+        // generation bump above fenced them off, so no decision could
+        // ever settle them — a pending-but-undecidable row is a wedge.
+        // Revoke them and fail their runs closed: a restarted service
+        // never resumes a turn mid-approval (design §7).
+        let survivors: Vec<(String, String)> = {
+            let mut survivor_stmt = tx
+                .prepare(
+                    "SELECT a.id, a.run_id FROM approvals a
+                     WHERE a.workspace_id='default' AND a.state='pending'",
+                )
+                .map_err(|e| format!("recovery survivors prepare: {e}"))?;
+            let rows: Vec<(String, String)> = survivor_stmt
+                .query_map([], |r| Ok((r.get(0)?, r.get(1)?)))
+                .map_err(|e| format!("recovery survivors query: {e}"))?
+                .collect::<Result<Vec<_>, _>>()
+                .map_err(|e| format!("recovery survivors rows: {e}"))?;
+            rows
+        };
+        for (id, run_id) in &survivors {
+            self.settle_approval_locked(
+                &tx,
+                id,
+                ApprovalState::Revoked,
+                Some("service_restart"),
+                None,
+                now,
+            )?;
+            self.record_approval_event_locked(
+                &tx,
+                run_id,
+                id,
+                "approval.revoked",
+                &serde_json::json!({"reason": "service_restart"}),
+            )?;
+            self.set_run_status_locked(
+                &tx,
+                run_id,
+                RunStatus::Interrupted,
+                Some("approval revoked (service restart)"),
+            )
+            .map_err(|e| e.message)?;
+        }
+        tx.commit().map_err(|e| format!("commit recovery: {e}"))?;
+        Ok((orphaned.len() + survivors.len(), due.len(), new_generation))
+    }
+
+    /// Full device revocation in ONE transaction: sessions, the grant
+    /// revision bump, the undecided approval surface, and the lease when
+    /// the revoked device held it. Any enrolled device could have decided
+    /// a pending approval, so a revoked device must not leave undecided
+    /// state behind — fail closed.
+    ///
+    /// Revoking the final device is recoverable only through explicit
+    /// on-host CLI re-pairing (Phase 2 policy); this never deletes devices.
+    pub fn revoke_device_and_settle(&self, device_id: &str) -> Result<DeviceRevocation, String> {
+        let mut conn = self.conn.lock().map_err(|e| format!("db lock: {e}"))?;
+        let tx = conn.transaction().map_err(|e| format!("db: {e}"))?;
+        let now = self.clock_now();
+        let exists: bool = tx
+            .query_row(
+                "SELECT 1 FROM devices WHERE id=?1",
+                params![device_id],
+                |_| Ok(true),
+            )
+            .optional()
+            .map_err(|e| format!("device lookup: {e}"))?
+            .unwrap_or(false);
+        if !exists {
+            return Err("unknown device".to_string());
+        }
+        let sessions_revoked = tx
+            .execute(
+                "UPDATE device_sessions SET revoked_at=?1 WHERE device_id=?2 AND revoked_at IS NULL",
+                params![now, device_id],
+            )
+            .map_err(|e| format!("revoke sessions: {e}"))? as i64;
+        tx.execute(
+            "UPDATE devices SET revocation_version = revocation_version + 1 WHERE id=?1",
+            params![device_id],
+        )
+        .map_err(|e| format!("bump grant: {e}"))?;
+        // The device set changed: bump the workspace grant revision so an
+        // approval proposed before this revocation cannot be decided after
+        // it (the decision transaction fences on grant_revision).
+        tx.execute(
+            "UPDATE workspaces SET grant_revision = grant_revision + 1 WHERE id='default'",
+            [],
+        )
+        .map_err(|e| format!("bump workspace grant: {e}"))?;
+        let pending: Vec<(String, String)> = {
+            let mut revoke_pending_stmt = tx
+                .prepare(
+                    "SELECT id, run_id FROM approvals
+                     WHERE workspace_id='default' AND state='pending'",
+                )
+                .map_err(|e| format!("pending query: {e}"))?;
+            let rows: Vec<(String, String)> = revoke_pending_stmt
+                .query_map([], |r| Ok((r.get(0)?, r.get(1)?)))
+                .map_err(|e| format!("pending rows: {e}"))?
+                .collect::<Result<Vec<_>, _>>()
+                .map_err(|e| format!("pending collect: {e}"))?;
+            rows
+        };
+        for (id, run_id) in &pending {
+            self.settle_approval_locked(
+                &tx,
+                id,
+                ApprovalState::Revoked,
+                Some("device_revoked"),
+                None,
+                now,
+            )?;
+            self.record_approval_event_locked(
+                &tx,
+                run_id,
+                id,
+                "approval.revoked",
+                &serde_json::json!({"reason": "device_revoked", "device_id": device_id}),
+            )?;
+        }
+        let lease = self
+            .lease_row_locked(&tx)
+            .map_err(|e| format!("lease read: {e:?}"))?;
+        let lease_killed = lease.holder_device_id.as_deref() == Some(device_id);
+        let new_lease_generation = if lease_killed {
+            let g = lease.generation + 1;
+            tx.execute(
+                "UPDATE computer_leases SET generation=?1, holder_device_id=NULL, state='agent',
+                        private_bracket=0, held_since=NULL, heartbeat_at=NULL, updated_at=?2
+                 WHERE workspace_id='default' AND host_id='local'",
+                params![g, now],
+            )
+            .map_err(|e| format!("kill lease: {e}"))?;
+            self.record_lease_event_locked(
+                &tx,
+                "lease.released",
+                g,
+                Some(device_id),
+                &serde_json::json!({"reason": "device_revoked"}),
+            )
+            .map_err(|e| format!("lease event: {e:?}"))?;
+            g
+        } else {
+            lease.generation
+        };
+        tx.commit()
+            .map_err(|e| format!("commit device revocation: {e}"))?;
+        Ok(DeviceRevocation {
+            sessions_revoked,
+            approvals_settled: pending.len(),
+            settled_approval_ids: pending.iter().map(|(id, _)| id.clone()).collect(),
+            lease_killed,
+            new_lease_generation,
+        })
     }
 }

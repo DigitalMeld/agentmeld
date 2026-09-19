@@ -7,7 +7,7 @@ use agentmeld_server::domain::new_uuid;
 use agentmeld_server::seam::{Binding, WorkerEvent};
 use std::sync::Arc;
 
-fn setup_running(db: &Arc<Db>) -> (String, String, Binding) {
+fn setup_running(db: &Arc<Db>) -> (String, String, Binding, i64) {
     let run_id = db
         .admit(
             &AdmitInput {
@@ -22,14 +22,16 @@ fn setup_running(db: &Arc<Db>) -> (String, String, Binding) {
         .run_id;
     let claimed = db.claim_queued_run().expect("claim").expect("claimed run");
     let conv_id = claimed.conversation_id.clone();
-    db.begin_turn(&run_id).expect("begin turn");
+    // begin_turn mints the run's monotonic action generation; event batches
+    // must bind to it.
+    let generation = db.begin_turn(&run_id).expect("begin turn").generation;
     let binding = Binding {
         image_digest: "img".to_string(),
         store_instance: "store".to_string(),
         model: "model".to_string(),
         policy_digest: "policy".to_string(),
     };
-    (run_id, conv_id, binding)
+    (run_id, conv_id, binding, generation)
 }
 
 fn event(id: &str, kind: &str, dedupe: Option<&str>) -> WorkerEvent {
@@ -44,12 +46,12 @@ fn event(id: &str, kind: &str, dedupe: Option<&str>) -> WorkerEvent {
 #[test]
 fn reappend_returns_original_sequence() {
     let (db, dir) = common::test_db();
-    let (run_id, _conv, binding) = setup_running(&db);
+    let (run_id, _conv, binding, generation) = setup_running(&db);
 
     let first = db
         .apply_worker_events(
             &run_id,
-            1,
+            generation,
             &binding,
             &[event("e1", "run.thinking", Some("k1"))],
             None,
@@ -63,7 +65,7 @@ fn reappend_returns_original_sequence() {
     let second = db
         .apply_worker_events(
             &run_id,
-            1,
+            generation,
             &binding,
             &[event("e1", "run.thinking", Some("k1"))],
             None,
@@ -83,7 +85,7 @@ fn reappend_returns_original_sequence() {
     let third = db
         .apply_worker_events(
             &run_id,
-            1,
+            generation,
             &binding,
             &[event("e2", "run.thinking", Some("k1"))],
             None,
@@ -96,7 +98,7 @@ fn reappend_returns_original_sequence() {
     let fourth = db
         .apply_worker_events(
             &run_id,
-            1,
+            generation,
             &binding,
             &[event("e3", "run.thinking", Some("k2"))],
             None,

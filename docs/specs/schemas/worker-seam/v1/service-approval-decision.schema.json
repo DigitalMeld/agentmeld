@@ -32,9 +32,11 @@
       "enum": [
         "approved",
         "denied",
-        "expired"
+        "expired",
+        "revoked"
       ],
-      "type": "string"
+      "type": "string",
+      "description": "The decision. revoked: the row was terminally settled by revocation/takeover while the worker was blocked; the action will not run and the worker must wind down."
     },
     "generation": {
       "minimum": 0,
