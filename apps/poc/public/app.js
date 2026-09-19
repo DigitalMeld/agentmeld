@@ -54,10 +54,11 @@ $('prompt').addEventListener('input',updateComposer);window.addEventListener('re
 $('prompt').addEventListener('compositionstart',()=>{composing=true;});
 $('prompt').addEventListener('compositionend',()=>{composing=false;updateComposer();});
 $('retryConnection').onclick=()=>refresh();$('retryBanner').onclick=()=>refresh();
+$('retryStream').onclick=()=>{if(track)track.retryStreamNow();};
 
 /* Devices dialog: the paired-device list lives behind the "This Mac" host block. */
-$('hostBlock').addEventListener('click',e=>{if(e.target.closest('#retryConnection'))return;openDevices();});
-$('hostBlock').addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();openDevices();}});
+$('hostBlock').addEventListener('click',e=>{if(e.target.closest('button'))return;openDevices();});
+$('hostBlock').addEventListener('keydown',e=>{if(e.target.closest('button'))return;if(e.key==='Enter'||e.key===' '){e.preventDefault();openDevices();}});
 $('closeDevices').onclick=()=>$('deviceDialog').close();
 async function openDevices(){$('deviceDialog').showModal();await loadDevices();}
 function deviceRow(d){

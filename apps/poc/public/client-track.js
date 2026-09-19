@@ -52,7 +52,10 @@ export function initClientTrack(ctx) {
   let streamAbort = null;
   let streamStatus = 'idle'; // idle|connecting|live|reconnecting
   let lastFrameAt = 0;
+  let lastEventAt = 0;   // last real stream event handled (not pings/hello)
   let lastPollAt = 0;
+  let streamAttempt = 0; // consecutive failed stream attempts (backoff honesty)
+  let wakeStream = null; // resolves the current backoff sleep early
   let deciding = null;     // approval id with a decision in flight
   let revoking = null;     // approval id with a revocation in flight
   let revokeArmed = null;  // approval id armed for the two-step revoke confirm
@@ -330,6 +333,7 @@ export function initClientTrack(ctx) {
   }
 
   function tickCountdowns() {
+    paintStream(); // roll the "updated Xm ago" label while the stream is down
     for (const el of document.querySelectorAll('[data-expires]')) {
       const at = parseInt(el.getAttribute('data-expires'), 10) || 0;
       const ms = at - serverNow();
@@ -544,17 +548,41 @@ export function initClientTrack(ctx) {
   }
 
   // ---- event stream -----------------------------------------------------
+  function relUpdated() {
+    if (!lastEventAt) return '';
+    const s = Math.max(0, Math.round((Date.now() - lastEventAt) / 1000));
+    if (s < 10) return 'just now';
+    if (s < 60) return s + 's ago';
+    const m = Math.floor(s / 60);
+    if (m < 60) return m + 'm ago';
+    return Math.floor(m / 60) + 'h ago';
+  }
   function paintStream() {
     const el = $('streamStatus');
     if (!el) return;
-    const label = {
+    let label = {
       idle: 'Updates paused',
       connecting: 'Connecting…',
       live: 'Live',
       reconnecting: 'Reconnecting…',
     }[streamStatus] || streamStatus;
+    // While the stream is down, say how stale the data is.
+    if ((streamStatus === 'connecting' || streamStatus === 'reconnecting') && lastEventAt) {
+      label += ' · updated ' + relUpdated();
+    }
     const html = `<span class="streamDot streamDot--${esc(streamStatus)}" aria-hidden="true"></span>${esc(label)}`;
     if (el.innerHTML !== html) el.innerHTML = html;
+    // After sustained failure, offer an explicit retry instead of making
+    // the user wait out the backoff.
+    const retry = $('retryStream');
+    if (retry) {
+      retry.hidden = !(streamOn
+        && (streamStatus === 'connecting' || streamStatus === 'reconnecting')
+        && streamAttempt >= 2);
+    }
+  }
+  function interruptStreamSleep() {
+    if (wakeStream) { const w = wakeStream; wakeStream = null; w(); }
   }
 
   function dispatchFrame(frame) {
@@ -589,6 +617,7 @@ export function initClientTrack(ctx) {
 
   function handleEvent(env) {
     const t = env.type || '', p = env.payload || {};
+    lastEventAt = Date.now();
     if (t === 'tool.call_started') stepStarted(env.run_id, p);
     else if (t === 'tool.call_finished') stepFinished(env.run_id, p);
     else if (t.indexOf('approval.') === 0) void pollApprovals();
@@ -619,7 +648,7 @@ export function initClientTrack(ctx) {
   }
 
   async function streamLoop() {
-    let attempt = 0;
+    streamAttempt = 0;
     const stall = setInterval(() => {
       if (streamOn && streamStatus === 'live' && Date.now() - lastFrameAt > STALL_MS && streamAbort) {
         streamAbort.abort(); // the read throws; the loop reconnects
@@ -627,7 +656,7 @@ export function initClientTrack(ctx) {
     }, 5000);
     try {
       while (streamOn) {
-        streamStatus = attempt ? 'reconnecting' : 'connecting';
+        streamStatus = streamAttempt ? 'reconnecting' : 'connecting';
         paintStream();
         streamAbort = new AbortController();
         lastFrameAt = Date.now();
@@ -640,12 +669,12 @@ export function initClientTrack(ctx) {
             let body = null;
             try { body = await res.json(); } catch (e) {}
             await onResync(body && body.current_seq);
-            attempt = 0;
+            streamAttempt = 0;
             continue;
           }
           if (!res.ok || !res.body) throw new Error('events HTTP ' + res.status);
           streamStatus = 'live';
-          attempt = 0;
+          streamAttempt = 0;
           paintStream();
           await pumpFrames(res.body.getReader());
           throw new Error('stream closed');
@@ -653,14 +682,18 @@ export function initClientTrack(ctx) {
           if (!streamOn) break;
           if (e && e.name === 'AbortError' && !streamOn) break;
         }
-        attempt += 1;
+        streamAttempt += 1;
+        paintStream(); // the retry button appears after sustained failure
         // The server's retry: hint wins when present (already clamped to
         // RETRY_MIN_MS..RETRY_MAX_MS by the parser); otherwise exponential
-        // backoff with the same ceiling.
+        // backoff with the same ceiling. "Retry now" resolves early.
         const delay = serverRetryMs !== null
           ? serverRetryMs
-          : Math.min(BACKOFF_MAX_MS, BACKOFF_BASE_MS * 2 ** Math.min(attempt, 5));
-        await sleep(delay);
+          : Math.min(BACKOFF_MAX_MS, BACKOFF_BASE_MS * 2 ** Math.min(streamAttempt, 5));
+        await new Promise(resolve => {
+          const t = setTimeout(() => { wakeStream = null; resolve(); }, delay);
+          wakeStream = () => { clearTimeout(t); wakeStream = null; resolve(); };
+        });
       }
     } finally {
       clearInterval(stall);
@@ -696,8 +729,12 @@ export function initClientTrack(ctx) {
     void pollSession(); // this device's identity, once per session
     void poll(true); // populate approvals + lease immediately
   }
+  // Exposed for the sidebar wiring in app.js.
+  function retryStreamNow() { interruptStreamSleep(); }
+  function streamState() { return { status: streamStatus, attempt: streamAttempt }; }
   function stop() {
     streamOn = false;
+    interruptStreamSleep(); // don't let a backoff sleep outlive the stop
     if (streamAbort) { try { streamAbort.abort(); } catch (e) {} streamAbort = null; }
     if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = 0; }
     streamStatus = 'idle';
@@ -740,5 +777,5 @@ export function initClientTrack(ctx) {
     }
   });
 
-  return { start, stop, poll, paintAll, stepsHtml, hydrateSteps };
+  return { start, stop, poll, paintAll, stepsHtml, hydrateSteps, retryStreamNow };
 }
