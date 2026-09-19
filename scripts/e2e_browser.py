@@ -24,7 +24,6 @@ import subprocess
 import sys
 import time
 import tempfile
-import time
 import urllib.request
 from pathlib import Path
 

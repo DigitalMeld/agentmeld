@@ -621,9 +621,11 @@ export function initClientTrack(ctx) {
     if (t === 'run.answer_delta') {
       // Incremental streaming: paint the delta into the reply bubble
       // without a full refresh. Terminal run events below still take the
-      // authoritative refresh path.
+      // authoritative refresh path. The app callback is guarded: a throw
+      // here would propagate into the SSE read loop and read as a stream
+      // failure, forcing a reconnect.
       if (ctx.onDelta && typeof env.run_id === 'string' && p && typeof p.text === 'string' && p.text) {
-        ctx.onDelta(env.run_id, p.text);
+        try { ctx.onDelta(env.run_id, p.text); } catch (e) {}
       } else {
         queueRefresh();
       }
