@@ -88,6 +88,28 @@ def wait_http(port, timeout=20):
     raise Fail(f"server did not serve / within {timeout}s")
 
 
+def restart_server(proc, state_dir, port, env):
+    """Simulate a server outage and recovery: SIGTERM the server, then boot
+    it again on the same port and state dir. Returns the new Popen."""
+    proc.terminate()
+    try:
+        proc.wait(timeout=15)
+    except subprocess.TimeoutExpired:
+        proc.kill()
+        proc.wait(timeout=15)
+    time.sleep(0.5)  # let the socket release
+    new = subprocess.Popen(
+        [str(SERVER), "serve", "--dir", str(state_dir),
+         "--port", str(port), "--repo-root", str(REPO)],
+        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, env=env,
+    )
+    time.sleep(0.5)
+    if new.poll() is not None:
+        raise Fail(f"restarted server exited immediately rc={new.returncode}")
+    wait_http(port)
+    return new
+
+
 def mint_pairing_token(state_dir, port):
     out = subprocess.run(
         [str(SERVER), "pair", "--dir", str(state_dir), "--port", str(port)],
@@ -308,6 +330,40 @@ def main():
                               wait_for(lambda: "Revoked" in (page.text_content("#deviceList") or ""),
                                        10, "revoked badge"))
                     page.keyboard.press("Escape")
+
+                # --- stream outage UX ---
+                # Kill the server mid-stream: the SSE read fails, the loop
+                # reconnects against a dead port, and the client must drop
+                # to Reconnecting, show how stale the data is, and offer an
+                # explicit retry. (Route abort and offline emulation can't
+                # kill the already-open stream in this Firefox build.)
+                server.terminate()
+                try:
+                    server.wait(timeout=15)
+                except subprocess.TimeoutExpired:
+                    server.kill()
+                    server.wait(timeout=15)
+                check("stream drops to Reconnecting",
+                      wait_for(lambda: "Reconnecting" in (page.text_content("#streamStatus") or ""),
+                               20, "reconnecting"),
+                      (page.text_content("#streamStatus") or "").strip()[:60])
+                check("outage shows last-updated age",
+                      wait_for(lambda: "updated" in (page.text_content("#streamStatus") or ""),
+                               10, "updated age"),
+                      (page.text_content("#streamStatus") or "").strip()[:80])
+                check("Retry stream appears after sustained failure",
+                      wait_for(lambda: page.locator("#retryStream").is_visible(), 30, "retry button"))
+                # Boot the server again on the same port/state dir, then
+                # fast-path the recovery with Retry stream when it's still
+                # offered (the loop may also beat us via backoff — either
+                # way the stream must return to Live).
+                server = restart_server(server, state_dir, port, env)
+                if page.locator("#retryStream").is_visible():
+                    page.click("#retryStream")
+                check("stream recovers to Live after restart",
+                      wait_for(lambda: "Live" in (page.text_content("#streamStatus") or ""),
+                               20, "live again"),
+                      (page.text_content("#streamStatus") or "").strip()[:60])
 
                 # --- lease + stream ---
                 lease = page.text_content("#leasePill") or ""
